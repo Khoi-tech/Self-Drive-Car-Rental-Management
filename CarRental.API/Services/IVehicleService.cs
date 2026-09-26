@@ -14,5 +14,6 @@ namespace CarRental.API.Services
         Task<VehicleResponseDto?> UpdateAsync(Guid id, UpdateVehicleDto updateDto);
         Task<bool> UpdateStatusAsync(Guid id, UpdateVehicleStatusDto statusDto);
         Task<bool> DeleteAsync(Guid id);
+        Task<IEnumerable<CarRental.API.DTOs.Search.AvailableVehicleResponseDto>> SearchAvailableVehiclesAsync(CarRental.API.DTOs.Search.VehicleSearchQueryDto query);
     }
 }

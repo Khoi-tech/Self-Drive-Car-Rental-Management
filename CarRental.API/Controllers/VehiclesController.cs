@@ -25,6 +25,13 @@ namespace CarRental.API.Controllers
             return Ok(vehicles);
         }
 
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchVehicles([FromQuery] CarRental.API.DTOs.Search.VehicleSearchQueryDto query)
+        {
+            var results = await _vehicleService.SearchAvailableVehiclesAsync(query);
+            return Ok(results);
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetVehicle(Guid id)
         {

@@ -30,9 +30,9 @@ const Home = () => {
             Trải nghiệm dịch vụ thuê xe tự lái cao cấp với những dòng xe sang trọng bậc nhất. 
             Tự do khám phá mọi hành trình theo cách riêng của bạn.
           </p>
-          <button className="bg-transparent border border-white px-8 py-3 text-sm font-medium hover:bg-white hover:text-black transition-colors uppercase tracking-widest">
+          <a href="/cars" className="inline-block bg-transparent border border-white px-8 py-3 text-sm font-medium hover:bg-white hover:text-black transition-colors uppercase tracking-widest">
             Khám phá bộ sưu tập
-          </button>
+          </a>
         </section>
 
         {/* Placeholder for more content */}

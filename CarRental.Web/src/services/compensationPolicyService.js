@@ -1,32 +1,26 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5171/api';
+import api from './api';
 
 const compensationPolicyService = {
   getAllPolicies: async () => {
-    const response = await axios.get(`${API_URL}/compensation-policies`);
-    return response.data;
+    return await api.get('/compensation-policies');
   },
 
   getPolicyById: async (id) => {
-    const response = await axios.get(`${API_URL}/compensation-policies/${id}`);
-    return response.data;
+    return await api.get(`/compensation-policies/${id}`);
   },
 
   createPolicy: async (data) => {
-    const response = await axios.post(`${API_URL}/compensation-policies`, data);
-    return response.data;
+    return await api.post('/compensation-policies', data);
   },
 
   updatePolicy: async (id, data) => {
-    const response = await axios.put(`${API_URL}/compensation-policies/${id}`, data);
-    return response.data;
+    return await api.put(`/compensation-policies/${id}`, data);
   },
 
   updateStatus: async (id, isActive) => {
-    const response = await axios.patch(`${API_URL}/compensation-policies/${id}/status`, { isActive });
-    return response.data;
+    return await api.patch(`/compensation-policies/${id}/status`, { isActive });
   }
 };
 
 export default compensationPolicyService;
+

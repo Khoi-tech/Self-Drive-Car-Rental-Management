@@ -3,6 +3,7 @@ using System;
 using CarRental.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CarRental.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926035234_AddContractTemplates")]
+    partial class AddContractTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -24,44 +27,6 @@ namespace CarRental.API.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "public", "car_transmission", new[] { "AUTO", "MANUAL" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "public", "fuel_type", new[] { "PETROL", "DIESEL", "ELECTRIC" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("CarRental.API.Entities.AdditionalDriver", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("full_name");
-
-                    b.Property<string>("IdCardNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("id_card_number");
-
-                    b.Property<string>("LicenseNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("license_number");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("phone_number");
-
-                    b.Property<Guid>("RentalRequestId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("rental_request_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RentalRequestId");
-
-                    b.ToTable("additional_drivers");
-                });
 
             modelBuilder.Entity("CarRental.API.Entities.CompensationPolicy", b =>
                 {
@@ -234,128 +199,6 @@ namespace CarRental.API.Migrations
                     b.ToTable("rental_conditions");
                 });
 
-            modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CarId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("car_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("CustomerEmail")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("customer_email");
-
-                    b.Property<string>("CustomerIdCard")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("customer_id_card");
-
-                    b.Property<string>("CustomerName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("customer_name");
-
-                    b.Property<string>("CustomerPhone")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("customer_phone");
-
-                    b.Property<decimal>("DailyRate")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("daily_rate");
-
-                    b.Property<decimal>("DepositAmount")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("deposit_amount");
-
-                    b.Property<decimal>("DiscountPercent")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("discount_percent");
-
-                    b.Property<string>("DriverLicenseBackUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("driver_license_back_url");
-
-                    b.Property<string>("DriverLicenseFrontUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("driver_license_front_url");
-
-                    b.Property<string>("DriverLicenseNumber")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("driver_license_number");
-
-                    b.Property<string>("DropoffLocation")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("dropoff_location");
-
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("end_time");
-
-                    b.Property<decimal>("EstimatedTotalFee")
-                        .HasColumnType("decimal(18,2)")
-                        .HasColumnName("estimated_total_fee");
-
-                    b.Property<decimal>("HolidaySurchargePercent")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("holiday_surcharge_percent");
-
-                    b.Property<string>("IdCardBackUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("id_card_back_url");
-
-                    b.Property<string>("IdCardFrontUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("id_card_front_url");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<string>("PickupLocation")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("pickup_location");
-
-                    b.Property<string>("RejectReason")
-                        .HasColumnType("text")
-                        .HasColumnName("reject_reason");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("start_time");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("status");
-
-                    b.Property<int>("TotalDays")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_days");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CarId");
-
-                    b.ToTable("rental_requests");
-                });
-
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -468,17 +311,6 @@ namespace CarRental.API.Migrations
                     b.ToTable("cars");
                 });
 
-            modelBuilder.Entity("CarRental.API.Entities.AdditionalDriver", b =>
-                {
-                    b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
-                        .WithMany("AdditionalDrivers")
-                        .HasForeignKey("RentalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("RentalRequest");
-                });
-
             modelBuilder.Entity("CarRental.API.Entities.PricingPolicy", b =>
                 {
                     b.HasOne("CarRental.API.Entities.Vehicle", "Vehicle")
@@ -497,22 +329,6 @@ namespace CarRental.API.Migrations
                         .HasForeignKey("CarRental.API.Entities.RentalCondition", "CarId");
 
                     b.Navigation("Vehicle");
-                });
-
-            modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
-                {
-                    b.HasOne("CarRental.API.Entities.Vehicle", "Vehicle")
-                        .WithMany()
-                        .HasForeignKey("CarId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Vehicle");
-                });
-
-            modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
-                {
-                    b.Navigation("AdditionalDrivers");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>

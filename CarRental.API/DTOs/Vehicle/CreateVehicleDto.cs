@@ -1,7 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using CarRental.API.Entities;
-using CarRental.API.Entities;
 
 namespace CarRental.API.DTOs.Vehicle
 {

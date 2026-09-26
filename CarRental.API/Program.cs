@@ -40,6 +40,7 @@ builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IRentalConditionService, RentalConditionService>();
 builder.Services.AddScoped<ICompensationPolicyService, CompensationPolicyService>();
+builder.Services.AddScoped<IContractTemplateService, ContractTemplateService>();
 
 // Build app
 var app = builder.Build();

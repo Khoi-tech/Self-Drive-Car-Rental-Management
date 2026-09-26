@@ -127,6 +127,137 @@ namespace CarRental.API.Services
             return true;
         }
 
+        public async Task<IEnumerable<CarRental.API.DTOs.Search.AvailableVehicleResponseDto>> SearchAvailableVehiclesAsync(CarRental.API.DTOs.Search.VehicleSearchQueryDto query)
+        {
+            var vehiclesQuery = _context.Vehicles
+                .Include(v => v.PricingPolicies)
+                .Include(v => v.RentalCondition)
+                .Where(v => v.IsActive && v.Status == VehicleStatus.READY);
+
+            if (!string.IsNullOrWhiteSpace(query.PickupLocation))
+            {
+                var locLower = query.PickupLocation.ToLower();
+                vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && v.PickupLocation.ToLower().Contains(locLower));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.Brand))
+            {
+                var brandLower = query.Brand.ToLower();
+                vehiclesQuery = vehiclesQuery.Where(v => v.Make != null && v.Make.ToLower().Contains(brandLower));
+            }
+
+            if (query.Seats.HasValue)
+            {
+                vehiclesQuery = vehiclesQuery.Where(v => v.Seats == query.Seats.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.Transmission))
+            {
+                if (Enum.TryParse<TransmissionType>(query.Transmission, true, out var transType))
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Transmission == transType);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.FuelType))
+            {
+                if (Enum.TryParse<FuelType>(query.FuelType, true, out var fuelType))
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.FuelType == fuelType);
+                }
+            }
+
+            if (query.MinPrice.HasValue)
+            {
+                vehiclesQuery = vehiclesQuery.Where(v => v.DailyRate >= query.MinPrice.Value);
+            }
+
+            if (query.MaxPrice.HasValue)
+            {
+                vehiclesQuery = vehiclesQuery.Where(v => v.DailyRate <= query.MaxPrice.Value);
+            }
+
+            // Kiểm tra trùng lịch
+            if (query.StartTime.HasValue && query.EndTime.HasValue)
+            {
+                var overlappingCarIds = await _context.RentalRequests
+                    .Where(r => r.Status != "REJECTED" && r.Status != "CANCELED" && 
+                                r.StartTime < query.EndTime.Value && r.EndTime > query.StartTime.Value)
+                    .Select(r => r.CarId)
+                    .Distinct()
+                    .ToListAsync();
+                
+                if (overlappingCarIds.Any())
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => !overlappingCarIds.Contains(v.Id));
+                }
+            }
+
+            var vehicles = await vehiclesQuery.ToListAsync();
+            var results = new List<CarRental.API.DTOs.Search.AvailableVehicleResponseDto>();
+
+            int totalDays = 0;
+            if (query.StartTime.HasValue && query.EndTime.HasValue)
+            {
+                totalDays = (int)Math.Ceiling((query.EndTime.Value - query.StartTime.Value).TotalDays);
+                if (totalDays <= 0) totalDays = 1;
+            }
+
+            foreach (var vehicle in vehicles)
+            {
+                var response = new CarRental.API.DTOs.Search.AvailableVehicleResponseDto
+                {
+                    Vehicle = MapToResponseDto(vehicle),
+                    TotalDays = totalDays,
+                    DepositAmount = vehicle.DepositAmount
+                };
+
+                if (totalDays > 0)
+                {
+                    decimal baseFee = vehicle.DailyRate * totalDays;
+                    decimal appliedDiscount = 0;
+                    decimal appliedSurcharge = 0;
+
+                    var applicablePolicy = vehicle.PricingPolicies?
+                        .Where(p => p.MinDays <= totalDays)
+                        .OrderByDescending(p => p.MinDays)
+                        .FirstOrDefault();
+
+                    if (applicablePolicy != null)
+                    {
+                        appliedDiscount = applicablePolicy.DiscountPercentage;
+                        appliedSurcharge = applicablePolicy.HolidaySurcharge;
+                    }
+
+                    decimal discountAmount = baseFee * (appliedDiscount / 100);
+                    decimal surchargeAmount = baseFee * (appliedSurcharge / 100);
+                    response.EstimatedTotalFee = baseFee - discountAmount + surchargeAmount;
+                    response.AppliedDiscountPercent = appliedDiscount;
+                    response.AppliedHolidaySurchargePercent = appliedSurcharge;
+                }
+
+                results.Add(response);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.SortBy))
+            {
+                switch (query.SortBy.ToLower())
+                {
+                    case "price_asc":
+                        results = results.OrderBy(r => r.EstimatedTotalFee > 0 ? r.EstimatedTotalFee : r.Vehicle.DailyRate).ToList();
+                        break;
+                    case "price_desc":
+                        results = results.OrderByDescending(r => r.EstimatedTotalFee > 0 ? r.EstimatedTotalFee : r.Vehicle.DailyRate).ToList();
+                        break;
+                    case "new_year":
+                        results = results.OrderByDescending(r => r.Vehicle.ManufactureYear).ToList();
+                        break;
+                }
+            }
+
+            return results;
+        }
+
         private static VehicleResponseDto MapToResponseDto(Vehicle vehicle)
         {
             return new VehicleResponseDto

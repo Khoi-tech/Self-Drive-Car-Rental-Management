@@ -1,6 +1,5 @@
 using System;
 using CarRental.API.Entities;
-using CarRental.API.Entities;
 
 namespace CarRental.API.DTOs.Vehicle
 {

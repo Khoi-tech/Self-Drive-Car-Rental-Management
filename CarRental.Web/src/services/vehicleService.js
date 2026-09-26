@@ -22,6 +22,24 @@ const vehicleService = {
   },
 
   /**
+   * Search available vehicles for public catalog
+   * @param {object} params - search parameters (startTime, endTime, pickupLocation, brand, seats, transmission, fuelType, minPrice, maxPrice, sortBy)
+   */
+  searchVehicles: async (params = {}) => {
+    try {
+      // Remove undefined or empty values from params
+      const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v != null && v !== '')
+      );
+      const response = await api.get('/vehicles/search', { params: cleanParams });
+      return response;
+    } catch (error) {
+      console.error('Error searching vehicles:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Create a new vehicle
    * @param {object} vehicleData - The vehicle data object
    */

@@ -11,6 +11,9 @@ import PricingPage from '../pages/Pricing/PricingPage';
 import PricingDetailPage from '../pages/Pricing/PricingDetailPage';
 import PoliciesPage from '../pages/Policies/PoliciesPage';
 import CompensationPoliciesPage from '../pages/Compensation/CompensationPoliciesPage';
+import ContractTemplatesPage from '../pages/Contracts/ContractTemplatesPage';
+
+import CarCatalogPage from '../pages/Catalog/CarCatalogPage';
 
 // Placeholder component for pages not yet implemented
 const PlaceholderPage = ({ title }) => (
@@ -27,6 +30,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<Home />} />
+      <Route path="/cars" element={<CarCatalogPage />} />
+      <Route path="/cars/:id" element={<PlaceholderPage title="Chi tiết xe (Đang phát triển)" />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
@@ -39,7 +44,7 @@ const AppRoutes = () => {
         <Route path="pricing/:vehicleId" element={<PricingDetailPage />} />
         <Route path="policies" element={<PoliciesPage />} />
         <Route path="compensation" element={<CompensationPoliciesPage />} />
-        <Route path="contracts" element={<PlaceholderPage title="Mẫu hợp đồng" />} />
+        <Route path="contracts" element={<ContractTemplatesPage />} />
         <Route path="settings" element={<PlaceholderPage title="Cài đặt" />} />
       </Route>
 

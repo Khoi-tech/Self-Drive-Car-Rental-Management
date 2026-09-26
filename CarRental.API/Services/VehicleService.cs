@@ -136,8 +136,55 @@ namespace CarRental.API.Services
 
             if (!string.IsNullOrWhiteSpace(query.PickupLocation))
             {
-                var locLower = query.PickupLocation.ToLower();
-                vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && v.PickupLocation.ToLower().Contains(locLower));
+                var loc = query.PickupLocation.Trim();
+                bool isHcmQuery = loc.Contains("Chí Minh", StringComparison.OrdinalIgnoreCase) ||
+                                  loc.Contains("Chi Minh", StringComparison.OrdinalIgnoreCase) ||
+                                  loc.Equals("HCM", StringComparison.OrdinalIgnoreCase) ||
+                                  loc.Equals("TP.HCM", StringComparison.OrdinalIgnoreCase) ||
+                                  loc.Contains("Sài Gòn", StringComparison.OrdinalIgnoreCase) ||
+                                  loc.Contains("Sai Gon", StringComparison.OrdinalIgnoreCase);
+
+                bool isHnQuery = loc.Contains("Hà Nội", StringComparison.OrdinalIgnoreCase) ||
+                                 loc.Contains("Ha Noi", StringComparison.OrdinalIgnoreCase) ||
+                                 loc.Equals("HN", StringComparison.OrdinalIgnoreCase);
+
+                bool isDnQuery = loc.Contains("Đà Nẵng", StringComparison.OrdinalIgnoreCase) ||
+                                 loc.Contains("Da Nang", StringComparison.OrdinalIgnoreCase) ||
+                                 loc.Equals("ĐN", StringComparison.OrdinalIgnoreCase) ||
+                                 loc.Equals("DN", StringComparison.OrdinalIgnoreCase);
+
+                if (isHcmQuery)
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && (
+                        v.PickupLocation.ToLower().Contains("chí minh") ||
+                        v.PickupLocation.ToLower().Contains("chi minh") ||
+                        v.PickupLocation.ToLower().Contains("hcm") ||
+                        v.PickupLocation.ToLower().Contains("sài gòn") ||
+                        v.PickupLocation.ToLower().Contains("sai gon")
+                    ));
+                }
+                else if (isHnQuery)
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && (
+                        v.PickupLocation.ToLower().Contains("hà nội") ||
+                        v.PickupLocation.ToLower().Contains("ha noi") ||
+                        v.PickupLocation.ToLower().Contains("hn")
+                    ));
+                }
+                else if (isDnQuery)
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && (
+                        v.PickupLocation.ToLower().Contains("đà nẵng") ||
+                        v.PickupLocation.ToLower().Contains("da nang") ||
+                        v.PickupLocation.ToLower().Contains("đn") ||
+                        v.PickupLocation.ToLower().Contains("dn")
+                    ));
+                }
+                else
+                {
+                    var locLower = loc.ToLower();
+                    vehiclesQuery = vehiclesQuery.Where(v => v.PickupLocation != null && v.PickupLocation.ToLower().Contains(locLower));
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(query.Brand))

@@ -41,6 +41,7 @@ builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IRentalConditionService, RentalConditionService>();
 builder.Services.AddScoped<ICompensationPolicyService, CompensationPolicyService>();
 builder.Services.AddScoped<IContractTemplateService, ContractTemplateService>();
+builder.Services.AddScoped<IRentalRequestService, RentalRequestService>();
 
 // Build app
 var app = builder.Build();

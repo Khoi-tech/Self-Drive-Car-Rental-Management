@@ -15,6 +15,9 @@ import ContractTemplatesPage from '../pages/Contracts/ContractTemplatesPage';
 
 import CarCatalogPage from '../pages/Catalog/CarCatalogPage';
 
+import CarDetailPage from '../pages/Catalog/CarDetailPage';
+import BookingPage from '../pages/Booking/BookingPage';
+
 // Placeholder component for pages not yet implemented
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -31,7 +34,8 @@ const AppRoutes = () => {
       {/* Public Routes */}
       <Route path="/" element={<Home />} />
       <Route path="/cars" element={<CarCatalogPage />} />
-      <Route path="/cars/:id" element={<PlaceholderPage title="Chi tiết xe (Đang phát triển)" />} />
+      <Route path="/cars/:id" element={<CarDetailPage />} />
+      <Route path="/booking/:carId" element={<BookingPage />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>

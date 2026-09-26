@@ -59,7 +59,7 @@ const CarCatalogPage = () => {
 
   useEffect(() => {
     fetchVehicles();
-  }, [filters]); // Refetch on filter change
+  }, [filters, pickupLocation]); // Refetch on filter or location change
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -349,7 +349,7 @@ const CarCatalogPage = () => {
                       </div>
                       
                       <Link 
-                        to={`/cars/${item.vehicle.id}`} 
+                        to={`/cars/${item.vehicle.id}?startTime=${startTime}&endTime=${endTime}&pickupLocation=${pickupLocation}`} 
                         className="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                       >
                         Chi tiết

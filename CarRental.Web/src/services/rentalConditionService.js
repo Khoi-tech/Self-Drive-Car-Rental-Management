@@ -1,26 +1,24 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5171/api';
+import api from './api';
 
 const rentalConditionService = {
   getConditionByVehicleId: async (vehicleId) => {
-    const response = await axios.get(`${API_URL}/vehicles/${vehicleId}/rental-condition`);
-    return response.data;
+    const response = await api.get(`/vehicles/${vehicleId}/rental-condition`);
+    return response;
   },
 
   createCondition: async (vehicleId, data) => {
-    const response = await axios.post(`${API_URL}/vehicles/${vehicleId}/rental-condition`, data);
-    return response.data;
+    const response = await api.post(`/vehicles/${vehicleId}/rental-condition`, data);
+    return response;
   },
 
   updateCondition: async (vehicleId, data) => {
-    const response = await axios.put(`${API_URL}/vehicles/${vehicleId}/rental-condition`, data);
-    return response.data;
+    const response = await api.put(`/vehicles/${vehicleId}/rental-condition`, data);
+    return response;
   },
 
   deleteCondition: async (vehicleId) => {
-    const response = await axios.delete(`${API_URL}/vehicles/${vehicleId}/rental-condition`);
-    return response.data;
+    const response = await api.delete(`/vehicles/${vehicleId}/rental-condition`);
+    return response;
   }
 };
 

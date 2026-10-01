@@ -1,9 +1,17 @@
 using System;
 using System.Collections.Generic;
-using CarRental.API.Entities;
 
 namespace CarRental.API.DTOs.RentalRequest
 {
+    public class AdditionalDriverDto
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = null!;
+        public string PhoneNumber { get; set; } = null!;
+        public string IdCardNumber { get; set; } = null!;
+        public string LicenseNumber { get; set; } = null!;
+    }
+
     public class RentalRequestResponseDto
     {
         public Guid Id { get; set; }
@@ -33,10 +41,17 @@ namespace CarRental.API.DTOs.RentalRequest
         public decimal EstimatedTotalFee { get; set; }
         public decimal DepositAmount { get; set; }
         public string Status { get; set; } = null!;
+        public string? RejectReason { get; set; }
+
+        // Vehicle summary
+        public string? CarMake { get; set; }
+        public string? CarModel { get; set; }
+        public string? CarLicensePlate { get; set; }
+        public string? CarImageUrl { get; set; }
 
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        // Simplified vehicle details could be added here if needed, or just IDs
+        public List<AdditionalDriverDto> AdditionalDrivers { get; set; } = new List<AdditionalDriverDto>();
     }
 }

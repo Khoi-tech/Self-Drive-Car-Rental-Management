@@ -58,5 +58,46 @@ namespace CarRental.API.Controllers
 
             return Ok(request);
         }
+
+        [HttpPut("{id:guid}/approve")]
+        public async Task<IActionResult> ApproveRequest(Guid id)
+        {
+            try
+            {
+                var result = await _rentalRequestService.ApproveRequestAsync(id);
+                return Ok(new { Message = "Phê duyệt yêu cầu thành công", Data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
+            }
+        }
+
+        [HttpPut("{id:guid}/reject")]
+        public async Task<IActionResult> RejectRequest(Guid id, [FromBody] RejectRentalRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var result = await _rentalRequestService.RejectRequestAsync(id, dto.Reason);
+                return Ok(new { Message = "Từ chối yêu cầu thuê xe thành công", Data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
+            }
+        }
     }
 }

@@ -77,6 +77,8 @@ const IntroVideo = ({ onComplete }) => {
           aria-hidden="true"
           // We do not use loop! We want it to stop at the last frame.
         >
+          <source src="/videos/Intro_Velora.mp4" type="video/mp4" />
+          <source src="/videos/Intro_Velora.mov" type="video/quicktime" />
           <source src="/videos/velora-intro.mp4" type="video/mp4" />
           {/* Fallback text */}
           Your browser does not support the video tag.

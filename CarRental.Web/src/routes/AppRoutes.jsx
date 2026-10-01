@@ -14,9 +14,14 @@ import CompensationPoliciesPage from '../pages/Compensation/CompensationPolicies
 import ContractTemplatesPage from '../pages/Contracts/ContractTemplatesPage';
 
 import CarCatalogPage from '../pages/Catalog/CarCatalogPage';
-
 import CarDetailPage from '../pages/Catalog/CarDetailPage';
 import BookingPage from '../pages/Booking/BookingPage';
+import DepositPaymentPage from '../pages/Booking/DepositPaymentPage';
+import ContractSignPage from '../pages/Contracts/ContractSignPage';
+import RentalRequestsPage from '../pages/RentalRequests/RentalRequestsPage';
+import LoginPage from '../pages/Auth/LoginPage';
+import RegisterPage from '../pages/Auth/RegisterPage';
+import ProtectedRoute from './ProtectedRoute';
 
 // Placeholder component for pages not yet implemented
 const PlaceholderPage = ({ title }) => (
@@ -36,10 +41,22 @@ const AppRoutes = () => {
       <Route path="/cars" element={<CarCatalogPage />} />
       <Route path="/cars/:id" element={<CarDetailPage />} />
       <Route path="/booking/:carId" element={<BookingPage />} />
+      <Route path="/contracts/sign/:requestId" element={<ContractSignPage />} />
+      <Route path="/payment/deposit/:requestId" element={<DepositPaymentPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
-      {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
+      {/* Admin Routes - Protected for Staff/Manager */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<DashboardPage />} />
+        <Route path="rental-requests" element={<RentalRequestsPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="vehicles/create" element={<CreateVehiclePage />} />
         <Route path="vehicles/:id" element={<VehicleDetailPage />} />

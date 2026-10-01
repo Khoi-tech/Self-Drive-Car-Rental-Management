@@ -1,11 +1,17 @@
+using System;
+using System.Text;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using CarRental.API.Data;
+using CarRental.API.Entities;
 using CarRental.API.Services;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,24 +22,61 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// Swagger/OpenAPI setup
+// Swagger/OpenAPI setup with JWT Bearer Support
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "VELORA Self-Drive Car Rental API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Nhập token JWT theo định dạng: Bearer {token}",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+});
 
 // Database Configuration
-// It will try to get the connection string from user secrets or environment variables
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
                        ?? "Host=localhost;Database=CarRental;Username=postgres;Password=YOUR_PASSWORD";
 
 var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
 var nameTranslator = new Npgsql.NameTranslation.NpgsqlNullNameTranslator();
-dataSourceBuilder.MapEnum<CarRental.API.Entities.VehicleStatus>("car_status", nameTranslator);
-dataSourceBuilder.MapEnum<CarRental.API.Entities.FuelType>("fuel_type", nameTranslator);
-dataSourceBuilder.MapEnum<CarRental.API.Entities.TransmissionType>("car_transmission", nameTranslator);
+dataSourceBuilder.MapEnum<VehicleStatus>("car_status", nameTranslator);
+dataSourceBuilder.MapEnum<FuelType>("fuel_type", nameTranslator);
+dataSourceBuilder.MapEnum<TransmissionType>("car_transmission", nameTranslator);
 var dataSource = dataSourceBuilder.Build();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(dataSource));
+
+// JWT Authentication Configuration
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "VeloraSuperSecretKeyForJwtAuthentication2026!@#$%";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CarRental.API";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CarRental.Web";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
 
 // Dependency Injection
 builder.Services.AddScoped<IVehicleService, VehicleService>();
@@ -42,10 +85,14 @@ builder.Services.AddScoped<IRentalConditionService, RentalConditionService>();
 builder.Services.AddScoped<ICompensationPolicyService, CompensationPolicyService>();
 builder.Services.AddScoped<IContractTemplateService, ContractTemplateService>();
 builder.Services.AddScoped<IRentalRequestService, RentalRequestService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRentalContractService, RentalContractService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 // Build app
 var app = builder.Build();
 
+// Database initialization & Seeding
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -82,6 +129,42 @@ using (var scope = app.Services.CreateScope())
             END $$;
         ");
     } catch { /* Ignore if it fails due to permissions or already exists */ }
+
+    // Seed default users if not existing
+    try {
+        if (!db.Users.Any(u => u.Email == "staff@velora.vn"))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Email = "staff@velora.vn",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Velora@2026"),
+                FullName = "Nhân viên VELORA",
+                PhoneNumber = "0901234567",
+                Role = "STAFF",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (!db.Users.Any(u => u.Email == "customer@velora.vn"))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Email = "customer@velora.vn",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Velora@2026"),
+                FullName = "Khách hàng Mẫu",
+                PhoneNumber = "0987654321",
+                Role = "CUSTOMER",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        db.SaveChanges();
+    } catch (Exception ex) {
+        Console.WriteLine($"Error seeding users: {ex.Message}");
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -94,7 +177,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
 

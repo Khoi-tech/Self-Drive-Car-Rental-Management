@@ -7,15 +7,16 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Interceptor for request
 api.interceptors.request.use(
   (config) => {
-    // You can add auth tokens here later
-    // const token = localStorage.getItem('token');
-    // if (token) config.headers.Authorization = `Bearer ${token}`;
+    const token = localStorage.getItem('velora_token') || localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error)

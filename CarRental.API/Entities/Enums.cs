@@ -23,4 +23,29 @@ namespace CarRental.API.Entities
         AUTO,
         MANUAL
     }
+
+    public enum ContractStatus
+    {
+        WAITING_SIGNATURE,
+        SIGNED,
+        DEPOSIT_PAID,
+        ACTIVE,
+        COMPLETED,
+        DISPUTED,
+        CANCELLED
+    }
+
+    public enum PaymentType
+    {
+        DEPOSIT,
+        SETTLEMENT,
+        REFUND
+    }
+
+    public enum PaymentStatus
+    {
+        PENDING,
+        SUCCESS,
+        FAILED
+    }
 }

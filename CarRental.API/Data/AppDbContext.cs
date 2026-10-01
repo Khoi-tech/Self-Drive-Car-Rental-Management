@@ -16,6 +16,9 @@ namespace CarRental.API.Data
         public DbSet<ContractTemplate> ContractTemplates { get; set; } = null!;
         public DbSet<RentalRequest> RentalRequests { get; set; } = null!;
         public DbSet<AdditionalDriver> AdditionalDrivers { get; set; } = null!;
+        public DbSet<User> Users { get; set; } = null!;
+        public DbSet<RentalContract> RentalContracts { get; set; } = null!;
+        public DbSet<Payment> Payments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -25,6 +28,11 @@ namespace CarRental.API.Data
             modelBuilder.HasPostgresEnum<VehicleStatus>("public", "car_status", nameTranslator: nameTranslator);
             modelBuilder.HasPostgresEnum<FuelType>("public", "fuel_type", nameTranslator: nameTranslator);
             modelBuilder.HasPostgresEnum<TransmissionType>("public", "car_transmission", nameTranslator: nameTranslator);
+
+            // Configure User Email to be unique
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
 
             // Configure LicensePlate to be unique
             modelBuilder.Entity<Vehicle>()

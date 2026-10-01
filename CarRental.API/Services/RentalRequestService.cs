@@ -117,6 +117,7 @@ namespace CarRental.API.Services
         public async Task<RentalRequestResponseDto?> GetByIdAsync(Guid id)
         {
             var request = await _context.RentalRequests
+                .Include(r => r.Vehicle)
                 .Include(r => r.AdditionalDrivers)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -128,6 +129,7 @@ namespace CarRental.API.Services
         public async Task<List<RentalRequestResponseDto>> GetAllAsync(string? status = null)
         {
             var query = _context.RentalRequests
+                .Include(r => r.Vehicle)
                 .Include(r => r.AdditionalDrivers)
                 .AsQueryable();
 
@@ -138,6 +140,57 @@ namespace CarRental.API.Services
 
             var list = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
             return list.Select(MapToResponseDto).ToList();
+        }
+
+        public async Task<RentalRequestResponseDto> ApproveRequestAsync(Guid id)
+        {
+            var request = await _context.RentalRequests
+                .Include(r => r.Vehicle)
+                .Include(r => r.AdditionalDrivers)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
+            }
+
+            if (request.Status != "PENDING")
+            {
+                throw new InvalidOperationException($"Chỉ có thể duyệt yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+            }
+
+            request.Status = "APPROVED";
+            request.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(request);
+        }
+
+        public async Task<RentalRequestResponseDto> RejectRequestAsync(Guid id, string reason)
+        {
+            var request = await _context.RentalRequests
+                .Include(r => r.Vehicle)
+                .Include(r => r.AdditionalDrivers)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
+            }
+
+            if (request.Status != "PENDING")
+            {
+                throw new InvalidOperationException($"Chỉ có thể từ chối yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+            }
+
+            request.Status = "REJECTED";
+            request.RejectReason = reason.Trim();
+            request.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(request);
         }
 
         private RentalRequestResponseDto MapToResponseDto(RentalRequest request)
@@ -167,8 +220,21 @@ namespace CarRental.API.Services
                 EstimatedTotalFee = request.EstimatedTotalFee,
                 DepositAmount = request.DepositAmount,
                 Status = request.Status,
+                RejectReason = request.RejectReason,
+                CarMake = request.Vehicle?.Make,
+                CarModel = request.Vehicle?.Model,
+                CarLicensePlate = request.Vehicle?.LicensePlate,
+                CarImageUrl = request.Vehicle?.ImageUrl,
                 CreatedAt = request.CreatedAt,
-                UpdatedAt = request.UpdatedAt
+                UpdatedAt = request.UpdatedAt,
+                AdditionalDrivers = request.AdditionalDrivers?.Select(ad => new AdditionalDriverDto
+                {
+                    Id = ad.Id,
+                    FullName = ad.FullName,
+                    PhoneNumber = ad.PhoneNumber,
+                    IdCardNumber = ad.IdCardNumber,
+                    LicenseNumber = ad.LicenseNumber
+                }).ToList() ?? new List<AdditionalDriverDto>()
             };
         }
     }

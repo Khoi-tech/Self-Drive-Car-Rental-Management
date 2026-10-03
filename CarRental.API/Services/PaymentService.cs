@@ -141,7 +141,7 @@ namespace CarRental.API.Services
             long amountVnd = (long)payment.Amount;
 
             // VietQR Standard URL for MBBank
-            string qrUrl = $"https://img.vietqr.io/image/MB-8888886688-compact2.png?amount={amountVnd}&addInfo={Uri.EscapeDataString(transferContent)}&accountName=VELORA%20CAR%20RENTAL";
+            string qrUrl = $"https://img.vietqr.io/image/MB-21011501030206-compact2.png?amount={amountVnd}&addInfo={Uri.EscapeDataString(transferContent)}&accountName=VELORA%20CAR%20RENTAL";
 
             return new PaymentResponseDto
             {
@@ -158,7 +158,7 @@ namespace CarRental.API.Services
                 CreatedAt = payment.CreatedAt ?? DateTime.UtcNow,
 
                 AccountName = "VELORA CAR RENTAL CORP",
-                AccountNumber = "8888886688",
+                AccountNumber = "21011501030206",
                 BankName = "MBBank (Ngân hàng Quân Đội)",
                 TransferContent = transferContent,
                 QrCodeUrl = qrUrl

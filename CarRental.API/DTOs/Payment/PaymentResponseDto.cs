@@ -18,7 +18,7 @@ namespace CarRental.API.DTOs.Payment
 
         // Bank / QR Info for Customer Payment
         public string AccountName { get; set; } = "VELORA CAR RENTAL CORP";
-        public string AccountNumber { get; set; } = "8888886688";
+        public string AccountNumber { get; set; } = "21011501030206";
         public string BankName { get; set; } = "MBBank (Ngan hang Quan Doi)";
         public string TransferContent { get; set; } = null!;
         public string QrCodeUrl { get; set; } = null!;

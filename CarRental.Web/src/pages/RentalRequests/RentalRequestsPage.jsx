@@ -71,7 +71,8 @@ const RentalRequestsPage = () => {
       setLoading(true);
       setError(null);
       const res = await rentalRequestService.getAllRequests();
-      setRequests(res.data || []);
+      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      setRequests(list);
     } catch (err) {
       console.error(err);
       setError('Không thể tải danh sách đơn thuê xe. Vui lòng thử lại!');

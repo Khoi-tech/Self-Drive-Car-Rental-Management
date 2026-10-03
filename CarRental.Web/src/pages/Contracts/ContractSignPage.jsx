@@ -41,9 +41,10 @@ const ContractSignPage = () => {
         setLoading(true);
         setError(null);
         const res = await contractService.getContractByRequestId(requestId);
-        setContract(res.data);
-        if (res.data?.customerName) {
-          setSignatureName(res.data.customerName);
+        const contractObj = res?.data || res;
+        setContract(contractObj);
+        if (contractObj?.customerName) {
+          setSignatureName(contractObj.customerName);
         }
       } catch (err) {
         console.error(err);
@@ -75,7 +76,7 @@ const ContractSignPage = () => {
         signature: signatureName.trim(),
         agreeTerms: true
       });
-      setContract(res.data.data);
+      setContract(res?.data || res);
       setSignSuccess(true);
     } catch (err) {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi ký hợp đồng điện tử.');

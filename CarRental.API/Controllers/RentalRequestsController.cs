@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.RentalRequest;
@@ -41,9 +43,37 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllRequests([FromQuery] string? status)
+        public async Task<IActionResult> GetAllRequests([FromQuery] string? status, [FromQuery] string? customerEmail, [FromQuery] string? customerPhone)
         {
+            if (!string.IsNullOrWhiteSpace(customerEmail) || !string.IsNullOrWhiteSpace(customerPhone))
+            {
+                var list = await _rentalRequestService.GetByCustomerAsync(customerEmail, customerPhone);
+                if (!string.IsNullOrWhiteSpace(status))
+                {
+                    list = list.Where(r => r.Status == status).ToList();
+                }
+                return Ok(list);
+            }
+
             var requests = await _rentalRequestService.GetAllAsync(status);
+            return Ok(requests);
+        }
+
+        [HttpGet("my-requests")]
+        public async Task<IActionResult> GetMyRequests([FromQuery] string? email, [FromQuery] string? phone)
+        {
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value
+                            ?? User.FindFirst("email")?.Value
+                            ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Email)?.Value;
+
+            var targetEmail = !string.IsNullOrWhiteSpace(email) ? email : userEmail;
+
+            if (string.IsNullOrWhiteSpace(targetEmail) && string.IsNullOrWhiteSpace(phone))
+            {
+                return BadRequest(new { Message = "Vui lòng cung cấp email hoặc số điện thoại để tra cứu đơn thuê." });
+            }
+
+            var requests = await _rentalRequestService.GetByCustomerAsync(targetEmail, phone);
             return Ok(requests);
         }
 

@@ -21,6 +21,7 @@ import ContractSignPage from '../pages/Contracts/ContractSignPage';
 import RentalRequestsPage from '../pages/RentalRequests/RentalRequestsPage';
 import LoginPage from '../pages/Auth/LoginPage';
 import RegisterPage from '../pages/Auth/RegisterPage';
+import ProfilePage from '../pages/Customer/ProfilePage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Placeholder component for pages not yet implemented
@@ -45,6 +46,18 @@ const AppRoutes = () => {
       <Route path="/payment/deposit/:requestId" element={<DepositPaymentPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* Customer Profile & Bookings */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/my-bookings" element={<Navigate to="/profile" replace />} />
+      <Route path="/customer/profile" element={<Navigate to="/profile" replace />} />
 
       {/* Admin Routes - Protected for Staff/Manager */}
       <Route

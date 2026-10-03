@@ -142,6 +142,33 @@ namespace CarRental.API.Services
             return list.Select(MapToResponseDto).ToList();
         }
 
+        public async Task<List<RentalRequestResponseDto>> GetByCustomerAsync(string? email, string? phone)
+        {
+            var query = _context.RentalRequests
+                .Include(r => r.Vehicle)
+                .Include(r => r.AdditionalDrivers)
+                .AsQueryable();
+
+            var cleanEmail = email?.Trim().ToLower();
+            var cleanPhone = phone?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(cleanEmail) && !string.IsNullOrWhiteSpace(cleanPhone))
+            {
+                query = query.Where(r => r.CustomerEmail.ToLower() == cleanEmail || r.CustomerPhone == cleanPhone);
+            }
+            else if (!string.IsNullOrWhiteSpace(cleanEmail))
+            {
+                query = query.Where(r => r.CustomerEmail.ToLower() == cleanEmail);
+            }
+            else if (!string.IsNullOrWhiteSpace(cleanPhone))
+            {
+                query = query.Where(r => r.CustomerPhone == cleanPhone);
+            }
+
+            var list = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+            return list.Select(MapToResponseDto).ToList();
+        }
+
         public async Task<RentalRequestResponseDto> ApproveRequestAsync(Guid id)
         {
             var request = await _context.RentalRequests

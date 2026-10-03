@@ -32,6 +32,19 @@ const rentalRequestService = {
     }
   },
 
+  getMyRequests: async (email = '', phone = '') => {
+    try {
+      const params = {};
+      if (email) params.email = email;
+      if (phone) params.phone = phone;
+      const response = await api.get('/rental-requests/my-requests', { params });
+      return response;
+    } catch (error) {
+      console.error('Error fetching my rental requests:', error);
+      throw error;
+    }
+  },
+
   approveRequest: async (id) => {
     try {
       const response = await api.put(`/rental-requests/${id}/approve`);

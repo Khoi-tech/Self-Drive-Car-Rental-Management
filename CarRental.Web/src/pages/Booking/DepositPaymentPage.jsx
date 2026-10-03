@@ -45,16 +45,18 @@ const DepositPaymentPage = () => {
 
         // 1. Fetch request details
         const reqRes = await rentalRequestService.getRequestById(requestId);
-        setRequestDetails(reqRes.data);
+        const reqObj = reqRes?.data || reqRes;
+        setRequestDetails(reqObj);
 
         // 2. Initialize or get deposit payment
         const payRes = await paymentService.createDepositPayment({
           rentalRequestId: requestId,
           paymentMethod: 'VIETQR'
         });
-        setPaymentData(payRes.data);
+        const payObj = payRes?.data || payRes;
+        setPaymentData(payObj);
 
-        if (payRes.data.status === 'SUCCESS' || reqRes.data.status === 'CONFIRMED') {
+        if (payObj?.status === 'SUCCESS' || reqObj?.status === 'CONFIRMED') {
           setIsSuccess(true);
         }
       } catch (err) {
@@ -84,7 +86,7 @@ const DepositPaymentPage = () => {
     try {
       setConfirming(true);
       const res = await paymentService.confirmPayment(paymentData.transactionCode);
-      setPaymentData(res.data.data);
+      setPaymentData(res?.data || res);
       setIsSuccess(true);
     } catch (err) {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán.');

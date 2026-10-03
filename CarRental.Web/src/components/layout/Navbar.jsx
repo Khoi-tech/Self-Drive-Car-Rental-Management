@@ -30,6 +30,11 @@ const Navbar = ({ isVisible = true }) => {
             <Link to="/cars" className="hover:text-white transition-colors">Dòng xe</Link>
             <a href="/#experience" className="hover:text-white transition-colors">Trải nghiệm</a>
             <a href="/#services" className="hover:text-white transition-colors">Dịch vụ</a>
+            {isAuthenticated && (
+              <Link to="/profile" className="text-amber-400 hover:text-amber-300 transition-colors font-medium flex items-center gap-1">
+                Đơn thuê của tôi
+              </Link>
+            )}
             <a href="/#contact" className="hover:text-white transition-colors">Liên hệ</a>
           </div>
 
@@ -47,17 +52,23 @@ const Navbar = ({ isVisible = true }) => {
                   </Link>
                 )}
 
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-sm">
-                  <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-semibold text-white">
-                    {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
-                  </div>
-                  <span className="text-xs text-zinc-300 max-w-[120px] truncate hidden sm:inline">
-                    {user?.fullName}
-                  </span>
+                <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-0.5">
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-2 px-2.5 py-1 rounded-lg hover:bg-white/10 text-sm transition-all group"
+                    title="Hồ sơ cá nhân & Đơn thuê"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 text-black flex items-center justify-center text-xs font-bold shadow-sm">
+                      {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                    <span className="text-xs text-zinc-300 group-hover:text-white max-w-[120px] truncate hidden sm:inline">
+                      {user?.fullName}
+                    </span>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     title="Đăng xuất"
-                    className="text-zinc-400 hover:text-red-400 ml-1 transition-colors"
+                    className="text-zinc-400 hover:text-red-400 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>

@@ -60,7 +60,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("additional_drivers", (string)null);
+                    b.ToTable("additional_drivers");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CompensationPolicy", b =>
@@ -102,7 +102,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("compensation_policies", (string)null);
+                    b.ToTable("compensation_policies");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.ContractTemplate", b =>
@@ -153,7 +153,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("contract_templates", (string)null);
+                    b.ToTable("contract_templates");
 
                     b.HasData(
                         new
@@ -167,6 +167,69 @@ namespace CarRental.API.Migrations
                             TemplateType = "DAILY",
                             Version = "v1.0"
                         });
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<Guid?>("RentalRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rental_request_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TransactionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("transaction_code");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("RentalRequestId");
+
+                    b.ToTable("payments");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.PricingPolicy", b =>
@@ -200,7 +263,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("VehicleId");
 
-                    b.ToTable("pricing_policies", (string)null);
+                    b.ToTable("pricing_policies");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalCondition", b =>
@@ -231,7 +294,68 @@ namespace CarRental.API.Migrations
                     b.HasIndex("CarId")
                         .IsUnique();
 
-                    b.ToTable("rental_conditions", (string)null);
+                    b.ToTable("rental_conditions");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.RentalContract", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("text")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContractNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("contract_number");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomerSignature")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_signature");
+
+                    b.Property<DateTime?>("CustomerSignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("customer_signed_at");
+
+                    b.Property<decimal>("DepositAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("deposit_amt");
+
+                    b.Property<int?>("MaxKm")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_km");
+
+                    b.Property<Guid?>("RequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalFee")
+                        .HasColumnType("numeric")
+                        .HasColumnName("total_fee");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId");
+
+                    b.ToTable("rental_contracts");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
@@ -353,7 +477,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("rental_requests", (string)null);
+                    b.ToTable("rental_requests");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.User", b =>
@@ -409,7 +533,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("app_users", (string)null);
+                    b.ToTable("app_users");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>
@@ -521,7 +645,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("LicensePlate")
                         .IsUnique();
 
-                    b.ToTable("cars", (string)null);
+                    b.ToTable("cars");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.AdditionalDriver", b =>
@@ -531,6 +655,21 @@ namespace CarRental.API.Migrations
                         .HasForeignKey("RentalRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("RentalRequest");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.Payment", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.RentalContract", "RentalContract")
+                        .WithMany()
+                        .HasForeignKey("ContractId");
+
+                    b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
+                        .WithMany()
+                        .HasForeignKey("RentalRequestId");
+
+                    b.Navigation("RentalContract");
 
                     b.Navigation("RentalRequest");
                 });
@@ -553,6 +692,15 @@ namespace CarRental.API.Migrations
                         .HasForeignKey("CarRental.API.Entities.RentalCondition", "CarId");
 
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.RentalContract", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
+                        .WithMany()
+                        .HasForeignKey("RequestId");
+
+                    b.Navigation("RentalRequest");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>

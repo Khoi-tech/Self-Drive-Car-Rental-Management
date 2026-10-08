@@ -22,6 +22,8 @@ import RentalRequestsPage from '../pages/RentalRequests/RentalRequestsPage';
 import LoginPage from '../pages/Auth/LoginPage';
 import RegisterPage from '../pages/Auth/RegisterPage';
 import ProfilePage from '../pages/Customer/ProfilePage';
+import InsurancesPage from '../pages/Insurances/InsurancesPage';
+import HandoversPage from '../pages/Handovers/HandoversPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Placeholder component for pages not yet implemented
@@ -70,6 +72,8 @@ const AppRoutes = () => {
       >
         <Route index element={<DashboardPage />} />
         <Route path="rental-requests" element={<RentalRequestsPage />} />
+        <Route path="handovers" element={<HandoversPage />} />
+        <Route path="insurances" element={<InsurancesPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
         <Route path="vehicles/create" element={<CreateVehiclePage />} />
         <Route path="vehicles/:id" element={<VehicleDetailPage />} />

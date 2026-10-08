@@ -13,7 +13,9 @@ import {
   Bell,
   Search,
   UserCircle,
-  ClipboardList
+  ClipboardList,
+  ShieldCheck,
+  FileCheck
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -25,7 +27,9 @@ const AdminLayout = () => {
   const menuItems = [
     { name: 'Tổng quan', path: '/admin', icon: <LayoutDashboard size={20} />, exact: true },
     { name: 'Duyệt đơn thuê', path: '/admin/rental-requests', icon: <ClipboardList size={20} /> },
+    { name: 'Biên bản bàn giao', path: '/admin/handovers', icon: <FileCheck size={20} /> },
     { name: 'Quản lý xe', path: '/admin/vehicles', icon: <Car size={20} /> },
+    { name: 'Bảo hiểm xe', path: '/admin/insurances', icon: <ShieldCheck size={20} /> },
     { name: 'Bảng giá', path: '/admin/pricing', icon: <CircleDollarSign size={20} /> },
     { name: 'Chính sách thuê', path: '/admin/policies', icon: <FileText size={20} /> },
     { name: 'Phí và bồi thường', path: '/admin/compensation', icon: <ShieldAlert size={20} /> },

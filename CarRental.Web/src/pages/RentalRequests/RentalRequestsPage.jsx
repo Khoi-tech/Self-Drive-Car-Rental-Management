@@ -25,12 +25,16 @@ import {
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import HandoverModal from '../../components/handover/HandoverModal';
 
 const STATUS_CONFIG = {
   PENDING: { label: 'Chờ duyệt', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', icon: Clock },
   APPROVED: { label: 'Đã duyệt', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', icon: CheckCircle2 },
   REJECTED: { label: 'Đã từ chối', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200', icon: XCircle },
   CONFIRMED: { label: 'Đã xác nhận & cọc', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', icon: FileCheck },
+  SIGNED: { label: 'Đã ký HĐ', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', icon: FileCheck },
+  ACTIVE: { label: 'Đang thuê xe', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', icon: CheckCircle2 },
+  COMPLETED: { label: 'Đã hoàn tất', bg: 'bg-zinc-100', text: 'text-zinc-800', border: 'border-zinc-300', icon: CheckCircle2 },
   CANCELLED: { label: 'Đã hủy', bg: 'bg-zinc-100', text: 'text-zinc-600', border: 'border-zinc-200', icon: XCircle },
 };
 
@@ -55,6 +59,10 @@ const RentalRequestsPage = () => {
   // Selected for Details / Inspection Modal
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // Handover Modal State (US-18)
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [handoverRequest, setHandoverRequest] = useState(null);
 
   // Reject Action State
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -351,13 +359,13 @@ const RentalRequestsPage = () => {
               ) : (
                 filteredRequests.map((req) => {
                   const statusInfo = STATUS_CONFIG[req.status] || {
-                    label: req.status,
+                    label: req.status || 'Chờ duyệt',
                     bg: 'bg-zinc-100',
                     text: 'text-zinc-600',
                     border: 'border-zinc-200',
                     icon: Clock
                   };
-                  const StatusIcon = statusInfo.icon;
+                  const StatusIcon = statusInfo?.icon || Clock;
 
                   const hasPhotos = req.idCardFrontUrl || req.idCardBackUrl || req.driverLicenseFrontUrl || req.driverLicenseBackUrl;
 
@@ -504,6 +512,21 @@ const RentalRequestsPage = () => {
                             >
                               <FileText size={18} />
                             </Link>
+                          )}
+
+                          {/* Handover Protocol Button if CONFIRMED */}
+                          {req.status === 'CONFIRMED' && (
+                            <button
+                              onClick={() => {
+                                setHandoverRequest(req);
+                                setIsHandoverModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                              title="Lập hoặc xem biên bản bàn giao xe (US-18)"
+                            >
+                              <FileCheck size={14} />
+                              <span className="hidden sm:inline">Bàn giao</span>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1003,6 +1026,19 @@ const RentalRequestsPage = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* ================= MODAL: LẬP BIÊN BẢN BÀN GIAO XE (US-18) ================= */}
+      {isHandoverModalOpen && handoverRequest && (
+        <HandoverModal
+          isOpen={isHandoverModalOpen}
+          onClose={() => {
+            setIsHandoverModalOpen(false);
+            setHandoverRequest(null);
+          }}
+          rentalRequest={handoverRequest}
+          onSuccess={loadRequests}
+        />
       )}
 
     </div>

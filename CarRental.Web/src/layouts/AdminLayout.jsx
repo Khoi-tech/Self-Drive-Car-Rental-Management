@@ -15,7 +15,10 @@ import {
   UserCircle,
   ClipboardList,
   ShieldCheck,
-  FileCheck
+  FileCheck,
+  Clock,
+  LifeBuoy,
+  Wrench
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -28,6 +31,9 @@ const AdminLayout = () => {
     { name: 'Tổng quan', path: '/admin', icon: <LayoutDashboard size={20} />, exact: true },
     { name: 'Duyệt đơn thuê', path: '/admin/rental-requests', icon: <ClipboardList size={20} /> },
     { name: 'Biên bản bàn giao', path: '/admin/handovers', icon: <FileCheck size={20} /> },
+    { name: 'Gia hạn thuê xe', path: '/admin/extensions', icon: <Clock size={20} /> },
+    { name: 'Sự cố & Cứu hộ', path: '/admin/incidents', icon: <LifeBuoy size={20} /> },
+    { name: 'Bảo dưỡng xe', path: '/admin/maintenance', icon: <Wrench size={20} /> },
     { name: 'Quản lý xe', path: '/admin/vehicles', icon: <Car size={20} /> },
     { name: 'Bảo hiểm xe', path: '/admin/insurances', icon: <ShieldCheck size={20} /> },
     { name: 'Bảng giá', path: '/admin/pricing', icon: <CircleDollarSign size={20} /> },

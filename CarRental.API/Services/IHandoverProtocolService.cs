@@ -12,6 +12,7 @@ namespace CarRental.API.Services
         Task<HandoverProtocolDto?> GetByRequestIdAsync(Guid requestId);
         Task<HandoverProtocolDto> CreateAsync(CreateHandoverProtocolDto dto);
         Task<HandoverProtocolDto> UpdateAsync(Guid id, UpdateHandoverProtocolDto dto);
+        Task<HandoverProtocolDto> ConfirmHandoverAsync(Guid id, HandoverConfirmDto dto);
         Task<bool> DeleteAsync(Guid id);
     }
 }

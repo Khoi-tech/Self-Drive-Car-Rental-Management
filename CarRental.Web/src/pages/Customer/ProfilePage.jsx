@@ -22,11 +22,16 @@ import {
   X,
   Eye,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  FileCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import rentalRequestService from '../../services/rentalRequestService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import ExtensionModal from '../../components/operations/ExtensionModal';
+import IncidentModal from '../../components/operations/IncidentModal';
+import CustomerHandoverModal from '../../components/operations/CustomerHandoverModal';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -98,6 +103,9 @@ const ProfilePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isExtensionOpen, setIsExtensionOpen] = useState(false);
+  const [isIncidentOpen, setIsIncidentOpen] = useState(false);
+  const [isHandoverConfirmOpen, setIsHandoverConfirmOpen] = useState(false);
 
   const fetchMyBookings = async () => {
     try {
@@ -463,13 +471,53 @@ const ProfilePage = () => {
                           )}
 
                           {req.status === 'CONFIRMED' && (
-                            <Link
-                              to={`/payment/deposit/${req.id}`}
-                              className="px-3.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
-                            >
-                              <ShieldCheck size={14} className="text-emerald-400" />
-                              <span>Xem biên nhận cọc</span>
-                            </Link>
+                            <>
+                              <Link
+                                to={`/payment/deposit/${req.id}`}
+                                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                              >
+                                <ShieldCheck size={14} className="text-emerald-400" />
+                                <span>Biên nhận cọc</span>
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  setSelectedRequest(req);
+                                  setIsHandoverConfirmOpen(true);
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition shadow-sm flex items-center gap-1.5"
+                                title="Xác nhận nhận xe từ nhân viên giao xe (US-19)"
+                              >
+                                <FileCheck size={14} />
+                                <span>Xác nhận nhận xe</span>
+                              </button>
+                            </>
+                          )}
+
+                          {req.status === 'ACTIVE' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedRequest(req);
+                                  setIsExtensionOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 text-xs font-medium transition flex items-center gap-1.5"
+                                title="Yêu cầu gia hạn thêm thời gian thuê xe (US-08)"
+                              >
+                                <Calendar size={13} />
+                                <span>Gia hạn xe</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedRequest(req);
+                                  setIsIncidentOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 text-xs font-medium transition flex items-center gap-1.5"
+                                title="Báo cáo sự cố khẩn cấp trên đường (US-09)"
+                              >
+                                <AlertTriangle size={13} />
+                                <span>Báo sự cố</span>
+                              </button>
+                            </>
                           )}
 
                           {/* View Detail Modal Trigger */}
@@ -637,6 +685,36 @@ const ProfilePage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Extension Modal (US-08) */}
+      {isExtensionOpen && selectedRequest && (
+        <ExtensionModal
+          isOpen={isExtensionOpen}
+          onClose={() => setIsExtensionOpen(false)}
+          rentalRequest={selectedRequest}
+          onSuccess={fetchMyBookings}
+        />
+      )}
+
+      {/* Incident Modal (US-09) */}
+      {isIncidentOpen && selectedRequest && (
+        <IncidentModal
+          isOpen={isIncidentOpen}
+          onClose={() => setIsIncidentOpen(false)}
+          rentalRequest={selectedRequest}
+          onSuccess={fetchMyBookings}
+        />
+      )}
+
+      {/* Customer Handover Confirm Modal (US-19) */}
+      {isHandoverConfirmOpen && selectedRequest && (
+        <CustomerHandoverModal
+          isOpen={isHandoverConfirmOpen}
+          onClose={() => setIsHandoverConfirmOpen(false)}
+          rentalRequest={selectedRequest}
+          onSuccess={fetchMyBookings}
+        />
       )}
     </div>
   );

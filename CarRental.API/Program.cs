@@ -90,6 +90,9 @@ builder.Services.AddScoped<IRentalContractService, RentalContractService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICarInsuranceService, CarInsuranceService>();
 builder.Services.AddScoped<IHandoverProtocolService, HandoverProtocolService>();
+builder.Services.AddScoped<IRentalExtensionService, RentalExtensionService>();
+builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 
 // Build app
 var app = builder.Build();
@@ -173,6 +176,73 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'PENDING_CUSTOMER';
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS handover_date TIMESTAMPTZ DEFAULT NOW();
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+            ALTER TABLE handover_protocols ALTER COLUMN images TYPE TEXT USING images::text;
+
+            -- SPRINT 4: Rental Extensions Table (US-08, US-20)
+            CREATE TABLE IF NOT EXISTS rental_extensions (
+                id UUID PRIMARY KEY,
+                rental_request_id UUID NOT NULL REFERENCES rental_requests(id) ON DELETE CASCADE,
+                old_end_time TIMESTAMPTZ NOT NULL,
+                new_end_time TIMESTAMPTZ NOT NULL,
+                extended_days INT NOT NULL DEFAULT 1,
+                extended_hours INT NOT NULL DEFAULT 24,
+                additional_fee NUMERIC(18,2) NOT NULL DEFAULT 0,
+                reason TEXT NOT NULL,
+                status VARCHAR(50) DEFAULT 'PENDING',
+                staff_notes TEXT,
+                processed_by_staff_id UUID,
+                processed_by_staff_name VARCHAR(100),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                processed_at TIMESTAMPTZ
+            );
+
+            -- SPRINT 4: Incident Reports Table (US-09, US-21)
+            CREATE TABLE IF NOT EXISTS incident_reports (
+                id UUID PRIMARY KEY,
+                incident_code VARCHAR(50),
+                rental_request_id UUID NOT NULL REFERENCES rental_requests(id) ON DELETE CASCADE,
+                car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+                customer_id UUID,
+                customer_name VARCHAR(100) NOT NULL,
+                customer_phone VARCHAR(20) NOT NULL,
+                incident_type VARCHAR(50) DEFAULT 'COLLISION',
+                severity VARCHAR(50) DEFAULT 'MEDIUM',
+                location TEXT NOT NULL,
+                description TEXT NOT NULL,
+                photo_urls TEXT,
+                has_injuries BOOLEAN DEFAULT FALSE,
+                status VARCHAR(50) DEFAULT 'REPORTED',
+                resolution_action VARCHAR(50),
+                replacement_car_id UUID REFERENCES cars(id),
+                estimated_damage_cost NUMERIC(18,2) DEFAULT 0,
+                insurance_coverage_status VARCHAR(50) DEFAULT 'PENDING_CLAIM',
+                customer_pay_amount NUMERIC(18,2) DEFAULT 0,
+                company_pay_amount NUMERIC(18,2) DEFAULT 0,
+                staff_notes TEXT,
+                handled_by_staff_name VARCHAR(100),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                resolved_at TIMESTAMPTZ
+            );
+
+            -- SPRINT 4: Maintenance Records Table (US-24)
+            CREATE TABLE IF NOT EXISTS maintenance_records (
+                id UUID PRIMARY KEY,
+                maintenance_code VARCHAR(50),
+                car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
+                maintenance_type VARCHAR(50) DEFAULT 'ROUTINE',
+                title VARCHAR(200) NOT NULL,
+                garage_name VARCHAR(150) DEFAULT 'Gara chính hãng VELORA Care',
+                cost NUMERIC(18,2) DEFAULT 0,
+                odo_at_maintenance INT DEFAULT 0,
+                scheduled_date TIMESTAMPTZ DEFAULT NOW(),
+                completed_date TIMESTAMPTZ,
+                details TEXT,
+                next_maintenance_mileage INT,
+                next_maintenance_date TIMESTAMPTZ,
+                status VARCHAR(50) DEFAULT 'SCHEDULED',
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ
+            );
         ");
     } catch { /* Ignore if already exists */ }
 

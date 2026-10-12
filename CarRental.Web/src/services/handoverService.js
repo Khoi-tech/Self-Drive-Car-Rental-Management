@@ -36,6 +36,12 @@ const handoverService = {
   delete: async (id) => {
     const res = await api.delete(`/handover-protocols/${id}`);
     return res?.data || res;
+  },
+
+  // Xác nhận bàn giao xe (US-19) - Kích hoạt đơn ACTIVE & xe RENTED
+  confirm: async (id, data = {}) => {
+    const res = await api.post(`/handover-protocols/${id}/confirm`, data);
+    return res?.data || res;
   }
 };
 

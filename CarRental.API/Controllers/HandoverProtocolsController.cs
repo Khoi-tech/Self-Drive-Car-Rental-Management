@@ -72,6 +72,20 @@ namespace CarRental.API.Controllers
             }
         }
 
+        [HttpPost("{id}/confirm")]
+        public async Task<IActionResult> Confirm(Guid id, [FromBody] HandoverConfirmDto dto)
+        {
+            try
+            {
+                var confirmed = await _protocolService.ConfirmHandoverAsync(id, dto);
+                return Ok(new { message = "Xác nhận bàn giao xe thành công. Đơn thuê đã chính thức được kích hoạt (ACTIVE).", data = confirmed });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {

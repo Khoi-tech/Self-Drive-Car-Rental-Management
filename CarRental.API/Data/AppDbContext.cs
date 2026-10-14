@@ -24,6 +24,8 @@ namespace CarRental.API.Data
         public DbSet<RentalExtension> RentalExtensions { get; set; } = null!;
         public DbSet<IncidentReport> IncidentReports { get; set; } = null!;
         public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; } = null!;
+        public DbSet<ReturnProtocol> ReturnProtocols { get; set; } = null!;
+        public DbSet<RentalSettlement> RentalSettlements { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

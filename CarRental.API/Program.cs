@@ -97,6 +97,9 @@ builder.Services.AddScoped<IHandoverProtocolService, HandoverProtocolService>();
 builder.Services.AddScoped<IRentalExtensionService, RentalExtensionService>();
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddScoped<IReturnProtocolService, ReturnProtocolService>();
+builder.Services.AddScoped<ISettlementService, SettlementService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
 // Build app
 var app = builder.Build();
@@ -247,6 +250,85 @@ using (var scope = app.Services.CreateScope())
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ
             );
+
+            -- SPRINT 5: Return Protocols Table (US-22)
+            CREATE TABLE IF NOT EXISTS return_protocols (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS protocol_number VARCHAR(50);
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS rental_request_id UUID;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS contract_id UUID;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_id UUID;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_name VARCHAR(100) DEFAULT 'Nhân viên kiểm định VELORA';
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100);
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(20);
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS return_date TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS start_km INT NOT NULL DEFAULT 0;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS end_km INT NOT NULL DEFAULT 0;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS fuel_level INT NOT NULL DEFAULT 100;
+            ALTER TABLE return_protocols ALTER COLUMN end_km DROP NOT NULL;
+            ALTER TABLE return_protocols ALTER COLUMN fuel_level DROP NOT NULL;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS total_km_driven INT NOT NULL DEFAULT 0;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS max_km_allowed INT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS excess_km INT NOT NULL DEFAULT 0;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS initial_fuel_level INT NOT NULL DEFAULT 100;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS return_fuel_level INT NOT NULL DEFAULT 100;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS fuel_difference INT NOT NULL DEFAULT 0;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS exterior_condition TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS interior_condition TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS tire_condition TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS new_damages_notes TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS accessories_checklist TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS missing_accessories TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS evidence_photo_urls TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_notes TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_signature TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_signature TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS next_vehicle_status VARCHAR(50) DEFAULT 'READY';
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'COMPLETED';
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+
+            -- SPRINT 5: Rental Settlements Table (US-23)
+            CREATE TABLE IF NOT EXISTS rental_settlements (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settlement_number VARCHAR(50);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS rental_request_id UUID;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS contract_id UUID;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS return_protocol_id UUID;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS rental_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS deposit_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS extra_km_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS late_hours NUMERIC(5,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS late_return_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS fuel_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS damage_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS cleaning_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS other_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS other_fee_notes TEXT;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS total_deduction NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS balance_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settlement_type VARCHAR(50) DEFAULT 'REFUND_TO_CUSTOMER';
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS additional_amount_due NUMERIC(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50) DEFAULT 'PENDING';
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_method VARCHAR(50) DEFAULT 'VIETQR';
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_bank_name VARCHAR(100);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_account_number VARCHAR(50);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_account_name VARCHAR(100);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_transaction_code VARCHAR(100);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_proof_url TEXT;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS staff_notes TEXT;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'SETTLED';
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
             INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
             VALUES ('20261014060016_AddOperationalAndSprintTables', '10.0.12')

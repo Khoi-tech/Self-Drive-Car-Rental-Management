@@ -26,6 +26,8 @@ import {
 import rentalRequestService from '../../services/rentalRequestService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import HandoverModal from '../../components/handover/HandoverModal';
+import ReturnProtocolModal from '../../components/operations/ReturnProtocolModal';
+import SettlementModal from '../../components/operations/SettlementModal';
 
 const STATUS_CONFIG = {
   PENDING: { label: 'Chờ duyệt', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', icon: Clock },
@@ -63,6 +65,14 @@ const RentalRequestsPage = () => {
   // Handover Modal State (US-18)
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [handoverRequest, setHandoverRequest] = useState(null);
+
+  // Return Protocol Modal State (US-22)
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnRequest, setReturnRequest] = useState(null);
+
+  // Settlement Modal State (US-23)
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settlementRequest, setSettlementRequest] = useState(null);
 
   // Reject Action State
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -526,6 +536,50 @@ const RentalRequestsPage = () => {
                             >
                               <FileCheck size={14} />
                               <span className="hidden sm:inline">Bàn giao</span>
+                            </button>
+                          )}
+
+                          {/* Return Protocol & Settlement Buttons if ACTIVE */}
+                          {req.status === 'ACTIVE' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setReturnRequest(req);
+                                  setIsReturnModalOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                                title="Nghiệm thu hoàn trả xe (US-22)"
+                              >
+                                <FileCheck size={14} />
+                                <span className="hidden sm:inline">Trả xe</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setSettlementRequest(req);
+                                  setIsSettlementModalOpen(true);
+                                }}
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                                title="Tính phí & Quyết toán cọc (US-23)"
+                              >
+                                <DollarSign size={14} />
+                                <span className="hidden sm:inline">Quyết toán</span>
+                              </button>
+                            </>
+                          )}
+
+                          {/* View Settlement Button if COMPLETED */}
+                          {req.status === 'COMPLETED' && (
+                            <button
+                              onClick={() => {
+                                setSettlementRequest(req);
+                                setIsSettlementModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                              title="Xem phiếu quyết toán & hoàn cọc"
+                            >
+                              <DollarSign size={14} />
+                              <span className="hidden sm:inline">Phiếu QT</span>
                             </button>
                           )}
                         </div>
@@ -1037,6 +1091,39 @@ const RentalRequestsPage = () => {
             setHandoverRequest(null);
           }}
           rentalRequest={handoverRequest}
+          onSuccess={loadRequests}
+        />
+      )}
+
+      {/* ================= MODAL: NGHIỆM THU HOÀN TRẢ XE (US-22) ================= */}
+      {isReturnModalOpen && returnRequest && (
+        <ReturnProtocolModal
+          isOpen={isReturnModalOpen}
+          onClose={() => {
+            setIsReturnModalOpen(false);
+            setReturnRequest(null);
+          }}
+          rentalRequest={returnRequest}
+          onSuccess={loadRequests}
+          onProceedToSettlement={(createdProtocol) => {
+            const req = returnRequest;
+            setIsReturnModalOpen(false);
+            setReturnRequest(null);
+            setSettlementRequest(req);
+            setIsSettlementModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* ================= MODAL: QUYẾT TOÁN CỌC & HOÀN TIỀN (US-23) ================= */}
+      {isSettlementModalOpen && settlementRequest && (
+        <SettlementModal
+          isOpen={isSettlementModalOpen}
+          onClose={() => {
+            setIsSettlementModalOpen(false);
+            setSettlementRequest(null);
+          }}
+          rentalRequest={settlementRequest}
           onSuccess={loadRequests}
         />
       )}

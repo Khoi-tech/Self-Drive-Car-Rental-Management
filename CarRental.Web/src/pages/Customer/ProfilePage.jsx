@@ -24,7 +24,8 @@ import {
   Sparkles,
   ArrowRight,
   FileCheck,
-  AlertTriangle
+  AlertTriangle,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import rentalRequestService from '../../services/rentalRequestService';
@@ -32,6 +33,7 @@ import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import ExtensionModal from '../../components/operations/ExtensionModal';
 import IncidentModal from '../../components/operations/IncidentModal';
 import CustomerHandoverModal from '../../components/operations/CustomerHandoverModal';
+import CustomerSettlementReceiptModal from '../../components/operations/CustomerSettlementReceiptModal';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -106,6 +108,7 @@ const ProfilePage = () => {
   const [isExtensionOpen, setIsExtensionOpen] = useState(false);
   const [isIncidentOpen, setIsIncidentOpen] = useState(false);
   const [isHandoverConfirmOpen, setIsHandoverConfirmOpen] = useState(false);
+  const [isSettlementReceiptOpen, setIsSettlementReceiptOpen] = useState(false);
 
   const fetchMyBookings = async () => {
     try {
@@ -520,6 +523,21 @@ const ProfilePage = () => {
                             </>
                           )}
 
+                          {/* Settlement & Refund Receipt Button for COMPLETED */}
+                          {req.status === 'COMPLETED' && (
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(req);
+                                setIsSettlementReceiptOpen(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-medium transition flex items-center gap-1.5"
+                              title="Xem phiếu quyết toán & hoàn tiền cọc (US-10)"
+                            >
+                              <Receipt size={13} />
+                              <span>Quyết toán & Hoàn cọc</span>
+                            </button>
+                          )}
+
                           {/* View Detail Modal Trigger */}
                           <button
                             onClick={() => {
@@ -714,6 +732,15 @@ const ProfilePage = () => {
           onClose={() => setIsHandoverConfirmOpen(false)}
           rentalRequest={selectedRequest}
           onSuccess={fetchMyBookings}
+        />
+      )}
+
+      {/* Customer Settlement & Refund Receipt Modal (US-10) */}
+      {isSettlementReceiptOpen && selectedRequest && (
+        <CustomerSettlementReceiptModal
+          isOpen={isSettlementReceiptOpen}
+          onClose={() => setIsSettlementReceiptOpen(false)}
+          rentalRequest={selectedRequest}
         />
       )}
     </div>

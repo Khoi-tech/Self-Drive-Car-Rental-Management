@@ -60,7 +60,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("additional_drivers");
+                    b.ToTable("additional_drivers", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CarInsurance", b =>
@@ -134,7 +134,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("car_insurances");
+                    b.ToTable("car_insurances", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CompensationPolicy", b =>
@@ -176,7 +176,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("compensation_policies");
+                    b.ToTable("compensation_policies", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.ContractTemplate", b =>
@@ -227,7 +227,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("contract_templates");
+                    b.ToTable("contract_templates", (string)null);
 
                     b.HasData(
                         new
@@ -347,7 +347,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("handover_protocols");
+                    b.ToTable("handover_protocols", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.IncidentReport", b =>
@@ -473,7 +473,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("ReplacementCarId");
 
-                    b.ToTable("incident_reports");
+                    b.ToTable("incident_reports", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.MaintenanceRecord", b =>
@@ -556,7 +556,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("maintenance_records");
+                    b.ToTable("maintenance_records", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Payment", b =>
@@ -619,7 +619,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("payments");
+                    b.ToTable("payments", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.PricingPolicy", b =>
@@ -653,7 +653,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("VehicleId");
 
-                    b.ToTable("pricing_policies");
+                    b.ToTable("pricing_policies", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalCondition", b =>
@@ -684,7 +684,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("CarId")
                         .IsUnique();
 
-                    b.ToTable("rental_conditions");
+                    b.ToTable("rental_conditions", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalContract", b =>
@@ -745,7 +745,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RequestId");
 
-                    b.ToTable("rental_contracts");
+                    b.ToTable("rental_contracts", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalExtension", b =>
@@ -815,7 +815,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("rental_extensions");
+                    b.ToTable("rental_extensions", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
@@ -937,7 +937,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("rental_requests");
+                    b.ToTable("rental_requests", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.User", b =>
@@ -993,7 +993,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("app_users");
+                    b.ToTable("app_users", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>
@@ -1105,7 +1105,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("LicensePlate")
                         .IsUnique();
 
-                    b.ToTable("cars");
+                    b.ToTable("cars", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.AdditionalDriver", b =>

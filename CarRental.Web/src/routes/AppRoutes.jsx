@@ -24,6 +24,7 @@ import RegisterPage from '../pages/Auth/RegisterPage';
 import ProfilePage from '../pages/Customer/ProfilePage';
 import InsurancesPage from '../pages/Insurances/InsurancesPage';
 import HandoversPage from '../pages/Handovers/HandoversPage';
+import ReturnsPage from '../pages/Returns/ReturnsPage';
 import RentalExtensionsPage from '../pages/Extensions/RentalExtensionsPage';
 import IncidentsPage from '../pages/Incidents/IncidentsPage';
 import MaintenancePage from '../pages/Maintenance/MaintenancePage';
@@ -76,6 +77,7 @@ const AppRoutes = () => {
         <Route index element={<DashboardPage />} />
         <Route path="rental-requests" element={<RentalRequestsPage />} />
         <Route path="handovers" element={<HandoversPage />} />
+        <Route path="returns" element={<ReturnsPage />} />
         <Route path="extensions" element={<RentalExtensionsPage />} />
         <Route path="incidents" element={<IncidentsPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />

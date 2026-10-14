@@ -146,9 +146,13 @@ namespace CarRental.API.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Switch vehicle status to MAINTENANCE
-            vehicle.Status = VehicleStatus.MAINTENANCE;
-            vehicle.UpdatedAt = DateTime.UtcNow;
+            // Only switch vehicle status to MAINTENANCE if it is currently READY or INSPECTION.
+            // Do NOT override if car is currently RENTED by a client or BOOKED for upcoming trip.
+            if (vehicle.Status == VehicleStatus.READY || vehicle.Status == VehicleStatus.INSPECTION)
+            {
+                vehicle.Status = VehicleStatus.MAINTENANCE;
+                vehicle.UpdatedAt = DateTime.UtcNow;
+            }
 
             _context.MaintenanceRecords.Add(record);
             await _context.SaveChangesAsync();

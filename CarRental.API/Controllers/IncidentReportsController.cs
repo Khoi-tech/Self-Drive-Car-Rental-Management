@@ -1,5 +1,7 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Incidents;
 using CarRental.API.Services;
@@ -56,10 +58,14 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/status")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateIncidentStatusDto dto)
         {
             try
             {
+                var staffName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("fullName") ?? dto.StaffName ?? "Nhân viên VELORA";
+                dto.StaffName = staffName;
+
                 var updated = await _incidentService.UpdateStatusAsync(id, dto);
                 return Ok(new { message = "Cập nhật trạng thái sự cố thành công.", data = updated });
             }
@@ -70,10 +76,14 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/resolve")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Resolve(Guid id, [FromBody] ResolveIncidentDto dto)
         {
             try
             {
+                var staffName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("fullName") ?? dto.StaffName ?? "Nhân viên VELORA";
+                dto.StaffName = staffName;
+
                 var resolved = await _incidentService.ResolveAsync(id, dto);
                 return Ok(new { message = "Đã giải quyết và lưu hồ sơ sự cố thành công.", data = resolved });
             }

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Maintenance;
 using CarRental.API.Services;
@@ -8,6 +9,7 @@ namespace CarRental.API.Controllers
 {
     [ApiController]
     [Route("api/maintenance")]
+    [Authorize(Roles = "ADMIN,STAFF")]
     public class MaintenanceController : ControllerBase
     {
         private readonly IMaintenanceService _maintenanceService;

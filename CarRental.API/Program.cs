@@ -52,7 +52,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(dataSource));
 
 // JWT Authentication Configuration
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "VeloraSuperSecretKeyForJwtAuthentication2026!@#$%";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("Cấu hình khóa bí mật Jwt:Key không tồn tại hoặc chưa được thiết lập.");
+}
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CarRental.API";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CarRental.Web";
 
@@ -243,6 +247,10 @@ using (var scope = app.Services.CreateScope())
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ
             );
+
+            INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+            VALUES ('20261014060016_AddOperationalAndSprintTables', '10.0.12')
+            ON CONFLICT (""MigrationId"") DO NOTHING;
         ");
     } catch { /* Ignore if already exists */ }
 

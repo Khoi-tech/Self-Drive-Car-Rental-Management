@@ -1,5 +1,7 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Extensions;
 using CarRental.API.Services;
@@ -56,10 +58,14 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/approve")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Approve(Guid id, [FromBody] ProcessRentalExtensionDto dto)
         {
             try
             {
+                var staffName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("fullName") ?? dto.StaffName ?? "Nhân viên VELORA";
+                dto.StaffName = staffName;
+
                 var approved = await _extensionService.ApproveAsync(id, dto);
                 return Ok(new { message = "Đã phê duyệt gia hạn đơn thuê thành công.", data = approved });
             }
@@ -70,10 +76,14 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/reject")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Reject(Guid id, [FromBody] ProcessRentalExtensionDto dto)
         {
             try
             {
+                var staffName = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("fullName") ?? dto.StaffName ?? "Nhân viên VELORA";
+                dto.StaffName = staffName;
+
                 var rejected = await _extensionService.RejectAsync(id, dto);
                 return Ok(new { message = "Đã từ chối yêu cầu gia hạn.", data = rejected });
             }

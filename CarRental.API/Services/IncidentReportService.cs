@@ -142,32 +142,64 @@ namespace CarRental.API.Services
             report.ResolvedAt = DateTime.UtcNow;
 
             // Handle replacement car if chosen
-            if (dto.ResolutionAction.ToUpper() == "REPLACE_CAR" && dto.ReplacementCarId.HasValue)
+            if (dto.ResolutionAction.ToUpper() == "REPLACE_CAR")
             {
-                var replCar = await _context.Vehicles.FindAsync(dto.ReplacementCarId.Value);
-                if (replCar != null)
+                if (!dto.ReplacementCarId.HasValue)
                 {
-                    replCar.Status = VehicleStatus.RENTED;
-                    replCar.UpdatedAt = DateTime.UtcNow;
+                    throw new InvalidOperationException("Vui lòng chọn xe thay thế từ kho xe khi chọn phương án Đổi xe (REPLACE_CAR).");
+                }
+
+                var replCar = await _context.Vehicles.FindAsync(dto.ReplacementCarId.Value);
+                if (replCar == null)
+                {
+                    throw new KeyNotFoundException("Không tìm thấy xe thay thế đã chọn.");
+                }
+
+                if (replCar.Status != VehicleStatus.READY)
+                {
+                    throw new InvalidOperationException($"Xe thay thế {replCar.Make} {replCar.Model} ({replCar.LicensePlate}) không sẵn sàng để bàn giao (Trạng thái hiện tại: {replCar.Status}). Vui lòng chọn xe đang ở trạng thái READY.");
+                }
+
+                replCar.Status = VehicleStatus.RENTED;
+                replCar.UpdatedAt = DateTime.UtcNow;
+
+                // Update RentalRequest to associate with new replacement car
+                if (report.RentalRequest != null)
+                {
+                    report.RentalRequest.CarId = replCar.Id;
+                    report.RentalRequest.UpdatedAt = DateTime.UtcNow;
                 }
             }
 
-            // Update car status after incident
+            // Update original damaged car status after incident
             if (report.Vehicle != null)
             {
-                if (dto.VehicleStatusAfterIncident?.ToUpper() == "REPAIR")
+                var targetStatus = dto.VehicleStatusAfterIncident?.ToUpper();
+
+                if (dto.ResolutionAction.ToUpper() == "REPLACE_CAR")
                 {
-                    report.Vehicle.Status = VehicleStatus.REPAIR;
-                }
-                else if (dto.VehicleStatusAfterIncident?.ToUpper() == "MAINTENANCE")
-                {
-                    report.Vehicle.Status = VehicleStatus.MAINTENANCE;
+                    // If car was replaced, original car must NOT be RENTED anymore
+                    report.Vehicle.Status = targetStatus switch
+                    {
+                        "MAINTENANCE" => VehicleStatus.MAINTENANCE,
+                        "INSPECTION" => VehicleStatus.INSPECTION,
+                        "READY" => VehicleStatus.READY,
+                        _ => VehicleStatus.REPAIR // Default to REPAIR for damaged car
+                    };
                 }
                 else
                 {
-                    // If car still operational
-                    report.Vehicle.Status = VehicleStatus.RENTED;
+                    // Repaired on-site or client resolved
+                    report.Vehicle.Status = targetStatus switch
+                    {
+                        "REPAIR" => VehicleStatus.REPAIR,
+                        "MAINTENANCE" => VehicleStatus.MAINTENANCE,
+                        "INSPECTION" => VehicleStatus.INSPECTION,
+                        "READY" => VehicleStatus.READY,
+                        _ => VehicleStatus.RENTED // Continues trip with client
+                    };
                 }
+
                 report.Vehicle.UpdatedAt = DateTime.UtcNow;
             }
 

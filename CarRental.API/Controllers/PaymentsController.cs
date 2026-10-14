@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Payment;
 using CarRental.API.Services;
@@ -41,6 +42,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("confirm")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto dto)
         {
             if (!ModelState.IsValid)

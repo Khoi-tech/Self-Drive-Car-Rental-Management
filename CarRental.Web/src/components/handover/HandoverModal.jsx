@@ -70,7 +70,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             }
           } else {
             setExistingProtocol(null);
-            setOdoAtHandover(rentalRequest.dailyRate ? 10000 : 0);
+            setOdoAtHandover(rentalRequest.vehicle?.currentMileage || rentalRequest.currentMileage || 0);
           }
         } catch (err) {
           // If 404, not created yet - totally normal
@@ -240,7 +240,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     <span className="text-zinc-400 font-bold">KM</span>
                   </div>
                   <p className="text-[11px] text-zinc-500">
-                    Căn cứ tính phí vượt kilomet khi khách hoàn trả xe (giới hạn {rentalRequest.dailyRate ? '100' : '150'} km/ngày).
+                    Căn cứ tính phí vượt kilomet khi khách hoàn trả xe (giới hạn {rentalRequest.vehicle?.mileageLimit || rentalRequest.mileageLimit || 300} km/ngày).
                   </p>
                 </div>
 

@@ -36,7 +36,10 @@ namespace CarRental.API.Services
             foreach (var item in list)
             {
                 var dto = MapToDto(item);
-                dto.HasScheduleConflict = await CheckConflictAsync(item.RentalRequestId, item.RentalRequest?.CarId, item.OldEndTime, item.NewEndTime);
+                // Optimization: only check schedule conflict for pending extension requests
+                dto.HasScheduleConflict = item.Status == "PENDING" 
+                    ? await CheckConflictAsync(item.RentalRequestId, item.RentalRequest?.CarId, item.OldEndTime, item.NewEndTime)
+                    : false;
                 dtos.Add(dto);
             }
 
@@ -150,6 +153,16 @@ namespace CarRental.API.Services
             request.TotalDays += extension.ExtendedDays;
             request.EstimatedTotalFee += extension.AdditionalFee;
             request.UpdatedAt = DateTime.UtcNow;
+
+            // Synchronize associated RentalContract if exists
+            var contract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == request.Id);
+            if (contract != null)
+            {
+                contract.TotalFee += extension.AdditionalFee;
+                var dailyKmAllowance = request.Vehicle?.MileageLimit ?? 300;
+                contract.MaxKm += extension.ExtendedDays * dailyKmAllowance;
+                contract.UpdatedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
             return (await GetByIdAsync(extension.Id))!;

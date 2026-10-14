@@ -85,7 +85,7 @@ namespace CarRental.API.Services
                 ContractNumber = contractNumber,
                 TotalFee = request.EstimatedTotalFee,
                 DepositAmount = request.DepositAmount,
-                MaxKm = 300 * request.TotalDays, // Default 300km/day allowance
+                MaxKm = (request.Vehicle?.MileageLimit ?? 300) * request.TotalDays,
                 Content = renderedContent,
                 Status = "WAITING_SIGNATURE",
                 CreatedAt = DateTime.UtcNow

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Handover;
 using CarRental.API.Services;
@@ -41,6 +42,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Create([FromBody] CreateHandoverProtocolDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -57,6 +59,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateHandoverProtocolDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -73,6 +76,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm")]
+        [Authorize]
         public async Task<IActionResult> Confirm(Guid id, [FromBody] HandoverConfirmDto dto)
         {
             try
@@ -87,6 +91,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _protocolService.DeleteAsync(id);

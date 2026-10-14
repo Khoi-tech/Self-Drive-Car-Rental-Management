@@ -100,7 +100,11 @@ namespace CarRental.API.Services
 
         private string GenerateJwtToken(User user)
         {
-            var keyString = _config["Jwt:Key"] ?? "VeloraSuperSecretKeyForJwtAuthentication2026!@#$%";
+            var keyString = _config["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(keyString))
+            {
+                throw new InvalidOperationException("Cấu hình khóa bí mật Jwt:Key không tồn tại hoặc chưa được thiết lập.");
+            }
             var issuer = _config["Jwt:Issuer"] ?? "CarRental.API";
             var audience = _config["Jwt:Audience"] ?? "CarRental.Web";
             var expireDays = int.TryParse(_config["Jwt:ExpireDays"], out var days) ? days : 7;

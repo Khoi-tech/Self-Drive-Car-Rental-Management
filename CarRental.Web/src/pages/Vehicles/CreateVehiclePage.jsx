@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
 import vehicleService from '../../services/vehicleService';
+import VehicleImageManager from '../../components/vehicles/VehicleImageManager';
 
 const CreateVehiclePage = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const CreateVehiclePage = () => {
     currentMileage: '',
     mileageLimit: '',
     pickupLocation: '',
+    imageUrl: '',
   });
 
   const handleChange = (e) => {
@@ -43,19 +45,35 @@ const CreateVehiclePage = () => {
     setError(null);
 
     // Basic Validation
-    if (formData.seats <= 0) {
+    if (Number(formData.seats) <= 0) {
       setError('Số chỗ ngồi phải lớn hơn 0.');
       setLoading(false);
       return;
     }
-    if (formData.dailyRate < 0 || formData.depositAmount < 0) {
+    if (Number(formData.dailyRate) < 0 || Number(formData.depositAmount) < 0) {
       setError('Giá tiền không được là số âm.');
       setLoading(false);
       return;
     }
 
     try {
-      await vehicleService.createVehicle(formData);
+      const payload = {
+        make: formData.make.trim(),
+        model: formData.model.trim(),
+        licensePlate: formData.licensePlate.trim().toUpperCase(),
+        seats: Number(formData.seats) || 4,
+        transmission: formData.transmission,
+        fuelType: formData.fuelType,
+        manufactureYear: Number(formData.manufactureYear) || new Date().getFullYear(),
+        dailyRate: Number(formData.dailyRate) || 0,
+        depositAmount: Number(formData.depositAmount) || 0,
+        currentMileage: formData.currentMileage !== '' ? Number(formData.currentMileage) : 0,
+        mileageLimit: formData.mileageLimit !== '' ? Number(formData.mileageLimit) : null,
+        pickupLocation: formData.pickupLocation ? formData.pickupLocation.trim() : null,
+        imageUrl: formData.imageUrl ? formData.imageUrl.trim() : null,
+      };
+
+      await vehicleService.createVehicle(payload);
       navigate('/admin/vehicles', { replace: true });
     } catch (err) {
       if (err.response?.data?.errors) {
@@ -262,6 +280,15 @@ const CreateVehiclePage = () => {
                 onChange={handleChange}
                 placeholder="VD: Trụ sở chính"
                 className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm"
+              />
+            </div>
+
+            {/* Image Gallery Manager */}
+            <div className="md:col-span-2 pt-2">
+              <VehicleImageManager
+                value={formData.imageUrl}
+                vehicleMake={formData.make}
+                onChange={(serialized) => setFormData(prev => ({ ...prev, imageUrl: serialized }))}
               />
             </div>
           </div>

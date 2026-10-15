@@ -304,71 +304,78 @@ const PricingDetailPage = () => {
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <button onClick={() => navigate('/admin/pricing')} className="p-2 text-zinc-400 hover:text-zinc-900 bg-white border border-zinc-200 rounded-md shadow-sm">
-          <ArrowLeft size={20} />
+        <button onClick={() => navigate('/admin/pricing')} className="p-2 text-slate-500 hover:text-zinc-950 bg-white border border-slate-200 rounded-md shadow-sm transition">
+          <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Bảng giá & tiền cọc</h1>
-          <p className="text-zinc-500 mt-1">{vehicle.make} {vehicle.model} — {vehicle.licensePlate}</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950">Biểu Phí & Chính Sách Giá</h1>
+            <span className="license-plate text-xs px-2.5 py-0.5">
+              {vehicle.licensePlate}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">{vehicle.make} {vehicle.model} • {vehicle.seats} chỗ • {vehicle.transmission === 'AUTO' ? 'Tự động' : 'Số sàn'}</p>
         </div>
       </div>
 
       {successMsg && (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md flex items-center">
-          <CheckCircle className="text-green-500 mr-3 shrink-0" size={20} />
-          <p className="text-green-700 text-sm font-medium">{successMsg}</p>
+        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-md flex items-center">
+          <CheckCircle className="text-emerald-600 mr-2.5 shrink-0" size={18} />
+          <p className="text-emerald-800 text-xs font-medium">{successMsg}</p>
         </div>
       )}
 
       {error && vehicle && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-center">
-          <AlertCircle className="text-red-500 mr-3 shrink-0" size={20} />
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-md flex items-center">
+          <AlertCircle className="text-rose-600 mr-2.5 shrink-0" size={18} />
+          <p className="text-rose-800 text-xs font-medium">{error}</p>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Fixed Configs */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
-            <div className="px-5 py-4 border-b border-zinc-200"><h3 className="font-semibold text-zinc-900">A. Giá cơ bản</h3></div>
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">A. Giá Thuê Cơ Bản</h3>
+            </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs text-zinc-500 uppercase">Giá thuê / ngày</label>
-                <div className="font-medium text-zinc-900 mt-1">{formatCurrencyVND(vehicle.dailyRate)}</div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Giá thuê tiêu chuẩn / ngày</label>
+                <div className="font-bold text-base text-zinc-950 font-mono tabular-nums mt-1">{formatCurrencyVND(vehicle.dailyRate)}</div>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 uppercase">Tiền cọc</label>
-                <div className="font-medium text-zinc-900 mt-1">{formatCurrencyVND(vehicle.depositAmount)}</div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tiền thế chân / cọc</label>
+                <div className="font-bold text-base text-zinc-950 font-mono tabular-nums mt-1">{formatCurrencyVND(vehicle.depositAmount)}</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
-            <div className="px-5 py-4 border-b border-zinc-200 flex justify-between items-center">
-              <h3 className="font-semibold text-zinc-900">B. Chính sách km</h3>
-              <button onClick={openKmModal} className="text-sm font-medium text-blue-600 hover:text-blue-800">Sửa</button>
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">B. Hạn Mức Kilomet (ODO)</h3>
+              <button onClick={openKmModal} className="text-xs font-semibold text-[#0F172A] hover:text-[#1D4ED8]">Chỉnh sửa</button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs text-zinc-500 uppercase">Km miễn phí / ngày</label>
-                <div className="font-medium text-zinc-900 mt-1">{vehicle.mileageLimit ? `${vehicle.mileageLimit} km` : 'Không giới hạn'}</div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Hạn mức ODO / ngày</label>
+                <div className="font-mono text-xs font-semibold text-zinc-950 tabular-nums mt-1">{vehicle.mileageLimit ? `${vehicle.mileageLimit.toLocaleString()} km` : 'Không giới hạn'}</div>
               </div>
               <div>
-                <label className="text-xs text-zinc-500 uppercase">Phí vượt km</label>
-                <div className="font-medium text-zinc-900 mt-1">{vehicle.extraKmRate ? formatCurrencyVND(vehicle.extraKmRate) + ' / km' : 'Chưa cấu hình'}</div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Đơn giá phụ thu vượt km</label>
+                <div className="font-mono text-xs font-semibold text-zinc-950 tabular-nums mt-1">{vehicle.extraKmRate ? `${formatCurrencyVND(vehicle.extraKmRate)} / km` : 'Chưa cấu hình'}</div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
-            <div className="px-5 py-4 border-b border-zinc-200 flex justify-between items-center">
-              <h3 className="font-semibold text-zinc-900">C. Nhiên liệu</h3>
-              <button onClick={openFuelModal} className="text-sm font-medium text-blue-600 hover:text-blue-800">Sửa</button>
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">C. Nhiên Liệu Khi Trả</h3>
+              <button onClick={openFuelModal} className="text-xs font-semibold text-[#0F172A] hover:text-[#1D4ED8]">Chỉnh sửa</button>
             </div>
             <div className="p-5">
-              <label className="text-xs text-zinc-500 uppercase">Mức trả xe (Fuel Return Policy)</label>
-              <div className="font-medium text-zinc-900 mt-1">{vehicle.fuelReturnPolicy === 'SAME_LEVEL' ? 'Cùng mức lúc nhận' : (vehicle.fuelReturnPolicy || 'SAME_LEVEL')}</div>
+              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Quy chuẩn mức xăng/dầu</label>
+              <div className="text-xs font-bold text-zinc-950 mt-1">{vehicle.fuelReturnPolicy === 'SAME_LEVEL' ? 'Bằng mức vạch lúc bàn giao' : (vehicle.fuelReturnPolicy || 'Bằng mức vạch lúc bàn giao')}</div>
             </div>
           </div>
         </div>
@@ -376,95 +383,98 @@ const PricingDetailPage = () => {
         {/* Right Column: Pricing Policies & Preview */}
         <div className="lg:col-span-2 space-y-6">
           
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
-              <h3 className="font-semibold text-zinc-900">D. Chính sách giá</h3>
-              <button onClick={openAddModal} className="inline-flex items-center text-sm font-medium text-white bg-zinc-900 rounded px-3 py-1.5 hover:bg-zinc-800 transition-colors">
-                <Plus size={16} className="mr-1.5" /> Thêm chính sách
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">D. Chính Sách Chiết Khấu Theo Ngày</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Giảm giá lũy tiến cho khách thuê dài hạn và phụ thu ngày lễ</p>
+              </div>
+              <button onClick={openAddModal} className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F172A] rounded-md px-3 py-1.5 hover:bg-[#1D4ED8] transition-colors shadow-sm">
+                <Plus size={14} /> Thêm chính sách
               </button>
             </div>
-            <table className="min-w-full divide-y divide-zinc-200">
-              <thead className="bg-white">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-white text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Từ ngày</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Giảm giá</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase">Phụ thu lễ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase">Thao tác</th>
+                  <th className="px-5 py-3 text-left">Thời gian thuê</th>
+                  <th className="px-5 py-3 text-left">Chiết khấu (%)</th>
+                  <th className="px-5 py-3 text-left">Phụ thu ngày lễ (%)</th>
+                  <th className="px-5 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 bg-white">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {policies.length > 0 ? policies.map(policy => (
-                  <tr key={policy.id} className="hover:bg-zinc-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
-                      &ge; {policy.minDays} ngày
+                  <tr key={policy.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-zinc-950">
+                      Từ {policy.minDays} ngày trở lên
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                      {policy.discountPercentage}%
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs font-bold font-mono text-emerald-700 tabular-nums">
+                      -{policy.discountPercentage}%
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-600 font-medium">
-                      {policy.holidaySurcharge}%
+                    <td className="px-5 py-3.5 whitespace-nowrap text-xs font-bold font-mono text-amber-700 tabular-nums">
+                      +{policy.holidaySurcharge}%
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <button onClick={() => openEditModal(policy)} className="text-blue-600 hover:text-blue-800 mr-4" title="Sửa">
-                        <Edit2 size={18} />
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right text-xs">
+                      <button onClick={() => openEditModal(policy)} className="text-slate-600 hover:text-zinc-950 mr-3" title="Chỉnh sửa">
+                        <Edit2 size={15} />
                       </button>
-                      <button onClick={() => openDeleteModal(policy)} className="text-red-600 hover:text-red-800" title="Xóa">
-                        <Trash2 size={18} />
+                      <button onClick={() => openDeleteModal(policy)} className="text-rose-600 hover:text-rose-800" title="Xóa">
+                        <Trash2 size={15} />
                       </button>
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-zinc-500 text-sm">Chưa có chính sách giá nào.</td>
+                    <td colSpan="4" className="px-5 py-8 text-center text-slate-400 text-xs">Chưa có chính sách ưu đãi ngày thuê nào.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-200 flex items-center">
-              <Calculator size={18} className="text-zinc-500 mr-2" />
-              <h3 className="font-semibold text-zinc-900">Xem trước giá</h3>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-200 flex items-center bg-white">
+              <Calculator size={16} className="text-[#0F172A] mr-2" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Công Cụ Ước Tính Giá Thuê</h3>
             </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-2">Số ngày thuê dự kiến</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Số ngày thuê dự kiến</label>
                 <div className="relative">
                   <input
                     type="number"
                     min="1"
                     value={previewDays}
                     onChange={onPreviewDaysChange}
-                    className="block w-full px-4 py-2 border border-zinc-300 rounded-md focus:ring-zinc-900 focus:border-zinc-900"
-                    placeholder="Nhập số ngày..."
+                    className="block w-full px-3.5 py-2 border border-slate-200 rounded-md bg-white text-xs text-zinc-950 focus:outline-none focus:border-[#0F172A] tabular-nums font-mono"
+                    placeholder="Nhập số ngày (VD: 3, 7, 30)..."
                   />
-                  {previewLoading && <RefreshCw size={16} className="absolute right-3 top-3 animate-spin text-zinc-400" />}
+                  {previewLoading && <RefreshCw size={15} className="absolute right-3 top-2.5 animate-spin text-slate-400" />}
                 </div>
-                <p className="mt-2 text-xs text-zinc-500">Giá cuối cùng = Giá cơ bản &times; (1 - % Giảm + % Lễ)</p>
+                <p className="mt-2 text-[11px] text-slate-500">Thuật toán tự động áp dụng bậc chiết khấu cao nhất phù hợp với số ngày thuê.</p>
               </div>
 
               {previewResult && (
-                <div className="bg-white p-4 border border-zinc-200 rounded-md shadow-sm space-y-3 relative">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">Giá cơ bản / ngày:</span>
-                    <span className="font-medium text-zinc-900">{formatCurrencyVND(previewResult.basePrice)}</span>
+                <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm space-y-2.5 relative">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Đơn giá gốc / ngày:</span>
+                    <span className="font-bold text-zinc-950 font-mono tabular-nums">{formatCurrencyVND(previewResult.basePrice)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">Discount áp dụng ({previewResult.selectedMinDays ? `≥ ${previewResult.selectedMinDays} ngày` : 'Không có'}):</span>
-                    <span className="font-medium text-green-600">-{previewResult.discountPercentage}%</span>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Chiết khấu bậc ({previewResult.selectedMinDays ? `≥ ${previewResult.selectedMinDays} ngày` : 'Mặc định'}):</span>
+                    <span className="font-bold text-emerald-700 font-mono tabular-nums">-{previewResult.discountPercentage}%</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">Phụ thu lễ:</span>
-                    <span className="font-medium text-orange-600">+{previewResult.holidaySurcharge}%</span>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-500">Phụ thu lễ tết:</span>
+                    <span className="font-bold text-amber-700 font-mono tabular-nums">+{previewResult.holidaySurcharge}%</span>
                   </div>
-                  <div className="border-t border-zinc-100 pt-3 flex justify-between items-center">
-                    <span className="text-sm font-medium text-zinc-900">Giá sau điều chỉnh:</span>
-                    <span className="text-lg font-bold text-zinc-900">{formatCurrencyVND(previewResult.adjustedDailyPrice)}<span className="text-xs font-normal text-zinc-500">/ngày</span></span>
+                  <div className="border-t border-slate-100 pt-2 flex justify-between items-center">
+                    <span className="text-xs font-semibold text-zinc-950">Giá thực tế / ngày:</span>
+                    <span className="text-sm font-bold text-zinc-950 font-mono tabular-nums">{formatCurrencyVND(previewResult.adjustedDailyPrice)}</span>
                   </div>
-                  <div className="flex justify-between items-center bg-zinc-50 p-3 rounded -mx-4 -mb-4 mt-2 border-t border-zinc-200">
-                    <span className="text-sm font-bold text-zinc-900">Tổng tiền thuê ({previewResult.rentalDays} ngày):</span>
-                    <span className="text-xl font-bold text-blue-600">{formatCurrencyVND(previewResult.rentalPrice)}</span>
+                  <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-200 mt-2">
+                    <span className="text-xs font-bold text-zinc-950">Tổng thanh toán ({previewResult.rentalDays} ngày):</span>
+                    <span className="text-base font-bold text-[#0F172A] font-mono tabular-nums">{formatCurrencyVND(previewResult.rentalPrice)}</span>
                   </div>
                 </div>
               )}
@@ -510,11 +520,11 @@ const PricingDetailPage = () => {
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
                   Hủy
                 </button>
-                <button type="submit" disabled={modalSaving} className={`inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium ${modalSaving ? 'opacity-70' : 'hover:bg-zinc-800'}`}>
-                  {modalSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />} Lưu
+                <button type="submit" disabled={modalSaving} className={`inline-flex items-center px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold shadow-sm transition ${modalSaving ? 'opacity-70' : 'hover:bg-[#1D4ED8]'}`}>
+                  {modalSaving ? <RefreshCw size={15} className="animate-spin mr-1.5" /> : <Save size={15} className="mr-1.5" />} Lưu chính sách
                 </button>
               </div>
             </form>
@@ -526,13 +536,13 @@ const PricingDetailPage = () => {
       {deleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setDeleteModal(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6 z-10 text-center">
-            <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-            <h3 className="text-lg font-bold text-zinc-900 mb-2">Xác nhận xóa</h3>
-            <p className="text-sm text-zinc-500 mb-6">Bạn có chắc muốn xóa chính sách từ {deleteModal.minDays} ngày?</p>
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6 z-10 text-center border border-slate-200">
+            <AlertCircle size={40} className="mx-auto text-rose-500 mb-3" />
+            <h3 className="text-base font-bold text-zinc-950 mb-1.5">Xác nhận xóa</h3>
+            <p className="text-xs text-slate-500 mb-6">Bạn có chắc muốn xóa chính sách từ {deleteModal.minDays} ngày?</p>
             <div className="flex justify-center space-x-3">
-              <button onClick={() => setDeleteModal(null)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">Hủy</button>
-              <button onClick={confirmDelete} disabled={deleteLoading} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-70">
+              <button onClick={() => setDeleteModal(null)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">Hủy</button>
+              <button onClick={confirmDelete} disabled={deleteLoading} className="px-4 py-2 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700 transition disabled:opacity-70 shadow-sm">
                 {deleteLoading ? 'Đang xóa...' : 'Xóa chính sách'}
               </button>
             </div>
@@ -544,38 +554,38 @@ const PricingDetailPage = () => {
       {isKmModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => !kmSaving && setIsKmModalOpen(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-zinc-900">Cấu hình chính sách km</h3>
-              <button onClick={() => setIsKmModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
-                <X size={20} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10 border border-slate-200">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-zinc-950">Cấu hình chính sách km</h3>
+              <button onClick={() => setIsKmModalOpen(false)} className="text-slate-400 hover:text-zinc-950">
+                <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSaveKm} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Km miễn phí / ngày</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Km miễn phí / ngày</label>
                 <div className="relative">
                   <input type="number" min="0" value={kmForm.includedKmPerDay} onChange={e => setKmForm({...kmForm, includedKmPerDay: e.target.value})}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 pr-12" placeholder="VD: 100" />
-                  <span className="absolute right-3 top-2 text-zinc-500 text-sm">km</span>
+                    className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] text-xs font-mono tabular-nums pr-12" placeholder="VD: 100" />
+                  <span className="absolute right-3 top-2 text-slate-400 text-xs">km</span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Phí vượt km</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Phí vượt km</label>
                 <div className="relative">
                   <input type="number" min="0" value={kmForm.extraKmRate} onChange={e => setKmForm({...kmForm, extraKmRate: e.target.value})}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 pr-16" placeholder="VD: 5000" />
-                  <span className="absolute right-3 top-2 text-zinc-500 text-sm">đ/km</span>
+                    className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] text-xs font-mono tabular-nums pr-16" placeholder="VD: 5000" />
+                  <span className="absolute right-3 top-2 text-slate-400 text-xs">đ/km</span>
                 </div>
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsKmModalOpen(false)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">
+                <button type="button" onClick={() => setIsKmModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
                   Hủy
                 </button>
-                <button type="submit" disabled={kmSaving} className={`inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium ${kmSaving ? 'opacity-70' : 'hover:bg-zinc-800'}`}>
-                  {kmSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />} Lưu
+                <button type="submit" disabled={kmSaving} className={`inline-flex items-center px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold shadow-sm transition ${kmSaving ? 'opacity-70' : 'hover:bg-[#1D4ED8]'}`}>
+                  {kmSaving ? <RefreshCw size={15} className="animate-spin mr-1.5" /> : <Save size={15} className="mr-1.5" />} Lưu thiết lập
                 </button>
               </div>
             </form>
@@ -587,30 +597,30 @@ const PricingDetailPage = () => {
       {isFuelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => !fuelSaving && setIsFuelModalOpen(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-zinc-900">Chính sách nhiên liệu</h3>
-              <button onClick={() => setIsFuelModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
-                <X size={20} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10 border border-slate-200">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-zinc-950">Chính sách nhiên liệu</h3>
+              <button onClick={() => setIsFuelModalOpen(false)} className="text-slate-400 hover:text-zinc-950">
+                <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSaveFuel} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Mức nhiên liệu khi trả xe</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Mức nhiên liệu khi trả xe</label>
                 <select value={fuelForm.fuelReturnPolicy} onChange={e => setFuelForm({...fuelForm, fuelReturnPolicy: e.target.value})}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white">
+                    className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] bg-white text-xs">
                   <option value="SAME_LEVEL">Cùng mức lúc nhận (SAME_LEVEL)</option>
                   <option value="FULL_TO_FULL">Đầy bình (FULL_TO_FULL)</option>
                 </select>
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsFuelModalOpen(false)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">
+                <button type="button" onClick={() => setIsFuelModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
                   Hủy
                 </button>
-                <button type="submit" disabled={fuelSaving} className={`inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium ${fuelSaving ? 'opacity-70' : 'hover:bg-zinc-800'}`}>
-                  {fuelSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />} Lưu
+                <button type="submit" disabled={fuelSaving} className={`inline-flex items-center px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold shadow-sm transition ${fuelSaving ? 'opacity-70' : 'hover:bg-[#1D4ED8]'}`}>
+                  {fuelSaving ? <RefreshCw size={15} className="animate-spin mr-1.5" /> : <Save size={15} className="mr-1.5" />} Lưu quy định
                 </button>
               </div>
             </form>

@@ -258,22 +258,26 @@ const VehiclesPage = () => {
                 vehicles.map((vehicle) => {
                   const statusDisplay = getVehicleStatusDisplay(vehicle.status);
                   return (
-                    <tr key={vehicle.id} className="hover:bg-zinc-50 transition-colors">
+                    <tr key={vehicle.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-bold text-zinc-900">{vehicle.licensePlate}</div>
+                        <span className="license-plate text-[11px] py-0.5">{vehicle.licensePlate}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-zinc-900">{vehicle.make}</div>
-                        <div className="text-sm text-zinc-500">{vehicle.model}</div>
+                        <div className="text-sm font-bold text-zinc-900">{vehicle.make}</div>
+                        <div className="text-xs text-slate-500 font-medium">{vehicle.model}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-600 font-medium">
                         {vehicle.seats} chỗ • {getTransmissionDisplay(vehicle.transmission)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-extrabold text-blue-900 tabular-nums">
                         {formatCurrencyVND(vehicle.dailyRate)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                        <span className={
+                          vehicle.status === 'READY' ? 'badge-ready' :
+                          vehicle.status === 'RENTED' ? 'badge-rented' :
+                          vehicle.status === 'MAINTENANCE' ? 'badge-maint' : 'badge-repair'
+                        }>
                           {statusDisplay.label}
                         </span>
                       </td>

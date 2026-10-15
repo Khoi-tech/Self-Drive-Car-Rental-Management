@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Báo Cáo Toàn Diện Đồ Án VELORA - HUFLIT</title>
+<style>
+@page {
+    size: A4 portrait;
+    margin: 20mm 20mm 20mm 25mm;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Times New Roman', Times, 'Liberation Serif', serif;
+    font-size: 14pt;
+    line-height: 1.5;
+    color: #111111;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+/* Cover Page Styling */
+.cover-page {
+    height: 100%;
+    min-height: 960px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.cover-border {
+    border: 3px double #0f2b5c;
+    padding: 30px 25px;
+    height: 960px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.uni-header {
+    margin-top: 10px;
+}
+
+.uni-name {
+    font-size: 15pt;
+    font-weight: bold;
+    color: #0b1a30;
+    text-transform: uppercase;
+}
+
+.uni-sub {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1e3a8a;
+    margin-top: 5px;
+}
+
+.uni-line {
+    color: #0f2b5c;
+    letter-spacing: 2px;
+    margin-top: 8px;
+    font-size: 11pt;
+}
+
+.cover-main {
+    margin: 40px 0;
+}
+
+.report-type {
+    font-size: 16pt;
+    font-weight: bold;
+    color: #b45309;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.course-title {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #334155;
+    margin-bottom: 30px;
+}
+
+.topic-box {
+    border-top: 2px solid #0f2b5c;
+    border-bottom: 2px solid #0f2b5c;
+    padding: 24px 15px;
+    background-color: #f8fafc;
+}
+
+.topic-label {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #475569;
+    margin-bottom: 6px;
+}
+
+.topic-title {
+    font-size: 20pt;
+    font-weight: bold;
+    color: #0f172a;
+    line-height: 1.3;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.topic-sub {
+    font-size: 12pt;
+    color: #475569;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.cover-meta {
+    width: 90%;
+    margin: 20px auto;
+    text-align: left;
+}
+
+.meta-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.meta-table td {
+    border: none;
+    padding: 7px 10px;
+    font-size: 13.5pt;
+    background: transparent !important;
+}
+
+.meta-label {
+    width: 40%;
+    color: #334155;
+}
+
+.meta-val {
+    width: 60%;
+    color: #0f172a;
+}
+
+.cover-footer {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #0f2b5c;
+    margin-bottom: 10px;
+}
+
+/* Table of Contents */
+.toc-page {
+    padding-top: 10px;
+}
+
+.toc-title {
+    font-size: 17pt;
+    font-weight: bold;
+    text-align: center;
+    color: #0f2b5c;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #0f2b5c;
+    padding-bottom: 8px;
+}
+
+.toc-list {
+    font-size: 14pt;
+    line-height: 2.0;
+}
+
+.toc-item {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.toc-subitem {
+    display: flex;
+    justify-content: space-between;
+    padding-left: 25px;
+    font-size: 13.5pt;
+    color: #334155;
+}
+
+.toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted #94a3b8;
+    margin: 0 8px 6px 8px;
+}
+
+/* Headings in Content */
+h2.section-title {
+    font-size: 16pt;
+    font-weight: bold;
+    color: #0f2b5c;
+    border-bottom: 2px solid #0f2b5c;
+    padding-bottom: 4px;
+    margin-top: 20px;
+    margin-bottom: 14px;
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+h3.subsection-title {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1a365d;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+p {
+    font-size: 14pt;
+    line-height: 1.5;
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-indent: 1.25cm;
+}
+
+p strong, li strong {
+    font-weight: bold;
+}
+
+/* Lists */
+ul, ol {
+    margin-top: 6px;
+    margin-bottom: 12px;
+    padding-left: 36px;
+}
+
+li {
+    font-size: 14pt;
+    line-height: 1.45;
+    margin-bottom: 5px;
+    text-align: justify;
+}
+
+/* Tables */
+.table-container {
+    margin: 14px 0 18px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13pt;
+    line-height: 1.35;
+    margin: 0 auto;
+}
+
+th, td {
+    border: 1px solid #334155;
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background-color: #e2e8f0;
+    font-weight: bold;
+    color: #0f172a;
+    text-align: center;
+}
+
+tr:nth-child(even) td {
+    background-color: #f8fafc;
+}
+
+/* Code & Formulas */
+code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12pt;
+    background-color: #f1f5f9;
+    padding: 2px 4px;
+    border-radius: 3px;
+    color: #0f172a;
+}
+
+pre.code-block {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #3b82f6;
+    padding: 10px 12px;
+    font-size: 11pt;
+    line-height: 1.3;
+    font-family: 'Consolas', 'Courier New', monospace;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 12px 0;
+}
+
+.math-display {
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid #16a34a;
+    padding: 10px 14px;
+    margin: 12px 0;
+    text-align: center;
+    font-size: 13pt;
+    font-weight: bold;
+    font-style: italic;
+    color: #14532d;
+    page-break-inside: avoid;
+}
+
+/* Diagrams */
+.mermaid-box {
+    margin: 16px 0;
+    text-align: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.mermaid {
+    display: flex;
+    justify-content: center;
+}
+
+.mermaid svg {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+a {
+    color: #0284c7;
+    text-decoration: underline;
+}
+
+.page-break {
+    page-break-before: always;
+    break-before: page;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'neutral',
+        fontFamily: "'Times New Roman', Times, serif",
+        fontSize: 14
+    });
+});
+</script>
+</head>
+<body>
+
+
+<div class="cover-page">
+    <div class="cover-border">
+        <div class="uni-header">
+            <div class="uni-name">TRƯỜNG ĐẠI HỌC NGOẠI NGỮ - TIN HỌC TP. HỒ CHÍ MINH</div>
+            <div class="uni-sub">KHOA CÔNG NGHỆ THÔNG TIN</div>
+            <div class="uni-line">━━━━━━━━━━━━━━━━━━━━━━</div>
+        </div>
+        
+        <div class="cover-main">
+            <div class="report-type">BÁO CÁO TOÀN DIỆN ĐỒ ÁN MÔN HỌC</div>
+            <div class="course-title">MÔN HỌC: CÔNG NGHỆ PHẦN MỀM NÂNG CAO (CNPM_NC)</div>
+            
+            <div class="topic-box">
+                <div class="topic-label">ĐỀ TÀI:</div>
+                <div class="topic-title">HỆ THỐNG QUẢN LÝ THUÊ XE TỰ LÁI CAO CẤP<br>(DỰ ÁN VELORA)</div>
+                <div class="topic-sub">NỀN TẢNG QUẢN TRỊ VẬN HÀNH THUÊ XE TOÀN DIỆN (5 SPRINTS — 23 USER STORIES)</div>
+            </div>
+        </div>
+        
+        <div class="cover-meta">
+            <table class="meta-table">
+                <tr>
+                    <td class="meta-label">Sinh viên thực hiện:</td>
+                    <td class="meta-val"><strong>HUỲNH MINH KHÔI</strong></td>
+                </tr>
+                <tr>
+                    <td class="meta-label">Ngành học:</td>
+                    <td class="meta-val">Kỹ thuật Phần mềm / Công nghệ Thông tin</td>
+                </tr>
+                <tr>
+                    <td class="meta-label">Kho lưu trữ mã nguồn:</td>
+                    <td class="meta-val"><code>https://github.com/Khoi-tech/Self-Drive-Car-Rental-Management.git</code></td>
+                </tr>
+                <tr>
+                    <td class="meta-label">Nhánh & Commit:</td>
+                    <td class="meta-val">Nhánh <code>main</code> — Commit <code>9afba8b</code></td>
+                </tr>
+                <tr>
+                    <td class="meta-label">Thời điểm hoàn thành:</td>
+                    <td class="meta-val">Tháng 10 / Năm 2026</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="cover-footer">
+            TP. HỒ CHÍ MINH, THÁNG 10/2026
+        </div>
+    </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="toc-page">
+    <h2 class="toc-title">MỤC LỤC TỔNG QUAN BÁO CÁO</h2>
+    <div class="toc-list">
+        <div class="toc-item"><span><strong>1. TỔNG QUAN DỰ ÁN</strong></span><span class="toc-dots"></span><span>Trang 3</span></div>
+        <div class="toc-subitem"><span>1.1. Giới thiệu dự án VELORA</span><span class="toc-dots"></span><span>Trang 3</span></div>
+        <div class="toc-subitem"><span>1.2. Trạng thái vận hành hiện tại</span><span class="toc-dots"></span><span>Trang 3</span></div>
+        
+        <div class="toc-item"><span><strong>2. KIẾN TRÚC HỆ THỐNG & CÔNG NGHỆ (TECH STACK)</strong></span><span class="toc-dots"></span><span>Trang 4</span></div>
+        <div class="toc-subitem"><span>2.1. Sơ đồ kiến trúc N-Tier</span><span class="toc-dots"></span><span>Trang 4</span></div>
+        <div class="toc-subitem"><span>2.2. Bảng công nghệ chi tiết (.NET 10, React 18, PostgreSQL)</span><span class="toc-dots"></span><span>Trang 5</span></div>
+        
+        <div class="toc-item"><span><strong>3. CHI TIẾT KẾT QUẢ TRIỂN KHAI 5 SPRINTS (62 STORY POINTS)</strong></span><span class="toc-dots"></span><span>Trang 6</span></div>
+        <div class="toc-subitem"><span>3.1. Sprint 1: Danh Mục Xe & Bảng Giá Động (12 SP)</span><span class="toc-dots"></span><span>Trang 6</span></div>
+        <div class="toc-subitem"><span>3.2. Sprint 2: Đặt Xe, Thẩm Định Hồ Sơ & Mẫu Điều Khoản (11 SP)</span><span class="toc-dots"></span><span>Trang 7</span></div>
+        <div class="toc-subitem"><span>3.3. Sprint 3: Ký HĐ Điện Tử, Cọc Xe & Bàn Giao (11 SP)</span><span class="toc-dots"></span><span>Trang 7</span></div>
+        <div class="toc-subitem"><span>3.4. Sprint 4: Vận Hành Chuyến Đi — Gia Hạn, Sự Cố & Bảo Dưỡng (11 SP)</span><span class="toc-dots"></span><span>Trang 8</span></div>
+        <div class="toc-subitem"><span>3.5. Sprint 5: Hoàn Trả Xe, Quyết Toán Cọc & Báo Cáo Doanh Thu (17 SP)</span><span class="toc-dots"></span><span>Trang 8</span></div>
+        
+        <div class="toc-item"><span><strong>4. THIẾT KẾ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)</strong></span><span class="toc-dots"></span><span>Trang 10</span></div>
+        <div class="toc-subitem"><span>4.1. Sơ đồ quan hệ thực thể (ER Diagram)</span><span class="toc-dots"></span><span>Trang 10</span></div>
+        <div class="toc-subitem"><span>4.2. Danh sách 17 bảng dữ liệu chính thức</span><span class="toc-dots"></span><span>Trang 11</span></div>
+        
+        <div class="toc-item"><span><strong>5. DỮ LIỆU MẪU & KIỂM THỬ HỆ THỐNG</strong></span><span class="toc-dots"></span><span>Trang 12</span></div>
+        <div class="toc-subitem"><span>5.1. Bộ dữ liệu mẫu (27 xe sang, 28 bảo hiểm, tài khoản test)</span><span class="toc-dots"></span><span>Trang 12</span></div>
+        <div class="toc-subitem"><span>5.2. Kết quả kiểm thử tích hợp E2E (100% Passed)</span><span class="toc-dots"></span><span>Trang 12</span></div>
+        
+        <div class="toc-item"><span><strong>6. KẾT LUẬN & ĐÁNH GIÁ CHUNG</strong></span><span class="toc-dots"></span><span>Trang 13</span></div>
+        <div class="toc-subitem"><span>6.1. Đánh giá chất lượng kỹ thuật</span><span class="toc-dots"></span><span>Trang 13</span></div>
+    </div>
+</div>
+
+
+<div class='page-break'></div>
+<h2 class='section-title'>1. TỔNG QUAN DỰ ÁN</h2>
+<h3 class='subsection-title'>1.1. Giới thiệu dự án</h3>
+<p><strong>VELORA</strong> là nền tảng quản trị và vận hành dịch vụ thuê xe tự lái cao cấp theo chu trình khép kín (End-to-End Car Rental Lifecycle). Hệ thống được xây dựng nhằm giải quyết toàn bộ bài toán thực tế của doanh nghiệp cho thuê xe tự lái:</p>
+<ul>
+<li><strong>Khách hàng:</strong> Tìm kiếm xe thông minh, xem bảng giá minh bạch, đặt xe trực tuyến với hồ sơ CCCD/GPLX, ký hợp đồng điện tử không giấy tờ, thanh toán cọc & phụ phí qua mã VietQR tự động, theo dõi hành trình chuyến đi, yêu cầu gia hạn và báo sự cố khẩn cấp.</li>
+<li><strong>Doanh nghiệp & Nhân viên:</strong> Quản lý đội xe và bảng giá động, kiểm duyệt hồ sơ khách hàng, phòng chống trùng lịch tự động, lập biên bản giao nhận xe thực tế (ODO, xăng, trầy xước), giám sát sửa chữa bảo dưỡng, xử lý cứu hộ sự cố, nghiệm thu hoàn trả xe, tự động tính phụ phí và quyết toán hoàn cọc tức thì, cùng dashboard phân tích hiệu suất khai thác đội xe (Fleet Utilization).</li>
+</ul>
+<h3 class='subsection-title'>1.2. Trạng thái vận hành hiện tại</h3>
+<ul>
+<li><strong>Tiến độ triển khai:</strong> Đã hoàn thành <strong>100% toàn bộ 5 Sprints</strong> theo Product Backlog và Sprint Backlog.</li>
+<li><strong>Tổng User Stories hoàn thành:</strong> 23/23 User Stories cốt lõi (Tổng cộng <strong>62 Story Points</strong>).</li>
+<li><strong>Backend API:</strong> Chạy trên <strong>.NET 10 Web API</strong> (<code>http://localhost:5171</code>), Swagger UI đầy đủ, bảo mật RBAC với JWT Bearer Token.</li>
+<li><strong>Frontend Web:</strong> Chạy trên <strong>React 18 + Vite 8</strong> (<code>http://localhost:5173</code>), giao diện <strong>Dark Velvet Luxury</strong> thời thượng, tương thích responsive trên Mobile & Desktop.</li>
+<li><strong>Cơ sở dữ liệu:</strong> <strong>PostgreSQL trên Supabase Cloud</strong>, quản trị 17 bảng thực thể với quan hệ chặt chẽ và cơ chế đồng bộ DDL tự động.</li>
+</ul>
+<div class='page-break'></div>
+<h2 class='section-title'>2. KIẾN TRÚC HỆ THỐNG & CÔNG NGHỆ (TECH STACK)</h2>
+<h3 class='subsection-title'>2.1. Sơ đồ kiến trúc tổng thể</h3>
+<p>Hệ thống tuân thủ kiến trúc phân tầng (N-Tier Architecture) hiện đại:</p>
+<div class='mermaid-box'><pre class='mermaid'>
+flowchart TD
+    subgraph Client ["Client Layer (Frontend)"]
+        UI["React 18 + Vite 8 (SPA)"]
+        TW["Tailwind CSS (Dark Velvet Theme)"]
+        Router["React Router DOM v6"]
+        Context["AuthContext (JWT Session)"]
+        QR["VietQR NAPAS 24/7 Engine"]
+    end
+
+    subgraph API ["Application Layer (Backend .NET 10)"]
+        Controllers["Controllers (15 API Controllers)"]
+        Auth["JWT Bearer Authentication & RBAC Filter"]
+        Services["Domain Services (15 Services & Interfaces)"]
+        DTO["Data Transfer Objects (Validation & Response)"]
+    end
+
+    subgraph Data ["Data Layer"]
+        EF["Entity Framework Core 10"]
+        Postgres["PostgreSQL Database (Supabase Cloud)"]
+    end
+
+    UI --> |RESTful API / JSON| Controllers
+    Controllers --> Auth
+    Auth --> Services
+    Services --> DTO
+    Services --> EF
+    EF --> Postgres
+</pre></div>
+<h3 class='subsection-title'>2.2. Bảng công nghệ chi tiết</h3>
+<div class='table-container'><table>
+<thead><tr>
+<th>Thành phần</th>
+<th>Công nghệ / Thư viện</th>
+<th>Vai trò</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Backend Framework</strong></td>
+<td>.NET 10.0 (<code>net10.0</code>), C# 13</td>
+<td>Nền tảng Web API hiệu năng cao</td>
+</tr>
+<tr>
+<td><strong>ORM / Data Access</strong></td>
+<td>Entity Framework Core 10.0, Npgsql</td>
+<td>Thao tác dữ liệu PostgreSQL, migration và custom PostgreSQL enum</td>
+</tr>
+<tr>
+<td><strong>Bảo mật & Phân quyền</strong></td>
+<td>ASP.NET Core JWT Bearer, BCrypt.Net</td>
+<td>Mã hóa mật khẩu, cấp phát token JWT 7 ngày, RBAC (<code>ADMIN</code>, <code>STAFF</code>, <code>CUSTOMER</code>)</td>
+</tr>
+<tr>
+<td><strong>Tài liệu API</strong></td>
+<td>Swashbuckle Swagger OpenAPI v1</td>
+<td>Đặc tả và thử nghiệm API trực quan</td>
+</tr>
+<tr>
+<td><strong>Frontend Framework</strong></td>
+<td>React 18, Vite 8</td>
+<td>Xây dựng giao diện Single Page Application tốc độ cao</td>
+</tr>
+<tr>
+<td><strong>Styling & Theme</strong></td>
+<td>Tailwind CSS 3.4, PostCSS, Autoprefixer</td>
+<td>Hệ thống màu Velvet Luxury (Dark <code>#000000</code>, Zinc <code>#18181b</code>, Amber <code>#f59e0b</code>, Emerald <code>#10b981</code>)</td>
+</tr>
+<tr>
+<td><strong>Giao tiếp API</strong></td>
+<td>Axios (với Request & Response Interceptors)</td>
+<td>Tự động đính kèm Bearer token và xử lý lỗi tập trung</td>
+</tr>
+<tr>
+<td><strong>Iconography & UI</strong></td>
+<td>Lucide React</td>
+<td>Bộ icon hiện đại, tối giản và đồng bộ</td>
+</tr>
+<tr>
+<td><strong>Cổng thanh toán</strong></td>
+<td>VietQR Open API (NAPAS 24/7)</td>
+<td>Sinh mã QR động cho thanh toán cọc, hoàn cọc và thu phụ phí</td>
+</tr>
+<tr>
+<td><strong>Cơ sở dữ liệu</strong></td>
+<td>PostgreSQL 16 (Hosted on Supabase Cloud)</td>
+<td>Lưu trữ phân tán, hỗ trợ Connection Pooling AWS EU-West</td>
+</tr>
+</tbody></table></div>
+<div class='page-break'></div>
+<h2 class='section-title'>3. CHI TIẾT KẾT QUẢ TRIỂN KHAI 5 SPRINTS</h2>
+<div class='mermaid-box'><pre class='mermaid'>
+flowchart LR
+    S1["Sprint 1<br>Danh mục & Bảng giá<br>(12 SP)"] --> S2["Sprint 2<br>Đặt xe & Hợp đồng<br>(11 SP)"]
+    S2 --> S3["Sprint 3<br>Ký HĐ & Bàn giao<br>(11 SP)"]
+    S3 --> S4["Sprint 4<br>Vận hành chuyến đi<br>(11 SP)"]
+    S4 --> S5["Sprint 5<br>Hoàn trả & Quyết toán<br>(17 SP)"]
+</pre></div>
+<h3 class='subsection-title'>3.1. Sprint 1: Danh Mục Xe, Bảng Giá Động & Khách Thuê (12 SP)</h3>
+<ul>
+<li><strong>US-01 & US-02 (Xem & Tìm kiếm xe):</strong></li>
+<li>Trang Catalog xe sang với bộ lọc đa tiêu chí: hãng xe (Porsche, Mercedes, BMW, Audi, Lexus...), loại xe (Sedan, SUV, Coupe), loại hộp số, loại nhiên liệu (Xăng, Dầu, Điện).</li>
+<li>Trang chi tiết xe hiển thị thông số kỹ thuật, ODO hiện tại, dung tích bình, mức tiêu thụ, chính sách bảo hiểm và bảng giá.</li>
+<li><strong>US-12 (Quản lý bảng giá & phụ phí):</strong></li>
+<li>Quản lý chính sách giá động theo từng xe: giá thuê ngày cơ bản, tỷ lệ chiết khấu theo số ngày thuê (ví dụ: thuê $≥ 3$ ngày giảm 5%, $≥ 7$ ngày giảm 10%), phụ phí ngày lễ/tết (<code>HolidaySurcharge</code>).</li>
+<li><strong>US-13 (Điều kiện thuê xe):</strong></li>
+<li>Thiết lập điều kiện thuê riêng cho từng xe: độ tuổi tối thiểu của người lái (21-25 tuổi), số năm kinh nghiệm lái xe, yêu cầu xác minh thẻ tín dụng hoặc đặt cọc tài sản.</li>
+</ul>
+<h3 class='subsection-title'>3.2. Sprint 2: Đặt Xe, Thẩm Định Hồ Sơ & Mẫu Điều Khoản (11 SP)</h3>
+<ul>
+<li><strong>US-03 (Tạo yêu cầu thuê xe):</strong></li>
+<li>Form đặt xe trực quan với bộ chọn ngày giờ nhận/trả xe, địa điểm nhận xe (tại showroom hoặc giao tận nơi).</li>
+<li>Upload ảnh 2 mặt Căn cước công dân (CCCD) và Giấy phép lái xe (GPLX).</li>
+<li>Thêm người lái phụ (<code>AdditionalDrivers</code>) kèm giấy phép lái xe riêng.</li>
+<li>Thuật toán kiểm tra lịch trống tự động: Đảm bảo xe không bị trùng lịch với bất kỳ đơn thuê nào đã xác nhận, hoặc xe đang trong lịch bảo dưỡng/sửa chữa.</li>
+<li><strong>US-14 (Chính sách phí và bồi thường):</strong></li>
+<li>Quản lý danh mục biểu phí bồi thường thiệt hại (<code>CompensationPolicies</code>): bảng giá tiêu chuẩn cho các lỗi trầy xước sơn, nứt kính, vỡ đèn, rách lốp, bẩn nội thất.</li>
+<li><strong>US-15 (Mẫu hợp đồng & điều khoản):</strong></li>
+<li>Quản lý các mẫu hợp đồng mẫu (<code>ContractTemplates</code>): hợp đồng tiêu chuẩn, hợp đồng xe sang, hợp đồng VIP kèm điều khoản trách nhiệm 2 bên.</li>
+<li><strong>US-16 (Duyệt hồ sơ đặt xe):</strong></li>
+<li>Màn hình quản trị thẩm định hồ sơ: xem ảnh chụp giấy tờ phóng to (Lightbox), kiểm tra tính hợp lệ của CCCD/GPLX, phê duyệt hoặc từ chối đơn thuê với các lý do định sẵn.</li>
+</ul>
+<h3 class='subsection-title'>3.3. Sprint 3: Ký Hợp Đồng Điện Tử, Cọc Xe & Bàn Giao (11 SP)</h3>
+<ul>
+<li><strong>US-04 (Ký hợp đồng thuê xe điện tử):</strong></li>
+<li>Sau khi hồ sơ được duyệt, hệ thống tự động sinh hợp đồng pháp lý chứa đầy đủ thông tin các bên, giá thuê, hạn mức kilomet, quy định xăng và điều khoản bồi thường.</li>
+<li>Tích hợp khung vẽ chữ ký số (Digital Signature Canvas) cho phép khách hàng ký bằng chuột/màn hình cảm ứng trực tiếp trên trình duyệt.</li>
+<li><strong>US-05 (Thanh toán tiền đặt cọc):</strong></li>
+<li>Tích hợp cổng VietQR: Tự động render mã QR chuẩn NAPAS với đúng số tiền cọc (ví dụ: 15.000.000đ - 20.000.000đ) và cú pháp thanh toán <code>VELORA COC {MÃ_ĐƠN}</code>.</li>
+<li>Hệ thống ghi nhận trạng thái thanh toán và chuyển đơn sang <code>CONFIRMED</code>.</li>
+<li><strong>US-18 (Lập biên bản bàn giao xe thực tế):</strong></li>
+<li>Khi khách đến nhận xe, nhân viên lập biên bản bàn giao (<code>HandoverProtocol</code>): ghi nhận số ODO xuất phát, mức nhiên liệu (25% - 100%), ghi chú vết trầy xước cũ kèm ảnh chụp, checklist bàn giao 7 món phụ kiện (Cavet, đăng kiểm, bảo hiểm, smartkey, kích lốp, lốp dự phòng, camera hành trình).</li>
+<li><strong>US-19 (Xác nhận nhận xe):</strong></li>
+<li>Khách hàng kiểm tra và ký xác nhận trên biên bản bàn giao: Hệ thống kích hoạt đơn thuê sang <code>ACTIVE</code> (đang lưu hành) và cập nhật trạng thái xe sang <code>RENTED</code>.</li>
+</ul>
+<h3 class='subsection-title'>3.4. Sprint 4: Vận Hành Chuyến Đi — Gia Hạn, Sự Cố & Bảo Dưỡng (11 SP)</h3>
+<ul>
+<li><strong>US-08 & US-20 (Yêu cầu & Duyệt gia hạn thuê xe):</strong></li>
+<li>Khách hàng có thể gửi yêu cầu gia hạn thêm ngày/giờ khi đang trong chuyến đi.</li>
+<li>Hệ thống tự động kiểm tra xem xe có bị trùng lịch với đơn khách sau hay không; tính toán phụ phí phát sinh tương ứng.</li>
+<li>Nhân viên phê duyệt gia hạn: Tự động cập nhật <code>RentalRequest.EndTime</code>, kéo dài hạn mức kilomet tối đa (<code>RentalContract.MaxKm</code>) và cộng dồn phí thuê mới vào <code>RentalContract.TotalFee</code>.</li>
+<li><strong>US-09 & US-21 (Báo cáo & Xử lý sự cố khẩn cấp):</strong></li>
+<li>Khách gửi báo cáo sự cố (va chạm, sự cố kỹ thuật, hỏng động cơ, ngập nước) kèm địa điểm, ảnh chụp hiện trường và thông tin người bị thương.</li>
+<li>Nhân viên tiếp nhận điều phối cứu hộ:</li>
+<li>Nếu xe cần thay thế: Thực hiện chức năng <strong>Đổi xe sự cố (<code>REPLACE_CAR</code>)</strong>, tự động kiểm tra danh sách xe <code>READY</code>, chuyển xe mới cho khách và đưa xe gặp sự cố về trạng thái <code>REPAIR</code>.</li>
+<li>Phân chia tài chính: Thẩm định phần chi phí bảo hiểm chi trả, phần công ty chịu và phần trách nhiệm của khách hàng (<code>CustomerPayAmount</code>).</li>
+<li><strong>US-24 (Quản lý bảo dưỡng & sửa chữa phương tiện):</strong></li>
+<li>Lập lịch bảo dưỡng định kỳ theo ODO (mỗi 5.000km, 10.000km) hoặc theo thời gian (3 tháng, 6 tháng).</li>
+<li>Quản lý chi phí gara, nội dung công việc và ngày dự kiến hoàn thành.</li>
+<li>Tự động cảnh báo xe sắp đến hạn bảo dưỡng và ngăn không cho nhận đơn mới.</li>
+</ul>
+<h3 class='subsection-title'>3.5. Sprint 5: Hoàn Trả Xe, Quyết Toán Cọc & Báo Cáo Doanh Thu (17 SP)</h3>
+<ul>
+<li><strong>US-22 (Lập biên bản hoàn trả xe):</strong></li>
+<li>Nhân viên kiểm tra nghiệm thu khi xe về trạm: Đối chiếu ODO kết thúc vs ODO ban đầu, tự động tính tổng quãng đường đã chạy và số km vượt định mức (<code>ExcessKm</code>); kiểm tra mức xăng/pin khi trả vs lúc nhận; checklist phụ kiện trả lại; ghi nhận vết xước/hư hỏng mới.</li>
+<li>Đề xuất trạng thái xe tiếp theo (<code>READY</code> - sẵn sàng cho thuê tiếp, <code>CLEANING</code> - đưa đi rửa, <code>MAINTENANCE</code> - bảo dưỡng, <code>REPAIR</code> - sửa chữa hư hỏng).</li>
+<li>Màn hình quản trị <a href="file:///D:/E_Data/Huflit%20Study/CNPM_NC/Self-Drive-Car-Rental-Management/CarRental.Web/src/pages/Returns/ReturnsPage.jsx"><code>/admin/returns</code></a> lưu trữ toàn bộ biên bản hoàn trả, hỗ trợ in ấn mẫu A4 chuẩn Velvet.</li>
+<li><strong>US-23 (Tính phí phát sinh & Quyết toán hoàn cọc):</strong></li>
+<li>Thuật toán tự động tính toán minh bạch toàn bộ các khoản khấu trừ:</li>
+</ul>
+<div class='math-display'>Tổng khấu trừ = Phí vượt km + Phí trễ hạn + Phí thiếu xăng + Phí hư hỏng/sự cố + Phí vệ sinh + Phụ phí khác</div>
+<ul>
+<li>So sánh với tiền cọc:</li>
+<li><strong>Hoàn trả cọc cho khách (<code>REFUND_TO_CUSTOMER</code>):</strong> Sinh mã VietQR chuyển tiền ngược lại vào tài khoản ngân hàng của khách (hỗ trợ toàn bộ ngân hàng lớn: VCB, VietinBank, BIDV, Techcombank, MB...). Nhân viên nhập mã giao dịch xác nhận hoàn cọc  →  Đơn thuê chính thức <code>COMPLETED</code>.</li>
+<li><strong>Thu phụ phí bổ sung (<code>ADDITIONAL_PAYMENT_REQUIRED</code>):</strong> Sinh mã VietQR của VELORA để khách quét chuyển khoản đóng phần tiền phát sinh vượt cọc  →  Xác nhận thu tiền  →  Đơn thuê <code>COMPLETED</code>.</li>
+<li><strong>US-10 (Khách hàng xem lịch sử & phiếu quyết toán):</strong></li>
+<li>Khách hàng tra cứu lịch sử đơn thuê tại <a href="file:///D:/E_Data/Huflit%20Study/CNPM_NC/Self-Drive-Car-Rental-Management/CarRental.Web/src/pages/Customer/ProfilePage.jsx"><code>/profile</code></a>. Đơn đã hoàn tất hiển thị nút <strong>"Quyết toán & Hoàn cọc"</strong>.</li>
+<li>Modal hiển thị hóa đơn quyết toán tài chính chi tiết, số tiền cọc thực tế đã nhận lại qua ngân hàng, mã giao dịch VietQR và hỗ trợ in phiếu quyết toán.</li>
+<li><strong>US-25 (Dashboard thống kê & Phân tích khai thác đội xe):</strong></li>
+<li>Màn hình điều hành trung tâm <a href="file:///D:/E_Data/Huflit%20Study/CNPM_NC/Self-Drive-Car-Rental-Management/CarRental.Web/src/pages/Dashboard/DashboardPage.jsx"><code>/admin</code></a> thời gian thực:</li>
+<li><strong>4 KPI Cards:</strong> Tổng doanh thu thực tế, Tỷ lệ khai thác đội xe (Fleet Utilization Rate %), Tổng lượt thuê, Số xe khả dụng.</li>
+<li><strong>Biểu đồ doanh thu 6 tháng gần nhất:</strong> Cột biểu đồ tương tác hiển thị doanh thu và số lượt booking.</li>
+<li><strong>Cơ cấu trạng thái đội xe:</strong> Tỷ lệ phần trăm xe Sẵn sàng, Đang thuê, Bảo dưỡng/Sửa chữa.</li>
+<li><strong>Top 5 xe sinh lời cao nhất:</strong> Bảng xếp hạng xe đem lại doanh thu lớn nhất cho hệ thống.</li>
+<li><strong>Nhật ký vận hành Live:</strong> Dòng sự kiện thời gian thực kết nối đơn thuê, bàn giao, trả xe và sự cố.</li>
+<li><strong>Tab Báo cáo chi tiết đội xe (Fleet Utilization Report):</strong> Thống kê chi tiết từng chiếc trong số 27 xe (Biển số, model, ODO, số lượt thuê, tổng ngày lăn bánh, doanh thu đóng góp và tỷ lệ khai thác cá nhân).</li>
+</ul>
+<div class='page-break'></div>
+<h2 class='section-title'>4. THIẾT KẾ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)</h2>
+<p>Hệ thống quản lý <strong>17 bảng thực thể</strong> liên kết chặt chẽ trên PostgreSQL:</p>
+<div class='mermaid-box'><pre class='mermaid'>
+erDiagram
+    cars ||--o{ pricing_policies : "áp dụng"
+    cars ||--o| rental_conditions : "quy định"
+    cars ||--o{ car_insurances : "bảo hiểm"
+    cars ||--o{ rental_requests : "được thuê"
+    cars ||--o{ incident_reports : "gặp sự cố"
+    cars ||--o{ maintenance_records : "bảo dưỡng"
+
+    app_users ||--o{ rental_requests : "tạo đơn"
+    app_users ||--o{ incident_reports : "báo cáo"
+
+    rental_requests ||--o{ additional_drivers : "lái phụ"
+    rental_requests ||--o| rental_contracts : "sinh hợp đồng"
+    rental_requests ||--o{ rental_extensions : "gia hạn"
+    rental_requests ||--o{ incident_reports : "phát sinh sự cố"
+    rental_requests ||--o| handover_protocols : "bàn giao nhận xe"
+    rental_requests ||--o| return_protocols : "nghiệm thu trả xe"
+    rental_requests ||--o| rental_settlements : "quyết toán cọc"
+    rental_requests ||--o{ payments : "thanh toán"
+
+    rental_contracts ||--o{ payments : "thu chi"
+    rental_contracts ||--o| handover_protocols : "liên kết"
+    rental_contracts ||--o| return_protocols : "liên kết"
+    rental_contracts ||--o| rental_settlements : "liên kết"
+</pre></div>
+<h3 class='subsection-title'>Danh sách 17 bảng dữ liệu chính thức:</h3>
+<ol>
+<li><code>cars</code>: Lưu thông tin 27 xe sang (hãng, model, biển số, giá thuê, cọc, ODO, hạn mức km/ngày, phí vượt km, trạng thái xe...).</li>
+<li><code>pricing_policies</code>: Chính sách giảm giá theo số ngày thuê và phụ phí ngày lễ.</li>
+<li><code>rental_conditions</code>: Độ tuổi tối thiểu, năm bằng lái, điều kiện riêng từng xe.</li>
+<li><code>compensation_policies</code>: Biểu phí bồi thường thiệt hại hư hỏng xe.</li>
+<li><code>contract_templates</code>: Các mẫu văn bản hợp đồng cho thuê xe tự lái.</li>
+<li><code>rental_requests</code>: Đơn thuê xe của khách (ngày giờ nhận/trả, thông tin khách, ảnh CCCD/GPLX, chi phí dự kiến, trạng thái đơn).</li>
+<li><code>additional_drivers</code>: Danh sách người lái bổ sung cho đơn thuê.</li>
+<li><code>app_users</code>: Người dùng hệ thống (Admin, Staff, Customer), mật khẩu BCrypt.</li>
+<li><code>rental_contracts</code>: Hợp đồng điện tử chính thức, chữ ký số khách hàng, tổng tiền thuê, tiền cọc.</li>
+<li><code>payments</code>: Lịch sử giao dịch tiền cọc (<code>DEPOSIT</code>), phụ phí (<code>SETTLEMENT</code>) và hoàn cọc (<code>REFUND</code>).</li>
+<li><code>car_insurances</code>: Hồ sơ 28 hợp đồng bảo hiểm xe (TNDS, Thân vỏ, Mất cắp).</li>
+<li><code>handover_protocols</code>: Biên bản bàn giao xe xuất phát (ODO đầu, xăng đầu, checklist, ảnh).</li>
+<li><code>rental_extensions</code>: Hồ sơ yêu cầu và phê duyệt gia hạn chuyến đi.</li>
+<li><code>incident_reports</code>: Hồ sơ báo cáo sự cố va chạm, cứu hộ, chi phí bảo hiểm & đổi xe.</li>
+<li><code>maintenance_records</code>: Hồ sơ lịch bảo dưỡng kỹ thuật, chi phí gara, ODO bảo dưỡng.</li>
+<li><code>return_protocols</code>: Biên bản hoàn trả xe (ODO cuối, xăng cuối, hư hỏng mới, phụ kiện trả lại).</li>
+<li><code>rental_settlements</code>: Phiếu quyết toán khấu trừ phụ phí, hoàn cọc VietQR cho khách.</li>
+</ol>
+<div class='page-break'></div>
+<h2 class='section-title'>5. DỮ LIỆU MẪU & KIỂM THỬ HỆ THỐNG</h2>
+<h3 class='subsection-title'>5.1. Bộ dữ liệu mẫu (Seeded Test Data)</h3>
+<ul>
+<li><strong>Đội xe sang:</strong> <strong>27 chiếc xe</strong> từ các phân khúc Sedan, SUV, Coupe thể thao thuộc các thương hiệu hàng đầu: Porsche Taycan 4S, Porsche 911 Carrera, Mercedes S450 Luxury, Mercedes G63 AMG, BMW M4 Competition, BMW 730Li, Audi RS7, Range Rover SV, Lexus LX600, VinFast VF9...</li>
+<li><strong>Bảo hiểm:</strong> <strong>28 hợp đồng bảo hiểm</strong> hợp lệ của Bảo Việt, PVI, PTI, Liberty.</li>
+<li><strong>Tài khoản kiểm thử phân quyền:</strong></li>
+<li><strong>Quản trị viên / Nhân viên (<code>STAFF</code>):</strong> <code>staff@velora.vn</code> / <code>Velora@2026</code></li>
+<li><strong>Khách hàng (<code>CUSTOMER</code>):</strong> <code>customer@velora.vn</code> / <code>Velora@2026</code></li>
+</ul>
+<h3 class='subsection-title'>5.2. Kết quả kiểm thử tích hợp E2E</h3>
+<p>Kịch bản kiểm thử tự động toàn diện từ Đặt xe  →  Bàn giao  →  Gia hạn  →  Sự cố  →  Hoàn trả  →  Quyết toán  →  Dashboard:</p>
+<ul>
+<li><code>scripts/test_sprint5_e2e.py</code>: <strong>100% Passed (9/9 bước thành công)</strong>.</li>
+<li><code>dotnet build</code>: <strong>0 Errors, 0 Warnings nghiêm trọng</strong>.</li>
+<li><code>npm run build</code>: <strong>Vite build thành công trong 735ms</strong>.</li>
+</ul>
+<div class='page-break'></div>
+<h2 class='section-title'>6. KẾT LUẬN & ĐÁNH GIÁ CHUNG</h2>
+<h3 class='subsection-title'>6.1. Đánh giá chất lượng kỹ thuật</h3>
+<ol>
+<li><strong>Tính hoàn chỉnh:</strong> Đáp ứng đầy đủ 100% nghiệp vụ quản lý cho thuê xe tự lái thực tế, không có tính năng nào bị bỏ dở hoặc dùng mock data tạm bợ.</li>
+<li><strong>Tính bảo mật:</strong> Áp dụng chuẩn JWT RBAC trên toàn bộ các endpoint nghiệp vụ, bảo vệ tài nguyên người dùng và doanh nghiệp.</li>
+<li><strong>Trải nghiệm người dùng:</strong> Giao diện Dark Velvet sang trọng, tinh tế, tích hợp mã VietQR tiện lợi giúp thao tác nạp cọc & nhận tiền hoàn cọc diễn ra tức thì chỉ trong vài giây.</li>
+<li><strong>Khả năng mở rộng:</strong> Kiến trúc phân tầng rõ ràng, cơ sở dữ liệu PostgreSQL chuẩn hóa, dễ dàng tích hợp thêm các dịch vụ IoT GPS định vị xe hoặc thanh toán thẻ quốc tế (Stripe/Paypal) trong tương lai.</li>
+</ol>
+
+</body>
+</html>

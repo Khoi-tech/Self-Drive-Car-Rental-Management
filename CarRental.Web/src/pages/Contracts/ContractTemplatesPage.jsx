@@ -300,33 +300,36 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 flex items-center gap-2">
-            <FileText size={26} className="text-zinc-700" />
-            Mẫu hợp đồng & điều khoản dịch vụ
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-950 flex items-center gap-2">
+            <FileText size={24} className="text-[#0F172A]" />
+            Mẫu Hợp Đồng & Quy Định Dịch Vụ
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono border border-slate-200">
+              {templates.length} biểu mẫu
+            </span>
           </h1>
-          <p className="text-zinc-500 mt-1">
-            Quản lý các mẫu hợp đồng điện tử, điều khoản và quy định thuê xe làm cơ sở pháp lý giao dịch.
+          <p className="text-xs text-slate-500 mt-1">
+            Quản lý văn bản mẫu hợp đồng điện tử tự lái, điều khoản pháp lý và các trường biến động tự điền (Placeholders).
           </p>
         </div>
         <button
           onClick={openAddModal}
-          className="inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors shadow-sm"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition shadow-sm"
         >
-          <Plus size={18} className="mr-2" />
-          Thêm mẫu hợp đồng
+          <Plus size={15} />
+          Thêm mẫu hợp đồng mới
         </button>
       </div>
 
       {/* Toolbar / Filters */}
-      <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm flex flex-col md:flex-row gap-4">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
         {/* Search */}
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-zinc-400" />
+            <Search size={16} className="text-slate-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-md leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm"
+            className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0F172A]"
             placeholder="Tìm theo tên mẫu hợp đồng, mô tả..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -338,9 +341,9 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-full px-3 py-2 border border-zinc-300 rounded-md bg-white text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-xs text-zinc-950 focus:outline-none focus:border-[#0F172A]"
           >
-            <option value="ALL">Tất cả loại mẫu</option>
+            <option value="ALL">Tất cả hình thức thuê</option>
             <option value="DAILY">Thuê theo ngày (DAILY)</option>
             <option value="MONTHLY">Thuê theo tháng (MONTHLY)</option>
           </select>
@@ -351,7 +354,7 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full px-3 py-2 border border-zinc-300 rounded-md bg-white text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            className="w-full px-3 py-2 border border-slate-200 rounded-md bg-white text-xs text-zinc-950 focus:outline-none focus:border-[#0F172A]"
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="ACTIVE">Đang áp dụng</option>
@@ -361,21 +364,21 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
 
         <button
           onClick={fetchTemplates}
-          className="inline-flex items-center justify-center px-3 py-2 border border-zinc-300 rounded-md text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+          className="inline-flex items-center justify-center px-3 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm"
           title="Tải lại danh sách"
         >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={15} className={loading ? 'animate-spin text-[#0F172A]' : 'text-slate-600'} />
         </button>
       </div>
 
       {/* Success Alert */}
       {successMsg && (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md flex items-center justify-between">
-          <div className="flex items-center">
-            <CheckCircle2 size={18} className="text-green-600 mr-2" />
-            <p className="text-green-700 text-sm font-medium">{successMsg}</p>
+        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-md flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600" />
+            <p className="text-emerald-800 text-xs font-medium">{successMsg}</p>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="text-green-600 hover:text-green-800">
+          <button onClick={() => setSuccessMsg(null)} className="text-emerald-600 hover:text-emerald-800">
             <X size={16} />
           </button>
         </div>
@@ -383,126 +386,126 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex justify-between items-center">
-          <div className="flex items-center">
-            <AlertCircle className="text-red-500 mr-3" size={20} />
-            <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-md flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="text-rose-600" size={18} />
+            <p className="text-rose-700 text-xs font-medium">{error}</p>
           </div>
-          <button onClick={fetchTemplates} className="text-sm font-medium text-red-700 hover:text-red-600 flex items-center">
-            <RefreshCw size={14} className="mr-1" /> Thử lại
+          <button onClick={fetchTemplates} className="text-xs font-semibold text-rose-700 hover:text-rose-800 flex items-center gap-1">
+            <RefreshCw size={14} /> Thử lại
           </button>
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tên mẫu hợp đồng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Loại mẫu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Phiên bản</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Ngày tạo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-6 py-3.5 text-left">Tên mẫu văn bản</th>
+                <th className="px-6 py-3.5 text-center">Hình thức thuê</th>
+                <th className="px-6 py-3.5 text-center">Phiên bản</th>
+                <th className="px-6 py-3.5 text-center">Ngày cập nhật</th>
+                <th className="px-6 py-3.5 text-center">Trạng thái</th>
+                <th className="px-6 py-3.5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-zinc-200">
+            <tbody className="bg-white divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-zinc-500">
-                      <RefreshCw className="animate-spin mb-2" size={24} />
-                      <p>Đang tải danh sách mẫu hợp đồng...</p>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="animate-spin mb-2 text-[#0F172A]" size={22} />
+                      <p className="text-xs">Đang tải danh sách biểu mẫu...</p>
                     </div>
                   </td>
                 </tr>
               ) : templates.length > 0 ? (
                 templates.map((template) => (
-                  <tr key={template.id} className="hover:bg-zinc-50 transition-colors">
+                  <tr key={template.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="text-sm font-semibold text-zinc-900">{template.name}</div>
+                      <div className="text-xs font-bold text-zinc-950">{template.name}</div>
                       {template.description && (
-                        <div className="text-xs text-zinc-500 truncate max-w-md mt-0.5">{template.description}</div>
+                        <div className="text-[11px] text-slate-500 truncate max-w-md mt-0.5">{template.description}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${
                         template.templateType === 'DAILY' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-purple-100 text-purple-800'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200' 
+                          : 'bg-indigo-50 text-indigo-800 border-indigo-200'
                       }`}>
                         {template.templateType === 'DAILY' ? 'Thuê ngày' : 'Thuê tháng'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700 font-mono">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-zinc-950 font-mono font-bold tabular-nums">
                       {template.version}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-slate-600 font-mono tabular-nums">
                       {new Date(template.createdAt).toLocaleDateString('vi-VN')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       {template.isActive ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Đang áp dụng
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Đang hiệu lực
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800">
-                          Ngừng áp dụng
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Tạm dừng
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-medium space-x-2">
                       {/* Preview Button */}
                       <button
                         onClick={() => setPreviewTemplate(template)}
-                        className="inline-flex items-center text-teal-600 hover:text-teal-900 px-2 py-1 rounded hover:bg-teal-50"
-                        title="Xem trước hợp đồng"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#0F172A] bg-slate-100 hover:bg-slate-200 rounded transition"
+                        title="Xem trước văn bản"
                       >
-                        <Eye size={16} className="mr-1" /> Xem trước
+                        <Eye size={13} /> Xem trước
                       </button>
 
                       {/* Edit Button */}
                       <button
                         onClick={() => openEditModal(template)}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-50"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 transition"
                         title="Chỉnh sửa mẫu"
                       >
-                        <Edit2 size={16} className="mr-1" /> Sửa
+                        <Edit2 size={13} /> Sửa
                       </button>
 
                       {/* Toggle Status Button */}
                       <button
                         onClick={() => setStatusModal(template)}
-                        className={`inline-flex items-center px-2 py-1 rounded ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded border transition ${
                           template.isActive 
-                            ? 'text-orange-600 hover:text-orange-900 hover:bg-orange-50' 
-                            : 'text-green-600 hover:text-green-900 hover:bg-green-50'
+                            ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' 
+                            : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
                         }`}
                         title={template.isActive ? 'Ngừng áp dụng' : 'Kích hoạt mẫu'}
                       >
-                        <ShieldAlert size={16} className="mr-1" />
+                        <ShieldAlert size={13} />
                         {template.isActive ? 'Ngừng' : 'Bật'}
                       </button>
 
                       {/* Delete Button */}
                       <button
                         onClick={() => setDeleteModal(template)}
-                        className="inline-flex items-center text-red-600 hover:text-red-900 px-2 py-1 rounded hover:bg-red-50"
+                        className="inline-flex items-center p-1 text-rose-600 hover:text-rose-800 transition"
                         title="Xóa mẫu"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-zinc-500">
-                    <FileCheck size={36} className="mx-auto text-zinc-300 mb-2" />
-                    <p className="text-zinc-600 font-medium">Không tìm thấy mẫu hợp đồng nào phù hợp.</p>
-                    <p className="text-xs text-zinc-400 mt-1">Hãy thử thay đổi điều kiện lọc hoặc tạo mẫu hợp đồng mới.</p>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                    <FileCheck size={32} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-medium text-slate-600">Không tìm thấy mẫu hợp đồng nào phù hợp.</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Hãy thử thay đổi điều kiện lọc hoặc tạo mẫu hợp đồng mới.</p>
                   </td>
                 </tr>
               )}
@@ -643,11 +646,11 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3 border-t border-zinc-200 bg-zinc-50 flex justify-end space-x-3">
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end space-x-3">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50"
+                className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition"
               >
                 Hủy
               </button>
@@ -655,11 +658,11 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
                 type="button"
                 onClick={handleSave}
                 disabled={modalSaving}
-                className={`inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium ${
-                  modalSaving ? 'opacity-70' : 'hover:bg-zinc-800'
+                className={`inline-flex items-center px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold shadow-sm transition ${
+                  modalSaving ? 'opacity-70' : 'hover:bg-[#1D4ED8]'
                 }`}
               >
-                {modalSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                {modalSaving ? <RefreshCw size={15} className="animate-spin mr-1.5" /> : <Save size={15} className="mr-1.5" />}
                 Lưu mẫu hợp đồng
               </button>
             </div>
@@ -670,51 +673,51 @@ Hai bên cùng thống nhất ký kết Hợp đồng với các điều khoản
       {/* ===================== PREVIEW MODAL ===================== */}
       {previewTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setPreviewTemplate(null)} />
-          <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col z-10 overflow-hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setPreviewTemplate(null)} />
+          <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col z-10 overflow-hidden border border-slate-200">
             {/* Preview Header */}
-            <div className="px-6 py-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-100">
+            <div className="px-6 py-3.5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
-                  <Eye size={20} className="text-teal-600" />
+                <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
+                  <Eye size={16} className="text-[#0F172A]" />
                   Xem trước: {previewTemplate.name}
                 </h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-[11px] text-slate-500 mt-0.5">
                   Văn bản hợp đồng đã được giả lập điền dữ liệu khách hàng & phương tiện mẫu.
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrint}
-                  className="inline-flex items-center px-3 py-1.5 bg-white border border-zinc-300 text-zinc-700 text-xs font-medium rounded hover:bg-zinc-50 transition-colors shadow-2xs"
+                  className="inline-flex items-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded hover:bg-slate-50 transition shadow-sm"
                 >
-                  <Printer size={14} className="mr-1.5 text-zinc-600" /> In / Tải PDF
+                  <Printer size={13} className="mr-1.5 text-slate-500" /> In / Tải PDF
                 </button>
                 <button
                   onClick={() => setPreviewTemplate(null)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-600 rounded hover:bg-zinc-200"
+                  className="p-1.5 text-slate-400 hover:text-zinc-950 rounded"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
             {/* Document Body (A4 Simulation) */}
-            <div className="p-4 sm:p-8 overflow-y-auto bg-zinc-200/60 flex-1">
-              <div className="mx-auto bg-white shadow-lg border border-zinc-300 w-full max-w-3xl min-h-full p-8 sm:p-12 font-serif text-sm leading-relaxed text-zinc-900 whitespace-pre-wrap select-text rounded-sm">
+            <div className="p-4 sm:p-8 overflow-y-auto bg-slate-100 flex-1">
+              <div className="mx-auto bg-white shadow-md border border-slate-200 w-full max-w-3xl min-h-full p-8 sm:p-12 font-serif text-xs leading-relaxed text-zinc-950 whitespace-pre-wrap select-text rounded-sm">
                 {renderPreviewContent(previewTemplate.content)}
               </div>
             </div>
 
             {/* Preview Footer */}
-            <div className="px-6 py-3 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center text-xs text-zinc-500">
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs text-slate-500">
               <div>
-                Phiên bản: <span className="font-mono font-bold text-zinc-700">{previewTemplate.version}</span> | 
-                Loại: <span className="font-semibold text-zinc-700 ml-1">{previewTemplate.templateType === 'DAILY' ? 'Thuê ngày' : 'Thuê tháng'}</span>
+                Phiên bản: <span className="font-mono font-bold text-zinc-950">{previewTemplate.version}</span> | 
+                Loại: <span className="font-semibold text-zinc-950 ml-1">{previewTemplate.templateType === 'DAILY' ? 'Thuê ngày' : 'Thuê tháng'}</span>
               </div>
               <button
                 onClick={() => setPreviewTemplate(null)}
-                className="px-4 py-1.5 bg-zinc-900 text-white rounded text-xs font-medium hover:bg-zinc-800"
+                className="px-4 py-1.5 bg-[#0F172A] text-white rounded text-xs font-semibold hover:bg-[#1D4ED8] transition shadow-sm"
               >
                 Đóng xem trước
               </button>

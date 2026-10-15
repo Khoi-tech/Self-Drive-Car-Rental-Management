@@ -15,7 +15,8 @@ import {
   DollarSign,
   ArrowLeft,
   PenTool,
-  Lock
+  Lock,
+  Download
 } from 'lucide-react';
 import contractService from '../../services/contractService';
 import Navbar from '../../components/layout/Navbar';
@@ -91,13 +92,10 @@ const ContractSignPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-zinc-400">
-            <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <span>Đang chuẩn bị hợp đồng điện tử...</span>
-          </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-slate-300 border-t-blue-900 rounded-full animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-500">Đang chuẩn bị văn bản hợp đồng điện tử...</span>
         </div>
       </div>
     );
@@ -105,17 +103,17 @@ const ContractSignPage = () => {
 
   if (error || !contract) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-        <Navbar />
-        <div className="flex-1 max-w-xl mx-auto px-4 py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-rose-950/60 border border-rose-800 text-rose-400 mx-auto flex items-center justify-center mb-4">
-            <AlertCircle size={32} />
+      <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
+        <Navbar isVisible={true} />
+        <div className="flex-1 max-w-xl mx-auto px-4 py-24 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 text-red-600 mx-auto flex items-center justify-center mb-4">
+            <AlertCircle size={28} />
           </div>
-          <h2 className="text-xl font-bold mb-2">Chưa Thể Khởi Tạo Hợp Đồng</h2>
-          <p className="text-zinc-400 text-sm mb-6">{error}</p>
+          <h2 className="text-lg font-bold mb-2">Chưa Thể Khởi Tạo Hợp Đồng</h2>
+          <p className="text-slate-500 text-xs mb-6">{error}</p>
           <button
             onClick={() => navigate('/cars')}
-            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-medium transition"
+            className="px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-md text-xs font-semibold transition"
           >
             Quay lại danh sách xe
           </button>
@@ -128,254 +126,225 @@ const ContractSignPage = () => {
   const isDepositPaid = contract.status === 'DEPOSIT_PAID';
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
+      <Navbar isVisible={true} />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
-        {/* Breadcrumb & Navigation */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-24 pb-16">
+        
+        {/* Navigation Bar */}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-white transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-900 transition"
           >
             <ArrowLeft size={14} /> Quay lại
           </button>
 
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white text-xs transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-slate-300 text-slate-700 hover:text-zinc-950 text-xs font-semibold shadow-xs transition"
           >
             <Printer size={14} /> In hợp đồng
           </button>
         </div>
 
         {/* Stepper Progress */}
-        <div className="mb-8 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-            <div className="flex items-center gap-2 text-emerald-400">
+        <div className="mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
-              <span>1. Gửi yêu cầu thuê xe</span>
+              <span>1. Gửi đơn thuê xe</span>
             </div>
-            <div className="flex items-center gap-2 text-emerald-400">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
-              <span>2. Nhân viên duyệt hồ sơ</span>
+              <span>2. Thẩm định hồ sơ</span>
             </div>
-            <div className={`flex items-center gap-2 font-semibold ${isSigned ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {isSigned ? <CheckCircle2 size={16} /> : <div className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] border border-amber-500/40">3</div>}
-              <span>3. Ký hợp đồng điện tử</span>
+            <div className={`flex items-center gap-2 font-bold ${isSigned ? 'text-emerald-700' : 'text-blue-900'}`}>
+              <div className="w-4 h-4 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px]">3</div>
+              <span>3. Ký hợp đồng số</span>
             </div>
-            <div className={`flex items-center gap-2 ${isDepositPaid ? 'text-emerald-400 font-semibold' : 'text-zinc-500'}`}>
-              {isDepositPaid ? <CheckCircle2 size={16} /> : <div className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center text-[10px]">4</div>}
-              <span>4. Đặt cọc & Nhận xe</span>
+            <div className={`flex items-center gap-2 ${isDepositPaid ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+              <Clock size={16} />
+              <span>4. Thanh toán cọc</span>
             </div>
           </div>
         </div>
 
-        {/* Success Alert Banner when signed */}
-        {signSuccess && (
-          <div className="mb-6 p-4 bg-emerald-950/60 border border-emerald-600/50 rounded-xl flex items-center justify-between text-emerald-300 text-sm animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 size={20} className="text-emerald-400" />
-              <span>Bạn đã ký hợp đồng điện tử thành công! Hãy tiến hành đặt cọc để giữ xe ngay.</span>
+        {/* PAPER CONTRACT SHEET */}
+        <div className="bg-white border border-slate-300 rounded-lg shadow-sm p-6 sm:p-12 space-y-8 font-serif text-slate-900">
+          
+          {/* Official Document Header */}
+          <div className="text-center space-y-1 pb-6 border-b border-slate-200">
+            <div className="text-xs uppercase font-bold tracking-widest text-slate-600">
+              CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
             </div>
-            <button
-              onClick={() => navigate(`/payment/deposit/${requestId}`)}
-              className="px-4 py-1.5 bg-emerald-500 text-black font-semibold text-xs rounded-lg hover:bg-emerald-400 transition"
-            >
-              Đặt cọc ngay
-            </button>
-          </div>
-        )}
-
-        {/* Legal Document Sheet */}
-        <div className="bg-white text-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden mb-8">
-          {/* Header Band */}
-          <div className="bg-zinc-900 text-white px-8 py-6 border-b border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  {contract.contractNumber}
-                </span>
-                <span className="text-xs text-zinc-400">
-                  Ngày lập: {formatDateTime(contract.createdAt)}
-                </span>
-              </div>
-              <h1 className="text-xl font-bold tracking-tight text-white mt-2">
-                HỢP ĐỒNG THUÊ XE Ô TÔ TỰ LÁI ĐIỆN TỬ
-              </h1>
+            <div className="text-xs font-bold text-slate-700 italic">
+              Độc lập – Tự do – Hạnh phúc
             </div>
-
-            <div className="text-right">
-              {isSigned ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-                  <ShieldCheck size={14} />
-                  <span>ĐÃ KÝ ĐIỆN TỬ</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-                  <Clock size={14} />
-                  <span>CHỜ KHÁCH HÀNG KÝ</span>
-                </div>
-              )}
+            <div className="text-slate-300 text-xs">━━━━━━━━━━━</div>
+            <h1 className="text-xl sm:text-2xl font-bold uppercase tracking-tight text-zinc-950 pt-2 font-sans">
+              HỢP ĐỒNG CHO THUÊ PHƯƠNG TIỆN TỰ LÁI
+            </h1>
+            <div className="text-xs text-slate-500 font-mono">
+              Mã số hợp đồng: <strong className="text-zinc-950 tabular-nums">{contract.contractNumber || `VELORA-HD-${contract.id?.substring(0, 8)}`}</strong>
             </div>
           </div>
 
-          {/* Document Content */}
-          <div className="p-8 sm:p-12 space-y-8 font-serif leading-relaxed text-[15px] text-zinc-800">
-            {/* National Motto */}
-            <div className="text-center space-y-1 font-sans">
-              <p className="font-bold tracking-widest text-sm uppercase">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-              <p className="text-xs italic underline">Độc lập - Tự do - Hạnh phúc</p>
-              <div className="w-24 h-0.5 bg-zinc-300 mx-auto mt-2" />
-            </div>
+          {/* Legal Body */}
+          <div className="space-y-6 text-xs sm:text-sm leading-relaxed text-justify">
+            <p>
+              Hôm nay, ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}, tại văn phòng đại diện Hệ thống Quản trị Cho thuê Xe Tự lái <strong>VELORA</strong>, hai bên tiến hành xác lập hợp đồng điện tử với các điều khoản sau:
+            </p>
 
-            {/* Document Body from Backend Template */}
-            <div className="whitespace-pre-line font-sans text-sm text-zinc-800 leading-relaxed bg-zinc-50/50 p-6 rounded-xl border border-zinc-200">
-              {contract.content}
-            </div>
-
-            {/* Structured Summary Box */}
-            <div className="font-sans grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-100/80 p-5 rounded-xl border border-zinc-300 text-xs">
+            {/* Parties Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-slate-50 p-4 rounded-md border border-slate-200 font-sans text-xs">
               <div className="space-y-1.5">
-                <p className="font-bold text-zinc-700 uppercase tracking-wider mb-2">Đại diện Bên A (Cho thuê)</p>
-                <p><span className="text-zinc-500">Đơn vị:</span> <strong>CÔNG TY TNHH VELORA VIỆT NAM</strong></p>
-                <p><span className="text-zinc-500">Hotline:</span> <strong>1900 6868</strong></p>
-                <p><span className="text-zinc-500">Trạm giao xe:</span> {contract.pickupLocation}</p>
+                <div className="font-bold text-zinc-950 uppercase border-b border-slate-200 pb-1">BÊN CHO THUÊ (BÊN A):</div>
+                <div><strong>CÔNG TY TNHH DỊCH VỤ VẬN TẢI VELORA</strong></div>
+                <div>Đại diện: Ban Điều hành Hệ thống VELORA</div>
+                <div>Trụ sở: Tòa nhà VELORA, Tân Bình, TP. Hồ Chí Minh</div>
+                <div>Hotline CSKH: 1900 8888 99</div>
               </div>
-
               <div className="space-y-1.5">
-                <p className="font-bold text-zinc-700 uppercase tracking-wider mb-2">Đại diện Bên B (Khách thuê)</p>
-                <p><span className="text-zinc-500">Họ và tên:</span> <strong>{contract.customerName}</strong></p>
-                <p><span className="text-zinc-500">Số CCCD / CMND:</span> <strong>{contract.customerIdCard}</strong></p>
-                <p><span className="text-zinc-500">Số GPLX:</span> <strong>{contract.driverLicenseNumber}</strong></p>
+                <div className="font-bold text-zinc-950 uppercase border-b border-slate-200 pb-1">BÊN THUÊ XE (BÊN B):</div>
+                <div>Họ và tên: <strong className="uppercase text-zinc-950">{contract.customerName}</strong></div>
+                <div>Số điện thoại: <strong className="tabular-nums">{contract.customerPhone}</strong></div>
+                <div>Số CCCD/CMND: <strong className="tabular-nums">{contract.customerIdCard}</strong></div>
+                <div>Giấy phép lái xe: <strong className="tabular-nums">{contract.driverLicenseNumber}</strong></div>
               </div>
             </div>
 
-            {/* Signatures Section */}
-            <div className="font-sans pt-6 grid grid-cols-2 gap-8 text-center text-xs">
-              {/* Party A Signature */}
-              <div className="space-y-3">
-                <p className="font-bold uppercase tracking-wider text-zinc-600">ĐẠI DIỆN BÊN CHO THUÊ (BÊN A)</p>
-                <p className="text-zinc-400 italic">(Đã ký số và xác thực hệ thống)</p>
-                <div className="h-20 flex items-center justify-center">
-                  <div className="border-2 border-emerald-600 rounded-lg px-4 py-2 text-emerald-700 font-bold text-xs uppercase rotate-[-4deg] bg-emerald-50">
-                    VELORA VERIFIED ✓<br />
-                    <span className="text-[10px] font-normal text-emerald-600">Ban Điều Hành Hệ Thống</span>
-                  </div>
+            {/* Terms Articles */}
+            <div className="space-y-4 font-sans text-xs">
+              <div>
+                <h3 className="font-bold text-zinc-950 text-sm mb-1">ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG & THỜI HẠN THUÊ</h3>
+                <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                  <li>Phương tiện thuê: <strong>{contract.vehicleMake} {contract.vehicleModel}</strong> (Biển kiểm soát: <strong className="license-plate text-[10px] py-0.2">{contract.vehicleLicensePlate}</strong>).</li>
+                  <li>Thời gian nhận xe: <strong className="tabular-nums">{new Date(contract.startTime).toLocaleString('vi-VN')}</strong>.</li>
+                  <li>Thời gian hoàn trả: <strong className="tabular-nums">{new Date(contract.endTime).toLocaleString('vi-VN')}</strong>.</li>
+                  <li>Tổng số ngày thuê: <strong className="tabular-nums">{contract.totalDays} ngày</strong>.</li>
+                  <li>Địa điểm nhận/trả xe: {contract.pickupLocation || 'Tại showroom VELORA'}.</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-zinc-950 text-sm mb-1">ĐIỀU 2: GIÁ TRỊ HỢP ĐỒNG & TIỀN ĐẶT CỌC</h3>
+                <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                  <li>Tổng chi phí thuê xe: <strong className="text-blue-900 font-bold tabular-nums">{formatCurrency(contract.totalFee)}</strong>.</li>
+                  <li>Khoản tiền cọc thế chấp: <strong className="text-zinc-950 font-bold tabular-nums">{formatCurrency(contract.depositAmount || 15000000)}</strong>.</li>
+                  <li>Bên B có nghĩa vụ hoàn thành thanh toán tiền đặt cọc theo phương thức chuyển khoản VietQR để hợp đồng có hiệu lực giữ chỗ phương tiện.</li>
+                  <li>Khoản đặt cọc sẽ được Bên A hoàn trả 100% về tài khoản của Bên B trong vòng 30 phút sau khi kết thúc chuyến đi và hoàn tất Biên bản Hoàn trả (đối trừ các chi phí phát sinh nếu có).</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-zinc-950 text-sm mb-1">ĐIỀU 3: ĐỊNH MỨC QUÃNG ĐƯỜNG & PHỤ PHÍ</h3>
+                <ul className="list-disc pl-5 space-y-1 text-slate-700">
+                  <li>Hạn mức kilomet cho phép: <strong>{contract.maxKm || (contract.totalDays * 300)} km</strong> cho toàn bộ chuyến đi. Phí vượt định mức: <strong>{formatCurrency(contract.extraKmPrice || 5000)}/km</strong>.</li>
+                  <li>Quy định nhiên liệu: Bên B có trách nhiệm hoàn trả phương tiện với mức nhiên liệu tương đương lúc bàn giao.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Signatures Area */}
+            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-200 font-sans text-center">
+              <div className="space-y-12">
+                <div className="font-bold text-zinc-950 text-xs uppercase">ĐẠI DIỆN BÊN CHO THUÊ (BÊN A)</div>
+                <div className="pt-8">
+                  <div className="text-xs font-bold text-blue-900 uppercase">HỆ THỐNG VELORA</div>
+                  <div className="text-[10px] text-slate-500 italic">(Đã ký số điện tử xác thực)</div>
                 </div>
               </div>
 
-              {/* Party B Signature */}
-              <div className="space-y-3">
-                <p className="font-bold uppercase tracking-wider text-zinc-600">ĐẠI DIỆN BÊN THUÊ XE (BÊN B)</p>
-                <p className="text-zinc-400 italic">(Ký và ghi rõ họ tên)</p>
+              <div className="space-y-6">
+                <div className="font-bold text-zinc-950 text-xs uppercase">ĐẠI DIỆN BÊN THUÊ XE (BÊN B)</div>
                 
-                <div className="h-20 flex items-center justify-center">
-                  {isSigned ? (
-                    <div className="border-2 border-blue-600 rounded-lg px-4 py-2 text-blue-800 font-bold text-xs rotate-[2deg] bg-blue-50">
-                      ĐÃ KÝ ĐIỆN TỬ ✓<br />
-                      <span className="font-serif italic text-sm text-blue-900">{contract.customerSignature}</span><br />
-                      <span className="text-[9px] font-normal text-zinc-500">{formatDateTime(contract.customerSignedAt)}</span>
+                {isSigned ? (
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-md space-y-1">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 mx-auto" />
+                    <div className="font-bold text-emerald-900 text-xs uppercase">{contract.customerSignature || contract.customerName}</div>
+                    <div className="text-[10px] text-emerald-700">
+                      Ký số lúc: {contract.signedAt ? new Date(contract.signedAt).toLocaleString('vi-VN') : 'Đã xác thực'}
                     </div>
-                  ) : (
-                    <span className="text-zinc-400 italic text-xs">Chưa ký</span>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 italic pt-6">
+                    (Vui lòng ký tên vào biểu mẫu bên dưới)
+                  </div>
+                )}
               </div>
             </div>
 
           </div>
+
+          {/* SIGNATURE FORM (If not signed yet) */}
+          {!isSigned && (
+            <div className="pt-8 border-t border-slate-200 font-sans">
+              <form onSubmit={handleSign} className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <PenTool className="w-4 h-4 text-blue-900" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-950">
+                    Xác nhận chữ ký điện tử khách hàng
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Nhập đầy đủ Họ và tên người thuê để tạo chữ ký số:
+                    </label>
+                    <input
+                      type="text"
+                      value={signatureName}
+                      onChange={(e) => setSignatureName(e.target.value)}
+                      placeholder="NGUYEN VAN A"
+                      required
+                      className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-xs font-bold text-zinc-950 uppercase tracking-wider focus:outline-none focus:border-blue-900 transition-colors"
+                    />
+                  </div>
+
+                  <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-900 focus:ring-blue-900 mt-0.5"
+                    />
+                    <span>
+                      Tôi đã đọc, hiểu rõ và đồng ý với toàn bộ các điều khoản trong hợp đồng điện tử này. Chữ ký số trên có giá trị pháp lý tương đương chữ ký tay.
+                    </span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={signing}
+                    className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                  >
+                    {signing ? 'Đang xác thực chữ ký số...' : 'Xác nhận ký hợp đồng điện tử'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* NEXT STEP: PAY DEPOSIT CTA */}
+          {isSigned && (
+            <div className="pt-6 border-t border-slate-200 font-sans flex flex-col sm:flex-row items-center justify-between gap-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <div>
+                <div className="text-xs font-bold text-blue-950">Hợp đồng đã được ký số thành công!</div>
+                <div className="text-[11px] text-slate-600">Bước tiếp theo: Tiến hành thanh toán tiền đặt cọc giữ xe qua mã VietQR.</div>
+              </div>
+              <Link
+                to={`/payment/deposit/${requestId}`}
+                className="px-5 py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs rounded-md shadow-xs transition-colors flex items-center gap-2 tracking-wider uppercase shrink-0"
+              >
+                <span>Thanh toán đặt cọc</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          )}
+
         </div>
-
-        {/* Digital Signing Action Card */}
-        {!isSigned ? (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
-                <PenTool size={20} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Ký Hợp Đồng Điện Tử Trực Tuyến</h3>
-                <p className="text-xs text-zinc-400">
-                  Xác nhận chữ ký số cá nhân để hoàn tất thủ tục pháp lý thuê xe theo Nghị định về giao dịch điện tử
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSign} className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
-                  Họ và tên người ký (Chữ ký điện tử):
-                </label>
-                <input
-                  type="text"
-                  value={signatureName}
-                  onChange={(e) => setSignatureName(e.target.value)}
-                  placeholder="Nhập họ và tên đầy đủ..."
-                  className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-amber-500 transition"
-                />
-              </div>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="mt-1 w-4 h-4 rounded bg-zinc-800 border-zinc-700 text-amber-500 focus:ring-0 cursor-pointer"
-                />
-                <span className="text-xs text-zinc-300 group-hover:text-white transition leading-relaxed">
-                  Tôi xác nhận đã đọc, hiểu rõ và hoàn toàn đồng ý với toàn bộ các điều khoản, quyền và nghĩa vụ quy định trong 
-                  <strong> Hợp đồng thuê xe điện tử VELORA</strong> và chính sách bảo hiểm phương tiện.
-                </span>
-              </label>
-
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-800">
-                <div className="text-xs text-zinc-500 flex items-center gap-1.5">
-                  <Lock size={14} className="text-emerald-500" />
-                  Mã hóa chữ ký SHA-256 bảo mật chuẩn quốc tế
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={signing || !agreeTerms || !signatureName.trim()}
-                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {signing ? (
-                    'Đang chứng thực chữ ký...'
-                  ) : (
-                    <>
-                      <span>Xác nhận ký & Tiếp tục đặt cọc</span>
-                      <ArrowRight size={16} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : (
-          /* Next Step: Proceed to Deposit Payment */
-          <div className="bg-gradient-to-r from-zinc-900 to-zinc-800 border border-emerald-500/30 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 flex-shrink-0">
-                <CheckCircle2 size={28} />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Hợp đồng điện tử đã được ký kết hợp lệ</h3>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Bước cuối cùng: Quý khách vui lòng thanh toán tiền đặt cọc ({formatCurrency(contract.depositAmount)}) để hoàn tất việc giữ xe.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate(`/payment/deposit/${requestId}`)}
-              className="w-full sm:w-auto px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 whitespace-nowrap"
-            >
-              <span>{isDepositPaid ? 'Xem biên lai đặt cọc' : 'Tiến hành đặt cọc qua VietQR'}</span>
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
       </main>
     </div>
   );

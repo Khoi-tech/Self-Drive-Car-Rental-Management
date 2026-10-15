@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, AlertCircle, RefreshCw } from 'lucide-react';
 import vehicleService from '../../services/vehicleService';
 import { getTransmissionDisplay, getFuelTypeDisplay } from '../../utils/formatters';
+import VehicleImageManager from '../../components/vehicles/VehicleImageManager';
 
 const EditVehiclePage = () => {
   const { id } = useParams();
@@ -304,11 +305,13 @@ const EditVehiclePage = () => {
                   className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm" />
               </div>
 
-              {/* Image URL */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">URL hình ảnh</label>
-                <input type="text" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://..."
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm" />
+              {/* Image Gallery Manager */}
+              <div className="md:col-span-2 pt-2">
+                <VehicleImageManager
+                  value={formData.imageUrl}
+                  vehicleMake={vehicleInfo?.make || ''}
+                  onChange={(serialized) => setFormData(prev => ({ ...prev, imageUrl: serialized }))}
+                />
               </div>
 
             </div>

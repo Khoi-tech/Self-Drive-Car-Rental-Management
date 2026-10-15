@@ -1,28 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Calendar, Filter, Users, Fuel, Settings, ChevronDown, Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, MapPin, Calendar, Filter, Users, Fuel, Settings, ChevronDown, Check, X, RotateCcw, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
+import { formatCurrency } from '../../utils/formatters';
 
-const BRANDS = ['BMW', 'Mercedes', 'Audi', 'Toyota', 'VinFast', 'Hyundai', 'Kia', 'Ford', 'Honda', 'Mazda'];
-const LOCATIONS = ['Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'];
+const BRANDS = ['Porsche', 'Mercedes-Benz', 'BMW', 'Audi', 'Lexus', 'Land Rover', 'VinFast', 'Toyota', 'Ford'];
+const LOCATIONS = [
+  'Tất cả địa điểm',
+  'Hồ Chí Minh (Trụ sở Tân Bình)',
+  'Hồ Chí Minh (Quận 1 / Landmark)',
+  'Hà Nội (Cầu Giấy / Nội Bài)',
+  'Đà Nẵng (Sân bay Đà Nẵng)'
+];
 
 const CarCatalogPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Search Params
-  const [pickupLocation, setPickupLocation] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  // Search Params initialized from URL
+  const [pickupLocation, setPickupLocation] = useState(searchParams.get('pickupLocation') || '');
+  const [startTime, setStartTime] = useState(searchParams.get('startTime') || '');
+  const [endTime, setEndTime] = useState(searchParams.get('endTime') || '');
 
   // Filter Params
   const [filters, setFilters] = useState({
-    brand: '',
-    seats: '',
-    transmission: '',
-    fuelType: '',
+    brand: searchParams.get('brand') || '',
+    seats: searchParams.get('seats') || '',
+    transmission: searchParams.get('transmission') || '',
+    fuelType: searchParams.get('fuelType') || '',
     minPrice: '',
     maxPrice: ''
   });
@@ -34,7 +42,7 @@ const CarCatalogPage = () => {
     setError(null);
     try {
       const params = {
-        pickupLocation: pickupLocation,
+        pickupLocation: pickupLocation && pickupLocation !== 'Tất cả địa điểm' ? pickupLocation : '',
         startTime: startTime ? new Date(startTime).toISOString() : '',
         endTime: endTime ? new Date(endTime).toISOString() : '',
         brand: filters.brand,
@@ -59,7 +67,7 @@ const CarCatalogPage = () => {
 
   useEffect(() => {
     fetchVehicles();
-  }, [filters, pickupLocation]); // Refetch on filter or location change
+  }, [filters, pickupLocation]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -82,14 +90,6 @@ const CarCatalogPage = () => {
     setPickupLocation('');
     setStartTime('');
     setEndTime('');
-    
-    // We update a dummy state or just rely on the new filters object reference to trigger useEffect.
-    // Since setFilters creates a new object {}, useEffect([filters]) will trigger and call fetchVehicles 
-    // with the latest empty states (pickupLocation, startTime, etc.).
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
   // Sort vehicles locally
@@ -99,267 +99,380 @@ const CarCatalogPage = () => {
     
     if (sortBy === 'price_asc') return priceA - priceB;
     if (sortBy === 'price_desc') return priceB - priceA;
-    if (sortBy === 'newest') return new Date(b.vehicle.createdAt) - new Date(a.vehicle.createdAt);
+    if (sortBy === 'newest') return new Date(b.vehicle.createdAt || 0) - new Date(a.vehicle.createdAt || 0);
     return 0;
   });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
-      
-      {/* Header & Quick Search */}
-      <div className="pt-28 pb-10 px-6 bg-gradient-to-b from-zinc-900 to-[#0a0a0a] border-b border-zinc-800/50">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-light mb-8">Bộ Sưu Tập Xe Khả Dụng</h1>
+
+      {/* Top Search & Filter Bar */}
+      <div className="pt-24 pb-8 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <form onSubmit={handleSearch} className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 flex flex-col md:flex-row gap-4 backdrop-blur-sm">
-            <div className="flex-1 relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-              <select 
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-blue-900 mb-1">
+                Dịch Vụ Thuê Xe Tự Lái Chuẩn Đức
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-950 tracking-tight">
+                Danh Mục Xe Khả Dụng ({vehicles.length})
+              </h1>
+            </div>
+
+            {/* Quick Sorter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 whitespace-nowrap flex items-center gap-1">
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                Sắp xếp:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-slate-50 border border-slate-200 text-xs font-semibold text-zinc-950 rounded-md px-3 py-1.5 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors cursor-pointer"
+              >
+                <option value="price_asc">Giá tăng dần</option>
+                <option value="price_desc">Giá giảm dần</option>
+                <option value="newest">Xe mới nhất</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Location & Date Search Bar */}
+          <form 
+            onSubmit={handleSearch} 
+            className="p-3 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center"
+          >
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <select
                 value={pickupLocation}
                 onChange={(e) => setPickupLocation(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors appearance-none"
+                className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 transition-colors"
               >
-                <option value="">Tất cả địa điểm</option>
-                {LOCATIONS.map(loc => (
-                  <option key={loc} value={loc}>{loc}</option>
+                {LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc === 'Tất cả địa điểm' ? '' : loc}>
+                    {loc}
+                  </option>
                 ))}
               </select>
             </div>
-            
-            <div className="flex-1 relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-              <input 
-                type="datetime-local" 
+
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="datetime-local"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
                 placeholder="Ngày nhận xe"
               />
             </div>
-            
-            <div className="flex-1 relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-              <input 
-                type="datetime-local" 
+
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="datetime-local"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
                 placeholder="Ngày trả xe"
               />
             </div>
-            
-            <button type="submit" className="bg-white text-black px-8 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
-              <Search className="w-5 h-5" />
-              Tìm kiếm xe
+
+            <button
+              type="submit"
+              className="w-full bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs py-2 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Kiểm tra xe trống</span>
             </button>
           </form>
+
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col lg:flex-row gap-8">
-        {/* Left Sidebar Filters */}
-        <div className="w-full lg:w-1/4 flex-shrink-0 space-y-8">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-medium flex items-center gap-2">
-              <Filter className="w-5 h-5" /> Lọc kết quả
-            </h3>
-            <button onClick={resetFilters} className="text-sm text-zinc-400 hover:text-white transition-colors">
-              Xóa bộ lọc
-            </button>
-          </div>
-
-          {/* Brand Filter */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-zinc-300">Hãng xe</h4>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                onClick={() => handleFilterChange('brand', '')}
-                className={`px-4 py-2 rounded-lg text-sm border transition-colors ${filters.brand === '' ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-500'}`}
-              >
-                Tất cả
-              </button>
-              {BRANDS.map(b => (
-                <button 
-                  key={b}
-                  onClick={() => handleFilterChange('brand', b)}
-                  className={`px-4 py-2 rounded-lg text-sm border transition-colors ${filters.brand === b ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-500'}`}
-                >
-                  {b}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Seats Filter */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-zinc-300">Số chỗ ngồi</h4>
-            <div className="flex flex-wrap gap-2">
-              {[ {l: 'Tất cả', v: ''}, {l: '4-5 chỗ', v: '4'}, {l: '7 chỗ', v: '7'} ].map(opt => (
-                <button 
-                  key={opt.l}
-                  onClick={() => handleFilterChange('seats', opt.v)}
-                  className={`px-4 py-2 rounded-lg text-sm border transition-colors ${filters.seats === opt.v ? 'bg-white text-black border-white' : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-500'}`}
-                >
-                  {opt.l}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Transmission & Fuel */}
-          <div className="space-y-4">
-             <h4 className="font-medium text-zinc-300">Hộp số</h4>
-             <select 
-               value={filters.transmission}
-               onChange={(e) => handleFilterChange('transmission', e.target.value)}
-               className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-zinc-500"
-             >
-               <option value="">Tất cả</option>
-               <option value="AUTO">Tự động (AUTO)</option>
-               <option value="MANUAL">Số sàn (MANUAL)</option>
-             </select>
-          </div>
+      {/* Main Catalog Layout: 280px Fixed Filter + 3-Col Cars */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          <div className="space-y-4">
-             <h4 className="font-medium text-zinc-300">Nhiên liệu</h4>
-             <select 
-               value={filters.fuelType}
-               onChange={(e) => handleFilterChange('fuelType', e.target.value)}
-               className="w-full bg-zinc-900 border border-zinc-800 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-zinc-500"
-             >
-               <option value="">Tất cả</option>
-               <option value="PETROL">Xăng (PETROL)</option>
-               <option value="DIESEL">Dầu (DIESEL)</option>
-               <option value="ELECTRIC">Điện (ELECTRIC)</option>
-             </select>
-          </div>
-
-        </div>
-
-        {/* Main Content Area */}
-        <div className="w-full lg:w-3/4">
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-8 pb-4 border-b border-zinc-800/50">
-            <h2 className="text-xl font-light">
-              <span className="font-medium">{vehicles.length}</span> xe phù hợp
-            </h2>
-            <div className="flex items-center gap-3 mt-4 sm:mt-0">
-              <span className="text-zinc-500 text-sm">Sắp xếp theo:</span>
-              <select 
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent border-none text-white focus:outline-none cursor-pointer"
-              >
-                <option value="price_asc" className="bg-zinc-900">Giá tăng dần</option>
-                <option value="price_desc" className="bg-zinc-900">Giá giảm dần</option>
-                <option value="newest" className="bg-zinc-900">Mới nhất</option>
-              </select>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-              <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
-              <p>Đang tìm kiếm xe...</p>
-            </div>
-          ) : error ? (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-8 text-center text-red-400">
-              <p>{error}</p>
-            </div>
-          ) : sortedVehicles.length === 0 ? (
-            <div className="text-center py-20 bg-zinc-900/30 rounded-2xl border border-zinc-800/50">
-              <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="w-8 h-8 text-zinc-500" />
+          {/* CỘT TRÁI (280px, cố định khi cuộn) */}
+          <aside className="w-full lg:w-[280px] shrink-0 sticky top-24 self-start space-y-6">
+            <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-xs space-y-6">
+              
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-950 flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-4 h-4 text-blue-900" />
+                  Bộ lọc tìm kiếm
+                </span>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-[11px] font-semibold text-slate-500 hover:text-blue-900 flex items-center gap-1 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Xóa lọc
+                </button>
               </div>
-              <h3 className="text-xl font-medium mb-2">Không tìm thấy xe phù hợp</h3>
-              <p className="text-zinc-500 max-w-md mx-auto">
-                Không tìm thấy xe phù hợp trong khoảng thời gian này. Vui lòng thử đổi ngày, địa điểm hoặc tiêu chí lọc.
-              </p>
-              <button onClick={resetFilters} className="mt-6 px-6 py-2 border border-zinc-700 rounded-lg hover:bg-zinc-800 transition-colors">
-                Xóa tất cả bộ lọc
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {sortedVehicles.map((item) => (
-                <div key={item.vehicle.id} className="group bg-zinc-900/50 rounded-2xl overflow-hidden border border-zinc-800 hover:border-zinc-600 transition-all duration-300 flex flex-col">
-                  {/* Image container */}
-                  <div className="relative aspect-[4/3] overflow-hidden bg-zinc-800">
-                    {item.vehicle.imageUrl ? (
-                      <img 
-                        src={item.vehicle.imageUrl} 
-                        alt={`${item.vehicle.make} ${item.vehicle.model}`} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 group-hover:scale-105 transition-transform duration-500">
-                        <Fuel className="w-10 h-10 mb-2 opacity-50" />
-                        <span className="text-sm">Chưa có hình ảnh</span>
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium border border-white/10">
-                      {item.vehicle.make}
-                    </div>
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="p-5 flex-1 flex flex-col">
-                    <h3 className="text-lg font-medium mb-1 truncate" title={`${item.vehicle.make} ${item.vehicle.model}`}>
-                      {item.vehicle.make} {item.vehicle.model}
-                    </h3>
-                    
-                    <div className="flex items-center text-zinc-400 text-sm mb-4">
-                      <MapPin className="w-3.5 h-3.5 mr-1" />
-                      <span className="truncate">{item.vehicle.pickupLocation}</span>
-                    </div>
-                    
-                    {/* Badges */}
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      <span className="inline-flex items-center gap-1.5 bg-zinc-800 px-2 py-1 rounded text-xs text-zinc-300">
-                        <Users className="w-3 h-3" /> {item.vehicle.seats} chỗ
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 bg-zinc-800 px-2 py-1 rounded text-xs text-zinc-300">
-                        <Settings className="w-3 h-3" /> {item.vehicle.transmission === 'AUTO' ? 'Tự động' : 'Số sàn'}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 bg-zinc-800 px-2 py-1 rounded text-xs text-zinc-300">
-                        <Fuel className="w-3 h-3" /> {item.vehicle.fuelType === 'PETROL' ? 'Xăng' : item.vehicle.fuelType === 'ELECTRIC' ? 'Điện' : 'Dầu'}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-auto pt-4 border-t border-zinc-800 flex items-end justify-between">
-                      <div>
-                        {item.totalDays > 0 ? (
-                          <>
-                            <div className="text-xs text-zinc-500 mb-1">
-                              Tổng cộng {item.totalDays} ngày 
-                              {item.appliedDiscountPercent > 0 && <span className="text-green-500 ml-1">(-{item.appliedDiscountPercent}%)</span>}
-                            </div>
-                            <div className="text-xl font-medium text-white">
-                              {formatCurrency(item.estimatedTotalFee)}
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-xs text-zinc-500 mb-1">Giá mỗi ngày</div>
-                            <div className="text-xl font-medium text-white">
-                              {formatCurrency(item.vehicle.dailyRate)}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      
-                      <Link 
-                        to={`/cars/${item.vehicle.id}?startTime=${startTime}&endTime=${endTime}&pickupLocation=${pickupLocation}`} 
-                        className="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Chi tiết
-                      </Link>
-                    </div>
-                  </div>
+
+              {/* Filter 1: Hãng xe */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold text-zinc-900 uppercase tracking-wider block">
+                  Hãng sản xuất
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleFilterChange('brand', '')}
+                    className={`px-2.5 py-1 text-xs rounded-md border font-semibold transition-colors ${
+                      filters.brand === ''
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    Tất cả
+                  </button>
+                  {BRANDS.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => handleFilterChange('brand', filters.brand === b ? '' : b)}
+                      className={`px-2.5 py-1 text-xs rounded-md border font-semibold transition-colors ${
+                        filters.brand === b
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Filter 2: Số chỗ ngồi */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-100">
+                <label className="text-xs font-bold text-zinc-900 uppercase tracking-wider block">
+                  Số chỗ ngồi
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { label: 'Tất cả', val: '' },
+                    { label: '4-5 chỗ', val: '5' },
+                    { label: '7 chỗ', val: '7' }
+                  ].map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => handleFilterChange('seats', s.val)}
+                      className={`py-1.5 text-xs rounded-md border font-semibold transition-colors text-center ${
+                        filters.seats === s.val
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter 3: Hộp số */}
+              <div className="space-y-2 pt-3 border-t border-slate-100">
+                <label className="text-xs font-bold text-zinc-900 uppercase tracking-wider block">
+                  Loại hộp số
+                </label>
+                <select
+                  value={filters.transmission}
+                  onChange={(e) => handleFilterChange('transmission', e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 transition-colors"
+                >
+                  <option value="">Tất cả hộp số</option>
+                  <option value="AUTO">Số tự động (AUTO)</option>
+                  <option value="MANUAL">Số sàn (MANUAL)</option>
+                </select>
+              </div>
+
+              {/* Filter 4: Nhiên liệu */}
+              <div className="space-y-2 pt-3 border-t border-slate-100">
+                <label className="text-xs font-bold text-zinc-900 uppercase tracking-wider block">
+                  Loại nhiên liệu
+                </label>
+                <select
+                  value={filters.fuelType}
+                  onChange={(e) => handleFilterChange('fuelType', e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 transition-colors"
+                >
+                  <option value="">Tất cả nhiên liệu</option>
+                  <option value="PETROL">Động cơ Xăng (PETROL)</option>
+                  <option value="DIESEL">Động cơ Dầu (DIESEL)</option>
+                  <option value="ELECTRIC">Thuần Điện (ELECTRIC)</option>
+                </select>
+              </div>
+
+              {/* Transparency Notice */}
+              <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-md text-[11px] text-blue-900 leading-relaxed space-y-1">
+                <div className="font-bold">Chính sách cam kết:</div>
+                <p>100% xe thật ODO thật, bảo hiểm vật chất 2 chiều và vệ sinh sạch sẽ trước khi bàn giao.</p>
+              </div>
+
             </div>
-          )}
+          </aside>
+
+          {/* CỘT PHẢI: LƯỚI XE (3 CỘT TRÊN DESKTOP) */}
+          <main className="flex-1 w-full min-w-0">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="velora-card p-4 animate-pulse space-y-4">
+                    <div className="aspect-[16/10] bg-slate-200 rounded-md"></div>
+                    <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                    <div className="h-6 bg-slate-200 rounded w-1/3"></div>
+                    <div className="h-10 bg-slate-200 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center text-red-700">
+                <p className="font-semibold text-sm">{error}</p>
+                <button
+                  onClick={fetchVehicles}
+                  className="mt-4 px-4 py-2 bg-red-700 text-white rounded-md text-xs font-semibold"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : sortedVehicles.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-lg border border-slate-200 p-8 shadow-xs">
+                <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                  <Search className="w-7 h-7" />
+                </div>
+                <h3 className="text-base font-bold text-zinc-950 mb-1">
+                  Không tìm thấy xe phù hợp
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6">
+                  Không có xe nào khớp với tiêu chí tìm kiếm hoặc lịch trống hiện tại. Vui lòng đổi tiêu chí lọc hoặc ngày nhận/trả xe.
+                </p>
+                <button
+                  onClick={resetFilters}
+                  className="px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white text-xs font-semibold rounded-md transition-colors"
+                >
+                  Xóa tất cả bộ lọc
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {sortedVehicles.map((item) => {
+                  const car = item.vehicle;
+                  const isReady = car.status === 'READY';
+                  const transmissionLabel = car.transmission === 'AUTO' ? 'Tự động' : 'Số sàn';
+                  const fuelLabel = car.fuelType === 'ELECTRIC' ? 'Điện' : car.fuelType === 'DIESEL' ? 'Dầu' : 'Xăng';
+
+                  return (
+                    <div 
+                      key={car.id}
+                      className="velora-card overflow-hidden flex flex-col group hover:-translate-y-0.5"
+                    >
+                      {/* 16:10 Image Container */}
+                      <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden border-b border-slate-100">
+                        <img
+                          src={car.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'}
+                          alt={`${car.make} ${car.model}`}
+                          className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                        />
+
+                        {/* Top Left Status Badge */}
+                        <div className="absolute top-3 left-3">
+                          <span className={isReady ? 'badge-ready' : 'badge-rented'}>
+                            {isReady ? 'Sẵn sàng giao' : 'Đang cho thuê'}
+                          </span>
+                        </div>
+
+                        {/* Top Right Tag */}
+                        <div className="absolute top-3 right-3 bg-white/95 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-bold text-slate-700 tracking-wider">
+                          {car.year || 2024} • {fuelLabel}
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          {/* Name + License Plate */}
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 className="font-bold text-base text-zinc-950 group-hover:text-blue-900 transition-colors leading-snug truncate" title={`${car.make} ${car.model}`}>
+                              {car.make} {car.model}
+                            </h3>
+                            <span className="license-plate shrink-0">
+                              {car.licensePlate}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center text-xs text-slate-600 mb-3 truncate">
+                            <MapPin className="w-3 h-3 mr-1 text-slate-500 shrink-0" />
+                            <span className="truncate">{car.pickupLocation || 'VP VELORA (Trụ sở)'}</span>
+                          </div>
+
+                          {/* 3-grid specs */}
+                          <div className="grid grid-cols-3 gap-1.5 py-2 px-2.5 bg-slate-50 border border-slate-200/80 rounded-md text-[11px] font-semibold text-slate-600 mb-4">
+                            <div className="flex flex-col items-center justify-center text-center">
+                              <span className="text-[10px] text-slate-600 font-medium">Chỗ ngồi</span>
+                              <span className="font-bold text-zinc-900 tabular-nums">{car.seats || 5} chỗ</span>
+                            </div>
+                            <div className="flex flex-col items-center justify-center text-center border-x border-slate-200">
+                              <span className="text-[10px] text-slate-600 font-medium">Hộp số</span>
+                              <span className="font-bold text-zinc-900">{transmissionLabel}</span>
+                            </div>
+                            <div className="flex flex-col items-center justify-center text-center">
+                              <span className="text-[10px] text-slate-600 font-medium">Hạn mức</span>
+                              <span className="font-bold text-zinc-900 tabular-nums">{car.dailyMileageLimit || 300} km/n</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                          <div>
+                            {item.totalDays > 0 ? (
+                              <>
+                                <div className="text-[10px] text-slate-600 font-medium">
+                                  Tổng {item.totalDays} ngày {item.appliedDiscountPercent > 0 && <span className="text-emerald-600 font-bold">(-{item.appliedDiscountPercent}%)</span>}
+                                </div>
+                                <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                                  {formatCurrency(item.estimatedTotalFee)}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-[10px] uppercase font-semibold text-slate-600 tracking-wider">
+                                  Giá thuê
+                                </div>
+                                <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                                  {formatCurrency(car.dailyRate)}
+                                  <span className="text-xs font-normal text-slate-600 ml-0.5">/ngày</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="text-[10px] text-slate-600 font-medium">
+                              Cọc {formatCurrency(car.depositAmount || 15000000)}
+                            </div>
+                          </div>
+
+                          <Link
+                            to={`/cars/${car.id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(pickupLocation)}`}
+                            className="px-3.5 py-2 bg-slate-900 hover:bg-blue-900 text-white text-xs font-bold rounded-md shadow-xs transition-colors shrink-0"
+                          >
+                            Xem chi tiết
+                          </Link>
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
+
         </div>
       </div>
     </div>

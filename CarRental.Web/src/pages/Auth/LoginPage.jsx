@@ -28,7 +28,7 @@ const LoginPage = () => {
       setLoading(true);
       setError(null);
       const res = await login(email.trim(), password);
-      if (res?.user?.role === 'STAFF' || res?.user?.role === 'MANAGER') {
+      if (res?.user?.role === 'STAFF' || res?.user?.role === 'ADMIN' || res?.user?.role === 'MANAGER') {
         navigate(redirectUrl !== '/' ? redirectUrl : '/admin');
       } else {
         navigate(redirectUrl);
@@ -52,62 +52,77 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-between selection:bg-white/20">
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
 
-      <div className="flex-1 flex items-center justify-center px-4 py-32">
+      <div className="flex-1 flex items-center justify-center px-4 py-28">
         <div className="max-w-md w-full">
-          {/* Brand header */}
-          <div className="text-center mb-8">
-            <h2 className="text-xs uppercase tracking-widest text-zinc-400 font-semibold mb-2">HỆ THỐNG VELORA</h2>
-            <h1 className="text-3xl font-light tracking-tight text-white">Đăng nhập tài khoản</h1>
-            <p className="text-zinc-400 text-sm mt-2">Quản lý chuyến đi và trải nghiệm thuê xe tự lái cao cấp</p>
+          
+          {/* Header */}
+          <div className="text-center mb-6">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-blue-900 block mb-1">
+              HỆ THỐNG QUẢN LÝ VELORA
+            </span>
+            <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">
+              Đăng nhập tài khoản
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Quản trị vận hành đội xe và tra cứu đơn thuê tự lái
+            </p>
           </div>
 
           {/* Form Card */}
-          <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm">
             {error && (
-              <div className="mb-6 bg-red-500/10 border border-red-500/40 text-red-400 p-4 rounded-xl text-sm flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="mb-5 bg-red-50 border border-red-200 text-red-700 p-3 rounded-md text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Email</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Địa chỉ Email
+                </label>
                 <div className="relative">
-                  <Mail className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-4 py-3.5 focus:outline-none focus:border-white transition-colors"
+                    placeholder="email@velora.vn"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Mật khẩu</label>
-                  <a href="#" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Quên mật khẩu?</a>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-zinc-900">
+                    Mật khẩu
+                  </label>
+                  <a href="#" className="text-[11px] text-slate-500 hover:text-blue-900 transition-colors">
+                    Quên mật khẩu?
+                  </a>
                 </div>
                 <div className="relative">
-                  <Lock className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-12 py-3.5 focus:outline-none focus:border-white transition-colors"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-10 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
@@ -115,49 +130,59 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-white text-black py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all shadow-lg shadow-white/5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                  <span>Đang xác thực...</span>
                 ) : (
                   <>
                     <span>Đăng nhập</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight size={14} />
                   </>
                 )}
               </button>
             </form>
 
-            {/* Quick Demo Access Bar */}
-            <div className="mt-8 pt-6 border-t border-zinc-800/80">
-              <p className="text-xs text-zinc-500 mb-3 text-center uppercase tracking-wider font-medium">Tài khoản thử nghiệm nhanh (Demo)</p>
-              <div className="grid grid-cols-2 gap-2.5">
+            {/* Quick Demo Access Buttons */}
+            <div className="mt-6 pt-5 border-t border-slate-100">
+              <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block text-center mb-3">
+                Tài khoản kiểm thử nhanh (Demo)
+              </span>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('staff@velora.vn', 'Velora@2026')}
-                  className="px-3 py-2 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-xl text-xs font-medium text-zinc-300 transition-colors flex items-center justify-center gap-1.5"
+                  className="p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                  Nhân viên (Staff)
+                  <ShieldCheck size={16} className="text-blue-900 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Nhân viên / Admin</div>
+                    <div className="text-[10px] text-slate-500 font-mono truncate">staff@velora.vn</div>
+                  </div>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('customer@velora.vn', 'Velora@2026')}
-                  className="px-3 py-2 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 rounded-xl text-xs font-medium text-zinc-300 transition-colors flex items-center justify-center gap-1.5"
+                  className="p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
                 >
-                  <User className="w-3.5 h-3.5 text-emerald-400" />
-                  Khách hàng (User)
+                  <User size={16} className="text-emerald-700 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Khách hàng</div>
+                    <div className="text-[10px] text-slate-500 font-mono truncate">customer@velora.vn</div>
+                  </div>
                 </button>
               </div>
             </div>
 
-            <div className="mt-6 text-center text-sm text-zinc-400">
+            <div className="mt-5 text-center text-xs text-slate-500">
               Chưa có tài khoản?{' '}
-              <Link to="/register" className="text-white hover:underline font-medium">
+              <Link to="/register" className="font-bold text-blue-900 hover:underline">
                 Đăng ký ngay
               </Link>
             </div>
           </div>
+
         </div>
       </div>
     </div>

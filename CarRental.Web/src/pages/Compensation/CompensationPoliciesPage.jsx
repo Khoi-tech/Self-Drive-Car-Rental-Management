@@ -149,27 +149,34 @@ const CompensationPoliciesPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Chính sách phí & bồi thường</h1>
-          <p className="text-zinc-500 mt-1">Cấu hình các danh mục phí phạt, bồi thường thiệt hại làm cơ sở tham chiếu.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-950 flex items-center gap-2">
+            Chính Sách Bồi Thường & Phí Vi Phạm
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono border border-slate-200">
+              {policies.length} danh mục
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Quy định biểu phí phạt vi phạm hợp đồng, bồi thường hư hỏng xe và trầy xước làm căn cứ đối soát quyết toán bàn giao.
+          </p>
         </div>
         <button
           onClick={openAddModal}
-          className="inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition shadow-sm"
         >
-          <Plus size={18} className="mr-2" />
-          Thêm chính sách
+          <Plus size={15} />
+          Thêm chính sách bồi thường
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm flex flex-col sm:flex-row gap-4">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-zinc-400" />
+            <Search size={16} className="text-slate-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-md leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm"
-            placeholder="Tìm theo tên chính sách..."
+            className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0F172A]"
+            placeholder="Tìm theo tên vi phạm, mô tả mức đền bù..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -177,89 +184,95 @@ const CompensationPoliciesPage = () => {
       </div>
 
       {successMsg && (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md">
-          <p className="text-green-700 text-sm font-medium">{successMsg}</p>
+        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-md">
+          <p className="text-emerald-800 text-xs font-medium">{successMsg}</p>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex justify-between items-center">
-          <div className="flex items-center">
-            <AlertCircle className="text-red-500 mr-3" size={20} />
-            <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-md flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="text-rose-600" size={18} />
+            <p className="text-rose-700 text-xs font-medium">{error}</p>
           </div>
-          <button onClick={fetchPolicies} className="text-sm font-medium text-red-700 hover:text-red-600 flex items-center">
-            <RefreshCw size={14} className="mr-1" /> Thử lại
+          <button onClick={fetchPolicies} className="text-xs font-semibold text-rose-700 hover:text-rose-800 flex items-center gap-1">
+            <RefreshCw size={14} /> Thử lại
           </button>
         </div>
       )}
 
-      <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tên chính sách</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Cách tính</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Mức phí</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-6 py-3.5 text-left">Danh mục phí / Bồi thường</th>
+                <th className="px-6 py-3.5 text-center">Phương thức tính</th>
+                <th className="px-6 py-3.5 text-right">Định mức bồi hoàn</th>
+                <th className="px-6 py-3.5 text-center">Trạng thái áp dụng</th>
+                <th className="px-6 py-3.5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-zinc-200">
+            <tbody className="bg-white divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-10 text-center">
-                    <div className="flex flex-col items-center justify-center text-zinc-500">
-                      <RefreshCw className="animate-spin mb-2" size={24} />
-                      <p>Đang tải dữ liệu...</p>
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="animate-spin mb-2 text-[#0F172A]" size={22} />
+                      <p className="text-xs">Đang tải danh mục bồi thường...</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredPolicies.length > 0 ? (
                 filteredPolicies.map((policy) => (
-                  <tr key={policy.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-zinc-900">{policy.name}</div>
-                      {policy.description && <div className="text-xs text-zinc-500 truncate max-w-xs">{policy.description}</div>}
+                  <tr key={policy.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="text-xs font-bold text-zinc-950">{policy.name}</div>
+                      {policy.description && <div className="text-[11px] text-slate-500 truncate max-w-sm mt-0.5">{policy.description}</div>}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-700">
-                      {policy.calculationType === 'FIXED' ? 'Cố định' : 'Theo đơn vị'}
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-slate-700">
+                      <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-medium">
+                        {policy.calculationType === 'FIXED' ? 'Khoán cố định' : 'Tính theo đơn vị'}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-bold font-mono text-zinc-950 tabular-nums">
                       {formatCurrencyVND(policy.amount)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       {policy.isActive ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Đang áp dụng
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Đang hiệu lực
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800">
-                          Ngừng áp dụng
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Tạm dừng
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-medium space-x-2">
                       <button
                         onClick={() => openEditModal(policy)}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-900"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 transition"
                       >
-                        <Edit2 size={16} className="mr-1" /> Sửa
+                        <Edit2 size={13} /> Sửa
                       </button>
                       <button
                         onClick={() => openStatusConfirmModal(policy)}
-                        className={`inline-flex items-center ${policy.isActive ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded border transition ${
+                          policy.isActive 
+                            ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' 
+                            : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                        }`}
                       >
-                        <ShieldAlert size={16} className="mr-1" /> {policy.isActive ? 'Ngừng' : 'Kích hoạt'}
+                        <ShieldAlert size={13} /> {policy.isActive ? 'Tạm dừng' : 'Kích hoạt'}
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-10 text-center text-zinc-500">
-                    Không tìm thấy chính sách nào.
+                  <td colSpan="5" className="px-6 py-12 text-center text-xs text-slate-400">
+                    Không tìm thấy chính sách bồi thường nào.
                   </td>
                 </tr>
               )}
@@ -272,59 +285,59 @@ const CompensationPoliciesPage = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => !modalSaving && setIsModalOpen(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="text-lg font-bold text-zinc-900">{modalMode === 'add' ? 'Thêm chính sách' : 'Chỉnh sửa chính sách'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
-                <X size={20} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 z-10 border border-slate-200">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-zinc-950">{modalMode === 'add' ? 'Thêm chính sách bồi thường' : 'Chỉnh sửa chính sách bồi thường'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-zinc-950">
+                <X size={18} />
               </button>
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 text-sm text-red-700 flex items-center">
-                <AlertCircle size={16} className="mr-2 shrink-0" /> {modalError}
+              <div className="mb-4 bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 flex items-center rounded-md">
+                <AlertCircle size={15} className="mr-2 shrink-0 text-rose-600" /> {modalError}
               </div>
             )}
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Tên chính sách <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Tên vi phạm / Thiệt hại <span className="text-rose-500">*</span></label>
                 <input type="text" name="name" value={formData.name} onChange={handleChange} required
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900" placeholder="VD: Phí vệ sinh xe" />
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] text-xs" placeholder="VD: Trầy xước sơn sâu > 5cm, Phí vệ sinh nội thất..." />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Mô tả (Tùy chọn)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Mô tả & Định mức kiểm tra</label>
                 <textarea name="description" value={formData.description} onChange={handleChange} rows="2"
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900" placeholder="Chi tiết chính sách..."></textarea>
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] text-xs" placeholder="Chi tiết quy chuẩn thẩm định..."></textarea>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Cách tính <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Phương thức tính <span className="text-rose-500">*</span></label>
                 <select name="calculationType" value={formData.calculationType} onChange={handleChange}
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white">
-                  <option value="FIXED">Cố định</option>
-                  <option value="UNIT">Theo đơn vị</option>
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] bg-white text-xs">
+                  <option value="FIXED">Khoán trọn gói cố định</option>
+                  <option value="UNIT">Tính theo đơn vị (vết, lít, ngày)</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Mức phí <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Định mức tiền bồi thường (VNĐ) <span className="text-rose-500">*</span></label>
                 <div className="relative">
                   <input type="number" min="0" name="amount" value={formData.amount} onChange={handleChange} required
-                    className="w-full pl-3 pr-10 py-2 border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-900" placeholder="0" />
+                    className="w-full pl-3 pr-10 py-2 border border-slate-200 rounded-md focus:outline-none focus:border-[#0F172A] text-xs font-mono tabular-nums" placeholder="0" />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-zinc-500 sm:text-sm">VND</span>
+                    <span className="text-slate-400 text-xs font-mono">VNĐ</span>
                   </div>
                 </div>
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
                   Hủy
                 </button>
-                <button type="submit" disabled={modalSaving} className={`inline-flex items-center px-4 py-2 bg-zinc-900 text-white rounded-md text-sm font-medium ${modalSaving ? 'opacity-70' : 'hover:bg-zinc-800'}`}>
-                  {modalSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />} Lưu
+                <button type="submit" disabled={modalSaving} className={`inline-flex items-center px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold shadow-sm transition ${modalSaving ? 'opacity-70' : 'hover:bg-[#1D4ED8]'}`}>
+                  {modalSaving ? <RefreshCw size={15} className="animate-spin mr-1.5" /> : <Save size={15} className="mr-1.5" />} Lưu chính sách
                 </button>
               </div>
             </form>
@@ -336,22 +349,22 @@ const CompensationPoliciesPage = () => {
       {statusConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40" onClick={() => setStatusConfirmModal(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6 z-10 text-center">
-            <ShieldAlert size={48} className={`mx-auto mb-4 ${statusConfirmModal.isActive ? 'text-orange-500' : 'text-green-500'}`} />
-            <h3 className="text-lg font-bold text-zinc-900 mb-2">
-              Xác nhận {statusConfirmModal.isActive ? 'ngừng áp dụng' : 'kích hoạt'}
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-sm p-6 z-10 text-center border border-slate-200">
+            <ShieldAlert size={40} className={`mx-auto mb-3 ${statusConfirmModal.isActive ? 'text-amber-500' : 'text-emerald-500'}`} />
+            <h3 className="text-base font-bold text-zinc-950 mb-1.5">
+              Xác nhận {statusConfirmModal.isActive ? 'tạm dừng' : 'kích hoạt'}
             </h3>
-            <p className="text-sm text-zinc-500 mb-6">
-              Bạn có chắc muốn {statusConfirmModal.isActive ? 'ngừng áp dụng' : 'kích hoạt'} chính sách <strong>{statusConfirmModal.name}</strong> không?
+            <p className="text-xs text-slate-500 mb-6">
+              Bạn có chắc muốn {statusConfirmModal.isActive ? 'ngừng áp dụng' : 'kích hoạt'} chính sách <strong className="text-zinc-950 font-semibold">{statusConfirmModal.name}</strong> không?
             </p>
             <div className="flex justify-center space-x-3">
-              <button onClick={() => setStatusConfirmModal(null)} className="px-4 py-2 border border-zinc-300 rounded-md text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50">Hủy</button>
+              <button onClick={() => setStatusConfirmModal(null)} className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">Hủy</button>
               <button 
                 onClick={confirmToggleStatus} 
                 disabled={statusLoading} 
-                className={`px-4 py-2 text-white rounded-md text-sm font-medium disabled:opacity-70 ${statusConfirmModal.isActive ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}`}
+                className={`px-4 py-2 text-white rounded-md text-xs font-semibold shadow-sm transition disabled:opacity-70 ${statusConfirmModal.isActive ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
               >
-                {statusLoading ? 'Đang xử lý...' : (statusConfirmModal.isActive ? 'Ngừng áp dụng' : 'Kích hoạt')}
+                {statusLoading ? 'Đang xử lý...' : (statusConfirmModal.isActive ? 'Tạm dừng áp dụng' : 'Kích hoạt ngay')}
               </button>
             </div>
           </div>

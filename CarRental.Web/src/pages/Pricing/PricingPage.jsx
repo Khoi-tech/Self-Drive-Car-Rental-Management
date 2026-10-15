@@ -41,20 +41,27 @@ const PricingPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Bảng giá</h1>
-          <p className="text-zinc-500 mt-1">Thiết lập bảng giá, tiền cọc và chính sách giá theo ngày cho xe.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-950 flex items-center gap-2">
+            Bảng Giá Thuê & Tiền Cọc
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono border border-slate-200">
+              {vehicles.length} xe
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Thiết lập bảng giá tiêu chuẩn, tiền đặt cọc và chính sách giá theo ngày cho toàn bộ đội xe VELORA.
+          </p>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm flex flex-col sm:flex-row gap-4">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={18} className="text-zinc-400" />
+            <Search size={16} className="text-slate-400" />
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-zinc-300 rounded-md leading-5 bg-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 sm:text-sm"
-            placeholder="Tìm theo hãng, model, biển số..."
+            className="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0F172A]"
+            placeholder="Tìm theo hãng xe, model, biển số..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -62,83 +69,85 @@ const PricingPage = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex justify-between items-center">
-          <div className="flex items-center">
-            <AlertCircle className="text-red-500 mr-3" size={20} />
-            <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-md flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="text-rose-600" size={18} />
+            <p className="text-rose-700 text-xs font-medium">{error}</p>
           </div>
-          <button onClick={fetchVehicles} className="text-sm font-medium text-red-700 hover:text-red-600 flex items-center">
-            <RefreshCw size={14} className="mr-1" /> Thử lại
+          <button onClick={fetchVehicles} className="text-xs font-semibold text-rose-700 hover:text-rose-800 flex items-center gap-1">
+            <RefreshCw size={14} /> Thử lại
           </button>
         </div>
       )}
 
-      <div className="bg-white rounded-lg border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Mã xe (Biển số)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Xe</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Giá / Ngày</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Tiền cọc</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Km miễn phí/ngày</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Phí vượt km</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Số policies</th>
-                <th className="relative px-6 py-3"><span className="sr-only">Thao tác</span></th>
+                <th className="px-6 py-3.5 text-left">Biển số</th>
+                <th className="px-6 py-3.5 text-left">Dòng xe</th>
+                <th className="px-6 py-3.5 text-right">Giá thuê / ngày</th>
+                <th className="px-6 py-3.5 text-right">Tiền cọc</th>
+                <th className="px-6 py-3.5 text-right">Km miễn phí/ngày</th>
+                <th className="px-6 py-3.5 text-right">Phí vượt km</th>
+                <th className="px-6 py-3.5 text-center">Chính sách ưu đãi</th>
+                <th className="px-6 py-3.5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-zinc-200">
+            <tbody className="bg-white divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-10 text-center">
-                    <div className="flex flex-col items-center justify-center text-zinc-500">
-                      <RefreshCw className="animate-spin mb-2" size={24} />
-                      <p>Đang tải dữ liệu...</p>
+                  <td colSpan="8" className="px-6 py-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center">
+                      <RefreshCw className="animate-spin mb-2 text-[#0F172A]" size={22} />
+                      <p className="text-xs">Đang tải biểu giá đội xe...</p>
                     </div>
                   </td>
                 </tr>
               ) : vehicles.length > 0 ? (
                 vehicles.map((vehicle) => (
-                  <tr key={vehicle.id} className="hover:bg-zinc-50 transition-colors">
+                  <tr key={vehicle.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-zinc-900">{vehicle.licensePlate}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-zinc-900">{vehicle.make}</div>
-                      <div className="text-sm text-zinc-500">{vehicle.model}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-900">
-                      {formatCurrencyVND(vehicle.dailyRate)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                      {formatCurrencyVND(vehicle.depositAmount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                      {vehicle.mileageLimit ? `${vehicle.mileageLimit} km` : 'Không giới hạn'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                      {vehicle.extraKmRate ? formatCurrencyVND(vehicle.extraKmRate) + '/km' : '—'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {vehicle.pricingPoliciesCount} policy
+                      <span className="license-plate text-[11px] px-2.5 py-0.5">
+                        {vehicle.licensePlate}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-xs font-bold text-zinc-950">{vehicle.make} {vehicle.model}</div>
+                      <div className="text-[11px] text-slate-500">{vehicle.seats} chỗ • {vehicle.transmission === 'AUTO' ? 'Tự động' : 'Số sàn'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-bold font-mono text-zinc-950 tabular-nums">
+                      {formatCurrencyVND(vehicle.dailyRate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-mono text-slate-600 tabular-nums">
+                      {formatCurrencyVND(vehicle.depositAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-mono text-slate-600 tabular-nums">
+                      {vehicle.mileageLimit ? `${vehicle.mileageLimit.toLocaleString()} km` : 'Không giới hạn'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-mono text-slate-600 tabular-nums">
+                      {vehicle.extraKmRate ? `${formatCurrencyVND(vehicle.extraKmRate)}/km` : '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        {vehicle.pricingPoliciesCount || 0} chính sách
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
                       <button
                         onClick={() => handleSetupPricing(vehicle.id)}
-                        className="inline-flex items-center text-zinc-700 bg-white border border-zinc-300 rounded px-3 py-1.5 hover:bg-zinc-50 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-slate-200 rounded-md hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
                       >
-                        <Settings size={16} className="mr-1.5" /> Thiết lập giá
+                        <Settings size={14} className="text-slate-500" /> Thiết lập giá
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="px-6 py-10 text-center text-zinc-500">
-                    Không tìm thấy dữ liệu xe phù hợp.
+                  <td colSpan="8" className="px-6 py-12 text-center text-xs text-slate-400">
+                    Không tìm thấy xe nào phù hợp với bộ lọc tìm kiếm.
                   </td>
                 </tr>
               )}

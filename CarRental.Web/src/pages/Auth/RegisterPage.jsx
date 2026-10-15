@@ -68,106 +68,125 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-between selection:bg-white/20">
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
 
-      <div className="flex-1 flex items-center justify-center px-4 py-32">
+      <div className="flex-1 flex items-center justify-center px-4 py-28">
         <div className="max-w-md w-full">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-xs uppercase tracking-widest text-zinc-400 font-semibold mb-2">GIA NHẬP VELORA</h2>
-            <h1 className="text-3xl font-light tracking-tight text-white">Tạo tài khoản mới</h1>
-            <p className="text-zinc-400 text-sm mt-2">Trở thành thành viên để tận hưởng đặc quyền thuê xe tự lái</p>
+          
+          <div className="text-center mb-6">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-blue-900 block mb-1">
+              GIA NHẬP HỆ THỐNG VELORA
+            </span>
+            <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">
+              Tạo tài khoản mới
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Trở thành khách hàng để đặt xe nhanh và lưu lịch sử chuyến đi
+            </p>
           </div>
 
-          {/* Form Card */}
-          <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-white border border-slate-200 rounded-lg p-6 sm:p-8 shadow-sm">
             {error && (
-              <div className="mb-6 bg-red-500/10 border border-red-500/40 text-red-400 p-4 rounded-xl text-sm flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="mb-5 bg-red-50 border border-red-200 text-red-700 p-3 rounded-md text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Họ và tên *</label>
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Họ và tên đầy đủ <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <User className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
-                    placeholder="Nguyễn Văn A"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                    placeholder="NGUYEN VAN A"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 uppercase focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Email *</label>
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Địa chỉ Email <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <Mail className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="email@example.com"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Số điện thoại</label>
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Số điện thoại di động
+                </label>
                 <div className="relative">
-                  <Phone className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="tel"
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleChange}
-                    placeholder="0912345678"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                    placeholder="0901234567"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Mật khẩu *</label>
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Mật khẩu <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <Lock className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Ít nhất 6 ký tự"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-12 py-3 focus:outline-none focus:border-white transition-colors"
+                    placeholder="Tối thiểu 6 ký tự"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-10 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Xác nhận mật khẩu *</label>
+              <div>
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
+                  Xác nhận lại mật khẩu <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <Lock className="w-5 h-5 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Nhập lại mật khẩu"
-                    className="w-full bg-black/50 border border-zinc-800 text-white rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-white transition-colors"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
               </div>
@@ -175,26 +194,27 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-white text-black py-4 rounded-xl font-semibold hover:bg-gray-200 transition-all shadow-lg shadow-white/5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-4"
+                className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer mt-2"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                  <span>Đang đăng ký tài khoản...</span>
                 ) : (
                   <>
-                    <span>Tạo tài khoản</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <span>Đăng ký thành viên</span>
+                    <ArrowRight size={14} />
                   </>
                 )}
               </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-zinc-400">
+            <div className="mt-5 text-center text-xs text-slate-500">
               Đã có tài khoản?{' '}
-              <Link to="/login" className="text-white hover:underline font-medium">
-                Đăng nhập
+              <Link to="/login" className="font-bold text-blue-900 hover:underline">
+                Đăng nhập tại đây
               </Link>
             </div>
           </div>
+
         </div>
       </div>
     </div>

@@ -272,120 +272,120 @@ const MaintenancePage = () => {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-zinc-500 uppercase font-semibold">Tổng xe đội xe</p>
-            <p className="text-2xl font-bold text-zinc-900 mt-1">{vehicles.length}</p>
+            <p className="text-xs text-slate-500 uppercase font-semibold">Tổng xe đội xe</p>
+            <p className="text-2xl font-bold text-zinc-950 mt-1 tabular-nums">{vehicles.length}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
             <Car size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-rose-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-rose-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-rose-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-rose-700 uppercase font-semibold">Khẩn cấp cần bảo dưỡng</p>
-            <p className="text-2xl font-bold text-rose-600 mt-1">{criticalCount}</p>
+            <p className="text-2xl font-bold text-rose-700 mt-1 tabular-nums">{criticalCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+          <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <AlertTriangle size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-amber-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-amber-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-amber-700 uppercase font-semibold">Cảnh báo sắp đến hạn</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{warningCount}</p>
+            <p className="text-2xl font-bold text-amber-700 mt-1 tabular-nums">{warningCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <Clock size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-blue-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-blue-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-blue-700 uppercase font-semibold">Đang bảo dưỡng / Lên lịch</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{inProgressCount}</p>
+            <p className="text-2xl font-bold text-blue-700 mt-1 tabular-nums">{inProgressCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
             <Wrench size={20} />
           </div>
         </div>
       </div>
 
       {/* Tabs & Search */}
-      <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm space-y-4">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="flex border-b border-zinc-200 w-full md:w-auto overflow-x-auto">
+          <div className="flex border-b border-slate-200 w-full md:w-auto overflow-x-auto">
             <button
               onClick={() => setActiveTab('ALERTS')}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'ALERTS'
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                  ? 'border-[#0F172A] text-zinc-950'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
               }`}
             >
-              <AlertCircle size={16} />
+              <AlertCircle size={15} />
               <span>Cảnh Báo Đến Hạn ({alerts.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('RECORDS')}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'RECORDS'
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700'
+                  ? 'border-[#0F172A] text-zinc-950'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
               }`}
             >
-              <Calendar size={16} />
+              <Calendar size={15} />
               <span>Lịch Sử & Tiến Độ Bảo Dưỡng ({records.length})</span>
             </button>
           </div>
 
           <div className="relative w-full md:w-80">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-400">
-              <Search size={16} />
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <Search size={15} />
             </span>
             <input
               type="text"
               placeholder="Tìm biển số, mẫu xe, gara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 bg-slate-50 rounded-md text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0F172A]"
             />
           </div>
         </div>
 
         {/* TAB 1: ALERTS TABLE */}
         {activeTab === 'ALERTS' && (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200">
-            <table className="w-full text-left text-sm text-zinc-600">
-              <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">Xe & Biển số</th>
-                  <th className="px-4 py-3">Trạng thái xe</th>
-                  <th className="px-4 py-3 text-right">Số ODO hiện tại</th>
-                  <th className="px-4 py-3 text-right">Định mức kế tiếp</th>
-                  <th className="px-4 py-3 text-center">Mức độ khẩn</th>
-                  <th className="px-4 py-3">Lý do cảnh báo</th>
-                  <th className="px-4 py-3 text-right">Hành động</th>
+                  <th className="px-4 py-3.5">Xe & Biển số</th>
+                  <th className="px-4 py-3.5">Trạng thái xe</th>
+                  <th className="px-4 py-3.5 text-right">Số ODO hiện tại</th>
+                  <th className="px-4 py-3.5 text-right">Định mức kế tiếp</th>
+                  <th className="px-4 py-3.5 text-center">Mức độ khẩn</th>
+                  <th className="px-4 py-3.5">Lý do cảnh báo</th>
+                  <th className="px-4 py-3.5 text-right">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 bg-white">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-12 text-center text-zinc-500">
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
                       <div className="inline-flex items-center gap-2">
-                        <RefreshCw size={18} className="animate-spin text-zinc-400" />
+                        <RefreshCw size={18} className="animate-spin text-[#0F172A]" />
                         <span>Đang phân tích dữ liệu bảo dưỡng xe...</span>
                       </div>
                     </td>
                   </tr>
                 ) : filteredAlerts.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-12 text-center text-zinc-400">
-                      <CheckCircle2 size={36} className="mx-auto mb-2 text-emerald-500" />
-                      <p className="font-medium text-zinc-700">Tất cả xe đều an toàn và chưa đến hạn bảo dưỡng!</p>
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
+                      <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-600" />
+                      <p className="font-medium text-slate-700">Tất cả xe đều an toàn và chưa đến hạn bảo dưỡng!</p>
                     </td>
                   </tr>
                 ) : (
@@ -393,33 +393,37 @@ const MaintenancePage = () => {
                     const urgency = URGENCY_CONFIG[item.urgencyLevel] || URGENCY_CONFIG.NORMAL;
 
                     return (
-                      <tr key={item.carId} className="hover:bg-zinc-50/80 transition">
+                      <tr key={item.carId} className="hover:bg-slate-50/80 transition">
                         
                         {/* Vehicle */}
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-zinc-900">{item.carMake} {item.carModel}</div>
-                          <div className="text-xs font-mono text-zinc-500">{item.carLicensePlate}</div>
+                        <td className="px-4 py-3.5">
+                          <div className="font-semibold text-zinc-950">{item.carMake} {item.carModel}</div>
+                          <div className="mt-1">
+                            <span className="license-plate text-[10px] px-2 py-0.5">
+                              {item.carLicensePlate}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Status */}
-                        <td className="px-4 py-3">
-                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-700 border">
+                        <td className="px-4 py-3.5">
+                          <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                             {item.carStatus}
                           </span>
                         </td>
 
                         {/* Current Mileage */}
-                        <td className="px-4 py-3 text-right font-mono font-bold text-zinc-900">
+                        <td className="px-4 py-3.5 text-right font-mono font-bold text-zinc-950 tabular-nums">
                           {item.currentMileage?.toLocaleString()} km
                         </td>
 
                         {/* Next Target */}
-                        <td className="px-4 py-3 text-right text-xs">
-                          <div className="font-mono text-zinc-600">
+                        <td className="px-4 py-3.5 text-right text-xs">
+                          <div className="font-mono text-slate-600 tabular-nums">
                             {item.nextMaintenanceMileage ? `${item.nextMaintenanceMileage.toLocaleString()} km` : 'Chưa định mức'}
                           </div>
                           {item.remainingKmUntilMaintenance != null && (
-                            <div className={`text-[11px] font-bold ${item.remainingKmUntilMaintenance < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
+                            <div className={`text-[11px] font-bold tabular-nums ${item.remainingKmUntilMaintenance < 0 ? 'text-rose-600' : 'text-amber-600'}`}>
                               {item.remainingKmUntilMaintenance < 0 
                                 ? `Quá hạn ${Math.abs(item.remainingKmUntilMaintenance).toLocaleString()} km` 
                                 : `Còn ${item.remainingKmUntilMaintenance.toLocaleString()} km`}
@@ -428,24 +432,24 @@ const MaintenancePage = () => {
                         </td>
 
                         {/* Urgency */}
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${urgency.bg}`}>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold border ${urgency.bg}`}>
                             {urgency.label}
                           </span>
                         </td>
 
                         {/* Reason */}
-                        <td className="px-4 py-3 text-xs text-zinc-700 font-medium">
+                        <td className="px-4 py-3.5 text-xs text-slate-700">
                           {item.alertReason}
                         </td>
 
                         {/* Action */}
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3.5 text-right">
                           <button
                             onClick={() => handleOpenCreateForCar(item)}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-sm inline-flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold transition shadow-sm inline-flex items-center gap-1"
                           >
-                            <Wrench size={13} />
+                            <Wrench size={12} />
                             <span>Lập lịch ngay</span>
                           </button>
                         </td>
@@ -461,34 +465,34 @@ const MaintenancePage = () => {
 
         {/* TAB 2: RECORDS TABLE */}
         {activeTab === 'RECORDS' && (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200">
-            <table className="w-full text-left text-sm text-zinc-600">
-              <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">Mã phiếu / Ngày hẹn</th>
-                  <th className="px-4 py-3">Xe bảo dưỡng</th>
-                  <th className="px-4 py-3">Hạng mục & Gara</th>
-                  <th className="px-4 py-3 text-right">Chi phí (Dự kiến/Thực tế)</th>
-                  <th className="px-4 py-3 text-right">ODO bảo dưỡng</th>
-                  <th className="px-4 py-3 text-center">Trạng thái</th>
-                  <th className="px-4 py-3 text-right">Thao tác</th>
+                  <th className="px-4 py-3.5">Mã phiếu / Ngày hẹn</th>
+                  <th className="px-4 py-3.5">Xe bảo dưỡng</th>
+                  <th className="px-4 py-3.5">Hạng mục & Gara</th>
+                  <th className="px-4 py-3.5 text-right">Chi phí (Dự kiến/Thực tế)</th>
+                  <th className="px-4 py-3.5 text-right">ODO bảo dưỡng</th>
+                  <th className="px-4 py-3.5 text-center">Trạng thái</th>
+                  <th className="px-4 py-3.5 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 bg-white">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-12 text-center text-zinc-500">
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
                       <div className="inline-flex items-center gap-2">
-                        <RefreshCw size={18} className="animate-spin text-zinc-400" />
+                        <RefreshCw size={18} className="animate-spin text-[#0F172A]" />
                         <span>Đang tải lịch sử bảo dưỡng...</span>
                       </div>
                     </td>
                   </tr>
                 ) : filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-4 py-12 text-center text-zinc-400">
-                      <FileText size={36} className="mx-auto mb-2 text-zinc-300" />
-                      <p className="font-medium text-zinc-700">Chưa có phiếu bảo dưỡng nào được ghi nhận</p>
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
+                      <FileText size={32} className="mx-auto mb-2 text-slate-300" />
+                      <p className="font-medium text-slate-600">Chưa có phiếu bảo dưỡng nào được ghi nhận</p>
                     </td>
                   </tr>
                 ) : (
@@ -498,54 +502,58 @@ const MaintenancePage = () => {
                     const typeInfo = MAINTENANCE_TYPE_MAP[item.maintenanceType] || MAINTENANCE_TYPE_MAP.ROUTINE;
 
                     return (
-                      <tr key={item.id} className="hover:bg-zinc-50/80 transition">
+                      <tr key={item.id} className="hover:bg-slate-50/80 transition">
                         
                         {/* Code & Schedule */}
-                        <td className="px-4 py-3">
-                          <div className="font-mono font-bold text-zinc-900">{item.maintenanceCode || 'MNT-PENDING'}</div>
-                          <div className="text-xs text-zinc-500">{formatDateTime(item.scheduledDate).slice(0, 16)}</div>
+                        <td className="px-4 py-3.5">
+                          <div className="font-mono font-bold text-zinc-950 text-xs">{item.maintenanceCode || 'MNT-PENDING'}</div>
+                          <div className="text-[11px] text-slate-400 tabular-nums">{formatDateTime(item.scheduledDate).slice(0, 16)}</div>
                         </td>
 
                         {/* Vehicle */}
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-zinc-900">{item.carMake} {item.carModel}</div>
-                          <div className="text-xs font-mono text-zinc-500">{item.carLicensePlate}</div>
+                        <td className="px-4 py-3.5">
+                          <div className="font-semibold text-zinc-950">{item.carMake} {item.carModel}</div>
+                          <div className="mt-1">
+                            <span className="license-plate text-[10px] px-2 py-0.5">
+                              {item.carLicensePlate}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Type & Garage */}
-                        <td className="px-4 py-3 text-xs">
-                          <div className="font-semibold text-zinc-900">{item.title}</div>
-                          <div className="text-zinc-500 flex items-center gap-1.5 mt-0.5">
-                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${typeInfo.bg}`}>
+                        <td className="px-4 py-3.5 text-xs">
+                          <div className="font-semibold text-zinc-950">{item.title}</div>
+                          <div className="text-slate-500 flex items-center gap-1.5 mt-0.5">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${typeInfo.bg}`}>
                               {typeInfo.label}
                             </span>
-                            <span>{item.garageName}</span>
+                            <span className="text-[11px]">{item.garageName}</span>
                           </div>
                         </td>
 
                         {/* Cost */}
-                        <td className="px-4 py-3 text-right font-mono text-xs">
-                          <div className="font-bold text-zinc-900">{formatCurrency(item.cost)}</div>
+                        <td className="px-4 py-3.5 text-right font-mono text-xs">
+                          <div className="font-bold text-zinc-950 tabular-nums">{formatCurrency(item.cost)}</div>
                           {item.completedDate && (
-                            <div className="text-[11px] text-emerald-600">
+                            <div className="text-[11px] text-emerald-700 font-medium tabular-nums">
                               Xong: {formatDateTime(item.completedDate).slice(0, 10)}
                             </div>
                           )}
                         </td>
 
                         {/* ODO */}
-                        <td className="px-4 py-3 text-right font-mono text-xs">
-                          <div className="font-medium text-zinc-800">{item.odoAtMaintenance?.toLocaleString()} km</div>
+                        <td className="px-4 py-3.5 text-right font-mono text-xs">
+                          <div className="font-medium text-zinc-950 tabular-nums">{item.odoAtMaintenance?.toLocaleString()} km</div>
                           {item.nextMaintenanceMileage && (
-                            <div className="text-[11px] text-zinc-400">
+                            <div className="text-[11px] text-slate-400 tabular-nums">
                               Tiếp: {item.nextMaintenanceMileage?.toLocaleString()} km
                             </div>
                           )}
                         </td>
 
                         {/* Status */}
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.bg}`}>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusInfo.bg}`}>
                             <StatusIcon size={12} />
                             {statusInfo.label}
                           </span>

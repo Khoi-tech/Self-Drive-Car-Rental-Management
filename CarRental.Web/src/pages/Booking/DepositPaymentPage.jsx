@@ -14,7 +14,8 @@ import {
   ArrowRight,
   ExternalLink,
   Sparkles,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 import paymentService from '../../services/paymentService';
 import rentalRequestService from '../../services/rentalRequestService';
@@ -72,14 +73,12 @@ const DepositPaymentPage = () => {
     }
   }, [requestId]);
 
-  // Copy to clipboard helper
   const handleCopy = (text, fieldName) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(null), 2500);
   };
 
-  // Instant sandbox confirmation
   const handleConfirmSandbox = async () => {
     if (!paymentData?.transactionCode) return;
 
@@ -97,13 +96,10 @@ const DepositPaymentPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-3 text-zinc-400">
-            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <span>Đang tạo cổng thanh toán VietQR...</span>
-          </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-slate-300 border-t-blue-900 rounded-full animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-500">Đang khởi tạo cổng thanh toán VietQR...</span>
         </div>
       </div>
     );
@@ -111,17 +107,17 @@ const DepositPaymentPage = () => {
 
   if (error || !paymentData) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-        <Navbar />
-        <div className="flex-1 max-w-md mx-auto px-4 py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-rose-950/60 border border-rose-800 text-rose-400 mx-auto flex items-center justify-center mb-4">
-            <AlertCircle size={32} />
+      <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
+        <Navbar isVisible={true} />
+        <div className="flex-1 max-w-md mx-auto px-4 py-24 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 text-red-600 mx-auto flex items-center justify-center mb-4">
+            <AlertCircle size={28} />
           </div>
-          <h2 className="text-xl font-bold mb-2">Không Thể Thanh Toán</h2>
-          <p className="text-zinc-400 text-sm mb-6">{error}</p>
+          <h2 className="text-lg font-bold mb-2">Không Thể Thanh Toán</h2>
+          <p className="text-slate-500 text-xs mb-6">{error}</p>
           <button
             onClick={() => navigate('/cars')}
-            className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-medium transition"
+            className="px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-md text-xs font-semibold transition"
           >
             Quay lại danh mục xe
           </button>
@@ -131,297 +127,278 @@ const DepositPaymentPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-      <Navbar />
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
+      <Navbar isVisible={true} />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-24 pb-16">
         
+        {/* Navigation */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-900 transition"
+          >
+            <ArrowLeft size={14} /> Quay lại
+          </button>
+        </div>
+
         {/* Stepper Header */}
-        <div className="mb-8 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-            <div className="flex items-center gap-2 text-emerald-400">
+        <div className="mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
-              <span>1. Gửi yêu cầu</span>
+              <span>1. Gửi đơn thuê</span>
             </div>
-            <div className="flex items-center gap-2 text-emerald-400">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
-              <span>2. Duyệt hồ sơ</span>
+              <span>2. Thẩm định hồ sơ</span>
             </div>
-            <div className="flex items-center gap-2 text-emerald-400">
+            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
               <span>3. Ký hợp đồng</span>
             </div>
-            <div className={`flex items-center gap-2 font-semibold ${isSuccess ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {isSuccess ? <CheckCircle2 size={16} /> : <div className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] border border-amber-500/40">4</div>}
+            <div className={`flex items-center gap-2 font-bold ${isSuccess ? 'text-emerald-700' : 'text-blue-900'}`}>
+              <div className="w-4 h-4 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px]">4</div>
               <span>4. Đặt cọc VietQR</span>
             </div>
           </div>
         </div>
 
-        {/* ================= SUCCESS STATE ================= */}
+        {/* SUCCESS STATE */}
         {isSuccess ? (
-          <div className="bg-gradient-to-b from-zinc-900 to-zinc-950 border border-emerald-500/40 rounded-3xl p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-2xl space-y-6 animate-scaleUp">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 mx-auto flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <CheckCircle2 size={44} />
+          <div className="bg-white border border-emerald-200 rounded-lg p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-sm space-y-6">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 mx-auto flex items-center justify-center">
+              <CheckCircle2 size={36} />
             </div>
 
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                GIAO DỊCH THÀNH CÔNG
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                Giao Dịch Đã Xác Nhận Thành Công
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-3">
-                Xác Nhận Đặt Cọc Thành Công!
+              <h2 className="text-2xl font-extrabold text-zinc-950 mt-3 mb-2">
+                Hoàn Tất Đặt Cọc Giữ Xe!
               </h2>
-              <p className="text-zinc-400 text-sm mt-2 max-w-lg mx-auto">
-                Chúc mừng bạn! Khoản tiền cọc đã được ghi nhận. Xe <strong className="text-white">{requestDetails?.carMake} {requestDetails?.carModel} ({requestDetails?.carLicensePlate})</strong> đã được giữ chỗ an toàn trên hệ thống VELORA.
+              <p className="text-slate-600 text-xs max-w-md mx-auto">
+                Hệ thống VELORA đã ghi nhận tiền cọc cho xe <strong className="text-zinc-950">{requestDetails?.carMake} {requestDetails?.carModel} ({requestDetails?.carLicensePlate})</strong>. Đơn thuê đã chính thức chuyển sang trạng thái <strong>CONFIRMED</strong>.
               </p>
             </div>
 
-            {/* Receipt Summary */}
-            <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-5 text-left text-xs space-y-2.5 max-w-md mx-auto">
-              <div className="flex justify-between pb-2 border-b border-zinc-800">
-                <span className="text-zinc-400">Mã giao dịch:</span>
-                <span className="font-mono text-white font-semibold">{paymentData.transactionCode}</span>
+            {/* Receipt Summary Box */}
+            <div className="bg-slate-50 border border-slate-200 rounded-md p-4 text-left text-xs space-y-2 max-w-md mx-auto">
+              <div className="flex justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Mã giao dịch:</span>
+                <span className="font-mono text-zinc-950 font-bold">{paymentData.transactionCode}</span>
               </div>
-              <div className="flex justify-between pb-2 border-b border-zinc-800">
-                <span className="text-zinc-400">Số tiền cọc:</span>
-                <span className="font-bold text-emerald-400 text-sm">{formatCurrency(paymentData.amount)}</span>
+              <div className="flex justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Số tiền cọc:</span>
+                <span className="font-extrabold text-blue-900 tabular-nums">{formatCurrency(paymentData.amount)}</span>
               </div>
-              <div className="flex justify-between pb-2 border-b border-zinc-800">
-                <span className="text-zinc-400">Thời gian nhận xe:</span>
-                <span className="text-zinc-200">{formatDateTime(requestDetails?.startTime)}</span>
+              <div className="flex justify-between pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Thời gian nhận xe:</span>
+                <span className="text-zinc-900 font-semibold tabular-nums">{formatDateTime(requestDetails?.startTime)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-400">Trạng thái đơn:</span>
-                <span className="text-emerald-400 font-semibold uppercase">ĐÃ XÁC NHẬN (CONFIRMED)</span>
+                <span className="text-slate-500">Trạng thái:</span>
+                <span className="badge-rented">CONFIRMED (Đã giữ chỗ)</span>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link
                 to={`/contracts/sign/${requestId}`}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center justify-center gap-2"
               >
-                <FileText size={16} />
-                <span>Xem hợp đồng điện tử</span>
+                <FileText size={14} />
+                <span>Xem hợp đồng đã ký</span>
               </Link>
 
               <Link
-                to="/cars"
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                to="/profile"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-slate-900 hover:bg-blue-900 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider"
               >
-                <span>Về trang khám phá xe</span>
-                <ArrowRight size={16} />
+                <span>Xem đơn trong hồ sơ cá nhân</span>
+                <ArrowRight size={14} />
               </Link>
             </div>
           </div>
         ) : (
-          /* ================= PAYMENT FLOW ================= */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          /* PAYMENT FLOW - 2 COLUMNS */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Left Column: VietQR Code Card */}
-            <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 space-y-6">
+            {/* Left Column: VietQR Terminal (7 Cols) */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-6 sm:p-8 space-y-6 shadow-sm">
               
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div>
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <QrCode className="text-emerald-400" size={24} />
-                    Quét Mã VietQR Chuyển Khoản
+                  <h2 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                    <QrCode className="text-blue-900" size={20} />
+                    Cổng Thanh Toán VietQR Chuẩn Ngân Hàng
                   </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Sử dụng ứng dụng ngân hàng bất kỳ để quét mã QR và thanh toán tức thì
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Mở ứng dụng ngân hàng bất kỳ để quét mã chuyển tiền tức thì
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>NAPAS 247</span>
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-blue-50 border border-blue-200 text-blue-900 text-[11px] font-bold">
+                  <span>NAPAS 24/7</span>
                 </div>
               </div>
 
-              {/* QR Image Frame */}
-              <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl border-4 border-zinc-800 shadow-inner">
-                <div className="relative group">
+              {/* QR Image Box */}
+              <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="p-3 bg-white rounded-md border border-slate-200 shadow-xs">
                   <img
                     src={paymentData.qrCodeUrl}
                     alt="VietQR Deposit"
-                    className="w-64 h-64 object-contain rounded-lg"
+                    className="w-56 h-56 object-contain"
                   />
                 </div>
                 <div className="mt-3 text-center">
-                  <p className="text-xs font-bold text-zinc-800 uppercase tracking-wider">
+                  <div className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
                     {paymentData.bankName}
-                  </p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">
-                    Hỗ trợ quét tự động điền số tiền và nội dung chuyển khoản
-                  </p>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Mã QR tự động điền đúng số tiền và nội dung chuyển khoản
+                  </div>
                 </div>
               </div>
 
-              {/* Bank Account Details Grid */}
-              <div className="space-y-3 bg-zinc-950/70 p-4 rounded-2xl border border-zinc-800 text-xs">
-                
-                {/* Bank Name */}
-                <div className="flex justify-between items-center py-1.5 border-b border-zinc-800/80">
-                  <span className="text-zinc-400">Ngân hàng:</span>
-                  <span className="font-semibold text-white">{paymentData.bankName}</span>
+              {/* Account Details Table */}
+              <div className="space-y-2 bg-slate-50 p-4 rounded-md border border-slate-200 text-xs">
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
+                  <span className="text-slate-500">Ngân hàng thụ hưởng:</span>
+                  <span className="font-bold text-zinc-950">{paymentData.bankName}</span>
                 </div>
 
-                {/* Account Number */}
-                <div className="flex justify-between items-center py-1.5 border-b border-zinc-800/80">
-                  <span className="text-zinc-400">Số tài khoản:</span>
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
+                  <span className="text-slate-500">Số tài khoản:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-white text-sm">{paymentData.accountNumber}</span>
+                    <span className="font-mono font-bold text-zinc-950 tabular-nums">{paymentData.accountNumber}</span>
                     <button
+                      type="button"
                       onClick={() => handleCopy(paymentData.accountNumber, 'acc')}
-                      className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
                       title="Sao chép"
                     >
-                      <Copy size={13} />
+                      <Copy size={12} />
                     </button>
-                    {copiedField === 'acc' && <span className="text-[10px] text-emerald-400 font-medium">Đã chép!</span>}
+                    {copiedField === 'acc' && <span className="text-[10px] text-emerald-600 font-bold">Đã chép!</span>}
                   </div>
                 </div>
 
-                {/* Account Name */}
-                <div className="flex justify-between items-center py-1.5 border-b border-zinc-800/80">
-                  <span className="text-zinc-400">Chủ tài khoản:</span>
-                  <span className="font-bold text-zinc-200">{paymentData.accountName}</span>
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
+                  <span className="text-slate-500">Chủ tài khoản:</span>
+                  <span className="font-bold text-zinc-950">{paymentData.accountName}</span>
                 </div>
 
-                {/* Amount */}
-                <div className="flex justify-between items-center py-1.5 border-b border-zinc-800/80">
-                  <span className="text-zinc-400">Số tiền đặt cọc:</span>
+                <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
+                  <span className="text-slate-500">Số tiền đặt cọc:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-emerald-400 text-base">{formatCurrency(paymentData.amount)}</span>
+                    <span className="font-extrabold text-blue-900 text-sm tabular-nums">{formatCurrency(paymentData.amount)}</span>
                     <button
+                      type="button"
                       onClick={() => handleCopy(paymentData.amount.toString(), 'amt')}
-                      className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
                       title="Sao chép"
                     >
-                      <Copy size={13} />
+                      <Copy size={12} />
                     </button>
-                    {copiedField === 'amt' && <span className="text-[10px] text-emerald-400 font-medium">Đã chép!</span>}
+                    {copiedField === 'amt' && <span className="text-[10px] text-emerald-600 font-bold">Đã chép!</span>}
                   </div>
                 </div>
 
-                {/* Memo */}
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-zinc-400">Nội dung chuyển:</span>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500">Nội dung chuyển khoản:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-amber-400 text-xs bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    <span className="font-mono font-bold text-blue-950 text-xs bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
                       {paymentData.transferContent}
                     </span>
                     <button
+                      type="button"
                       onClick={() => handleCopy(paymentData.transferContent, 'memo')}
-                      className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
                       title="Sao chép"
                     >
-                      <Copy size={13} />
+                      <Copy size={12} />
                     </button>
-                    {copiedField === 'memo' && <span className="text-[10px] text-emerald-400 font-medium">Đã chép!</span>}
+                    {copiedField === 'memo' && <span className="text-[10px] text-emerald-600 font-bold">Đã chép!</span>}
                   </div>
                 </div>
-
               </div>
 
-            </div>
-
-            {/* Right Column: Order Summary & Instant Sandbox Confirmation */}
-            <div className="lg:col-span-5 space-y-6">
-              
-              {/* Order Card */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-4">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Car size={16} className="text-amber-400" />
-                  Thông Tin Xe Thuê
-                </h3>
-
-                {requestDetails && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
-                      {requestDetails.carImageUrl ? (
-                        <img
-                          src={requestDetails.carImageUrl}
-                          alt={requestDetails.carModel}
-                          className="w-16 h-12 object-cover rounded-lg"
-                        />
-                      ) : (
-                        <div className="w-16 h-12 bg-zinc-800 rounded-lg flex items-center justify-center text-zinc-500">
-                          <Car size={20} />
-                        </div>
-                      )}
-                      <div>
-                        <h4 className="font-bold text-white text-sm">{requestDetails.carMake} {requestDetails.carModel}</h4>
-                        <p className="text-xs font-mono text-zinc-400 mt-0.5">Biển số: {requestDetails.carLicensePlate}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-xs text-zinc-300">
-                      <div className="flex justify-between py-1 border-b border-zinc-800">
-                        <span className="text-zinc-500">Thời gian nhận:</span>
-                        <span>{formatDateTime(requestDetails.startTime)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-800">
-                        <span className="text-zinc-500">Thời gian trả:</span>
-                        <span>{formatDateTime(requestDetails.endTime)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-800">
-                        <span className="text-zinc-500">Tổng ngày thuê:</span>
-                        <span className="font-bold text-white">{requestDetails.totalDays} ngày</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-800">
-                        <span className="text-zinc-500">Địa điểm giao xe:</span>
-                        <span className="truncate max-w-[180px] text-right">{requestDetails.pickupLocation}</span>
-                      </div>
-                      <div className="flex justify-between py-1">
-                        <span className="text-zinc-500">Tổng tiền thuê (ước tính):</span>
-                        <span className="text-zinc-200">{formatCurrency(requestDetails.estimatedTotalFee)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Deposit Policy Notice */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-xs text-zinc-400 space-y-2">
-                <div className="flex items-center gap-2 text-zinc-200 font-semibold">
-                  <ShieldCheck size={16} className="text-emerald-400" />
-                  Chính sách bảo toàn tiền cọc:
-                </div>
-                <p>
-                  Khoản tiền cọc này sẽ được hoàn trả 100% về tài khoản của bạn ngay khi hoàn tất kiểm tra biên bản hoàn trả xe và đối soát không phát sinh vi phạm.
-                </p>
-              </div>
-
-              {/* Instant Sandbox Pay Button (For Grading & Demo) */}
-              <div className="bg-gradient-to-br from-emerald-950/40 to-zinc-900 border border-emerald-500/40 rounded-3xl p-6 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <Zap size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Chế Độ Demo & Chấm Điểm Đồ Án</h4>
-                    <p className="text-[11px] text-zinc-400">Mô phỏng ngân hàng gửi webhook xác nhận thanh toán thành công</p>
-                  </div>
-                </div>
-
+              {/* Instant Confirmation Action (Sandbox / Real-time Webhook Simulator) */}
+              <div className="pt-2">
                 <button
                   type="button"
                   onClick={handleConfirmSandbox}
                   disabled={confirming}
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-extrabold rounded-xl text-sm transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                 >
                   {confirming ? (
-                    'Đang kết nối cổng ngân hàng...'
+                    <span>Đang kiểm tra giao dịch liên ngân hàng...</span>
                   ) : (
                     <>
-                      <Sparkles size={16} />
-                      <span>Xác nhận thanh toán ngay (Instant Pay)</span>
+                      <Zap size={14} className="text-amber-400" />
+                      <span>Tôi đã hoàn tất chuyển tiền (Xác nhận ngay)</span>
                     </>
                   )}
                 </button>
+              </div>
+
+            </div>
+
+            {/* Right Column: Order Summary (5 Cols) */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg p-6 space-y-5 shadow-sm">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <Car className="w-4 h-4 text-blue-900" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-950">
+                  Thông tin chuyến đi
+                </h3>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <div className="text-slate-500 text-[11px]">Dòng xe:</div>
+                  <div className="font-bold text-zinc-950 text-sm">
+                    {requestDetails?.carMake} {requestDetails?.carModel}
+                  </div>
+                  <div className="license-plate text-[10px] mt-1">{requestDetails?.carLicensePlate}</div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="text-slate-500 text-[11px]">Khách hàng:</div>
+                  <div className="font-semibold text-zinc-950">{requestDetails?.customerName}</div>
+                  <div className="text-slate-500">{requestDetails?.customerPhone}</div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="text-slate-500 text-[11px]">Lịch trình:</div>
+                  <div className="text-zinc-950 tabular-nums">Nhận: {formatDateTime(requestDetails?.startTime)}</div>
+                  <div className="text-zinc-950 tabular-nums">Trả: {formatDateTime(requestDetails?.endTime)}</div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Tiền thuê xe:</span>
+                    <span className="tabular-nums font-semibold text-zinc-950">{formatCurrency(requestDetails?.totalEstimatedFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-blue-900 font-bold">
+                    <span>Khoản cọc cần thanh toán:</span>
+                    <span className="tabular-nums text-base">{formatCurrency(paymentData.amount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deposit Refund Guarantee Callout */}
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-md text-[11px] text-blue-950 leading-relaxed space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-blue-900" />
+                  <span>Cam kết hoàn cọc minh bạch:</span>
+                </div>
+                <p className="text-slate-600">
+                  Tiền cọc của bạn được giữ an toàn trên tài khoản thanh toán chuyên dụng. Khi hoàn trả phương tiện, hệ thống tự động sinh lệnh VietQR hoàn tiền ngược lại vào tài khoản ngân hàng của bạn chỉ trong 30 giây.
+                </p>
               </div>
 
             </div>

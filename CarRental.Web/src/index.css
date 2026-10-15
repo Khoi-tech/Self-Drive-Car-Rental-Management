@@ -1,13 +1,189 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #121212;
-  --color-accent: #d4af37;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Brand Palette (Crisp White, Carbon Black, Deep Navy Blue) */
+  --color-navy-950: #090e1a;
+  --color-navy-900: #0F172A;
+  --color-navy-800: #1E3A8A;
+  --color-navy-700: #1D4ED8;
+  --color-navy-600: #2563EB;
+  --color-navy-50: #EFF6FF;
+
+  --color-carbon-950: #09090B;
+  --color-carbon-900: #18181B;
+  --color-carbon-800: #27272A;
+
+  --color-surface-white: #FFFFFF;
+  --color-surface-subtle: #F8FAFC;
+  --color-surface-hover: #F1F5F9;
+
+  --color-border-subtle: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+}
+
+/* Base resets & typography */
+html {
+  font-family: var(--font-sans);
+  background-color: #F8FAFC;
+  color: #09090B;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', sans-serif;
-  background-color: #050505;
-  color: #f3f4f6;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #F8FAFC;
+  color: #09090B;
+}
+
+/* Numbers: Tabular Alignment */
+.tabular-nums, 
+.font-tabular,
+table td,
+.price-display,
+.odo-display {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Realistic License Plate styling */
+.license-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  background-color: #FFFFFF;
+  border: 1.5px solid #09090B;
+  border-radius: 4px;
+  color: #09090B;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Semantic Badges with pastel backgrounds and dots */
+.badge-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background-color: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-ready::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  background-color: #10B981;
+  border-radius: 9999px;
+}
+
+.badge-rented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background-color: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-rented::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  background-color: #3B82F6;
+  border-radius: 9999px;
+}
+
+.badge-maint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background-color: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-maint::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  background-color: #F59E0B;
+  border-radius: 9999px;
+}
+
+.badge-repair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  background-color: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-repair::before {
+  content: '';
+  width: 0.375rem;
+  height: 0.375rem;
+  background-color: #EF4444;
+  border-radius: 9999px;
+}
+
+/* Card & Surface standardization */
+.velora-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.5rem; /* rounded-lg (8px) */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+  transition: all 0.2s ease-in-out;
+}
+
+.velora-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }

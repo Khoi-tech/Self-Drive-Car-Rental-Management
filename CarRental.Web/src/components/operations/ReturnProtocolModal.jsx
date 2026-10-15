@@ -12,7 +12,9 @@ import {
   Wrench,
   Sparkles,
   ClipboardCheck,
-  ShieldAlert
+  ShieldAlert,
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import returnProtocolService from '../../services/returnProtocolService';
 import handoverService from '../../services/handoverService';
@@ -60,7 +62,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
           const data = res?.data || res;
           if (data && data.odoAtHandover !== undefined) {
             setHandoverData(data);
-            setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150); // Estimated initial guess
+            setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150);
             setReturnFuelLevel(data.fuelLevel || 100);
           } else {
             const fallbackOdo = rentalRequest.currentMileage || 10000;
@@ -81,20 +83,18 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
 
   if (!isOpen || !rentalRequest) return null;
 
-  const startOdo = handoverData?.odoAtHandover ?? rentalRequest.currentMileage ?? 0;
+  const startOdo = handoverData?.odoAtHandover ?? rentalRequest.currentMileage ?? 10000;
   const initialFuel = handoverData?.fuelLevel ?? 100;
-  const maxKmAllowed = rentalRequest.mileageLimit 
-    ? rentalRequest.mileageLimit * Math.max(1, rentalRequest.totalDays) 
-    : 300 * Math.max(1, rentalRequest.totalDays);
+  const maxKmAllowed = rentalRequest.maxKm || (rentalRequest.totalDays * (rentalRequest.dailyMileageLimit || 300));
+  const distanceTraveled = Math.max(0, endOdo - startOdo);
+  const excessKm = Math.max(0, distanceTraveled - maxKmAllowed);
 
-  const totalKmDriven = Math.max(0, endOdo - startOdo);
-  const excessKm = Math.max(0, totalKmDriven - maxKmAllowed);
-  const fuelDiff = Math.max(0, initialFuel - returnFuelLevel);
-
-  const handleToggleAccessory = (item) => {
-    setAccessories(prev => 
-      prev.includes(item) ? prev.filter(a => a !== item) : [...prev, item]
-    );
+  const toggleAccessory = (item) => {
+    if (accessories.includes(item)) {
+      setAccessories(accessories.filter(a => a !== item));
+    } else {
+      setAccessories([...accessories, item]);
+    }
   };
 
   const handleSubmit = async (proceedSettlement = false) => {
@@ -147,336 +147,272 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-zinc-950 border border-zinc-800 text-white rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 font-sans">
+      <div className="bg-white border border-slate-200 text-zinc-950 rounded-lg w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-xl animate-scaleUp">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <FileCheck size={20} />
+            <div className="w-9 h-9 rounded-md bg-blue-900 text-white flex items-center justify-center shadow-xs">
+              <FileCheck size={18} />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">
-                Biên Bản Nghiệm Thu & Hoàn Trả Xe (US-22)
+              <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider">
+                Biên Bản Nghiệm Thu & Hoàn Trả Xe (Check-in)
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-slate-500">
                 Đơn #{rentalRequest.id.slice(0, 8).toUpperCase()} • {rentalRequest.carMake} {rentalRequest.carModel} ({rentalRequest.carLicensePlate})
               </p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+            className="p-1.5 rounded-md text-slate-400 hover:text-zinc-950 hover:bg-slate-200 transition"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Modal Body */}
+        {/* Modal Body: SPLIT-VIEW (2 Columns Side-by-Side) */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
-
+          
           {error && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-              <AlertTriangle size={16} className="flex-shrink-0" />
+            <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
+              <AlertTriangle size={15} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Baseline Info Box */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+          {/* Customer Overview Ribbon */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-md bg-slate-50 border border-slate-200">
             <div>
-              <span className="text-zinc-500 block">Khách hàng bàn giao:</span>
-              <span className="font-semibold text-white block text-sm">{rentalRequest.customerName}</span>
-              <span className="text-zinc-400">{rentalRequest.customerPhone}</span>
+              <span className="text-[11px] text-slate-500 block">Khách hàng hoàn trả:</span>
+              <span className="font-bold text-zinc-950 text-xs">{rentalRequest.customerName}</span>
+              <span className="text-slate-500 text-[11px] ml-1.5 tabular-nums">{rentalRequest.customerPhone}</span>
             </div>
             <div>
-              <span className="text-zinc-500 block">Hạn trả theo hợp đồng:</span>
-              <span className="font-medium text-amber-400 block">{formatDateTime(rentalRequest.endTime)}</span>
-              <span className="text-zinc-400">Hạn mức di chuyển: {maxKmAllowed.toLocaleString()} km</span>
+              <span className="text-[11px] text-slate-500 block">Lịch hẹn hoàn trả:</span>
+              <span className="font-semibold text-zinc-900 text-xs tabular-nums">{formatDateTime(rentalRequest.endTime)}</span>
             </div>
             <div>
-              <span className="text-zinc-500 block">Số ODO xuất phát:</span>
-              <span className="font-semibold text-emerald-400 block text-sm">{startOdo.toLocaleString()} km</span>
-              <span className="text-zinc-400">Nhiên liệu lúc giao: {initialFuel}%</span>
+              <span className="text-[11px] text-slate-500 block">Hạn mức hợp đồng:</span>
+              <span className="font-bold text-blue-900 text-xs tabular-nums">{maxKmAllowed.toLocaleString()} km ({rentalRequest.totalDays} ngày)</span>
             </div>
           </div>
 
-          {/* Section 1: ODO & Fuel Check */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* SPLIT-VIEW GRID: 2 COLUMNS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* ODO Check */}
-            <div className="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white flex items-center gap-1.5 text-sm">
-                  <Gauge size={16} className="text-amber-400" />
-                  Đồng Hồ ODO Thực Tế Lúc Trả
+            {/* CỘT TRÁI: TÌNH TRẠNG LÚC GIAO XE (BASELINE) */}
+            <div className="p-5 rounded-lg border border-slate-200 bg-slate-50/60 space-y-4">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                <span className="font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+                  <CheckCircle2 size={15} className="text-emerald-700" />
+                  Cột 1: Tình Trạng Lúc Giao Xe (Xuất Phát)
                 </span>
-                <span className="text-[11px] text-zinc-400">Giao: {startOdo.toLocaleString()} km</span>
+                <span className="badge-ready text-[10px] py-0.2">Đã nghiệm thu</span>
               </div>
 
-              <div>
-                <label className="text-zinc-400 block mb-1">Nhập số kilomet hiện tại (km) *</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={endOdo}
-                    onChange={(e) => setEndOdo(Number(e.target.value))}
-                    min={startOdo}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-semibold focus:outline-none focus:border-amber-500"
-                    placeholder="VD: 15420"
-                  />
-                  <span className="absolute right-3.5 top-3 text-zinc-500 text-xs">KM</span>
+              {/* ODO & Fuel Lúc Giao */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">ODO xuất phát</div>
+                  <div className="text-base font-extrabold text-zinc-950 tabular-nums">
+                    {startOdo.toLocaleString()} <span className="text-xs font-normal text-slate-500">km</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">Nhiên liệu lúc giao</div>
+                  <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                    {initialFuel}%
+                  </div>
                 </div>
               </div>
 
-              {/* ODO Analysis result */}
-              <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800/80 space-y-1.5 text-xs">
-                <div className="flex justify-between text-zinc-400">
-                  <span>Tổng quãng đường di chuyển:</span>
-                  <span className="text-white font-medium">{totalKmDriven.toLocaleString()} km</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Giới hạn cho phép:</span>
-                  <span>{maxKmAllowed.toLocaleString()} km</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-zinc-800 font-semibold">
-                  <span>Km vượt định mức:</span>
-                  <span className={excessKm > 0 ? 'text-rose-400' : 'text-emerald-400'}>
-                    {excessKm > 0 ? `+${excessKm.toLocaleString()} km (Phát sinh phụ phí)` : '0 km (Đạt tiêu chuẩn)'}
-                  </span>
-                </div>
+              {/* Checklist lúc giao */}
+              <div className="space-y-1.5 bg-white p-3 rounded border border-slate-200">
+                <div className="font-bold text-slate-700 text-[11px] mb-2 uppercase">Checklist phụ kiện lúc giao (7 món):</div>
+                {DEFAULT_ACCESSORIES.map((acc) => (
+                  <div key={acc} className="flex items-center gap-2 text-slate-600 text-xs">
+                    <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                    <span>{acc}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ghi chú ngoại thất lúc giao */}
+              <div className="p-3 bg-white rounded border border-slate-200 text-xs text-slate-600 space-y-1">
+                <div className="font-bold text-slate-700 text-[11px] uppercase">Hiện trạng ngoại thất lúc giao:</div>
+                <p>{handoverData?.exteriorCondition || 'Xe sạch sẽ, không ghi nhận vết trầy xước sâu.'}</p>
               </div>
             </div>
 
-            {/* Fuel Check */}
-            <div className="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-white flex items-center gap-1.5 text-sm">
-                  <Fuel size={16} className="text-amber-400" />
-                  Mức Nhiên Liệu Khi Trả Xe
+            {/* CỘT PHẢI: TÌNH TRẠNG LÚC TRẢ XE (HIỆN TẠI) */}
+            <div className="p-5 rounded-lg border-2 border-blue-900/30 bg-white space-y-4 shadow-xs">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                <span className="font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5 text-xs">
+                  <Gauge size={15} className="text-blue-900" />
+                  Cột 2: Tình Trạng Lúc Nghiệm Thu Trả
                 </span>
-                <span className="text-[11px] text-zinc-400">Lúc giao: {initialFuel}%</span>
+                <span className="badge-rented text-[10px] py-0.2">Đang kiểm định</span>
               </div>
 
-              <div>
-                <label className="text-zinc-400 block mb-1.5">Mức xăng / pin còn lại trong bình *</label>
+              {/* Nhập ODO Lúc Trả */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-zinc-900 text-xs">Số ODO hiện tại (km) *</label>
+                  <span className="text-[11px] text-slate-500 tabular-nums">Đã đi: {distanceTraveled.toLocaleString()} km</span>
+                </div>
+                <input
+                  type="number"
+                  value={endOdo}
+                  onChange={(e) => setEndOdo(Number(e.target.value))}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-xs font-bold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                />
+                
+                {/* Excess km warning calculation */}
+                {excessKm > 0 ? (
+                  <div className="p-2 bg-red-50 border border-red-200 rounded text-red-800 text-[11px] font-semibold flex items-center justify-between">
+                    <span>Vượt hạn mức: <strong>{excessKm.toLocaleString()} km</strong></span>
+                    <span className="tabular-nums">Phụ thu: ~{((excessKm) * (rentalRequest.extraKmPrice || 5000)).toLocaleString()}đ</span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                    <CheckCircle2 size={13} />
+                    <span>Nằm trong hạn mức kilomet cho phép (còn dư {Math.max(0, maxKmAllowed - distanceTraveled).toLocaleString()} km)</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Mức xăng lúc trả: Nút chọn nhanh */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-zinc-900 text-xs">Nhiên liệu / Pin lúc trả:</label>
+                  <span className="font-bold text-blue-900 tabular-nums">{returnFuelLevel}%</span>
+                </div>
                 <div className="grid grid-cols-4 gap-2">
-                  {[100, 75, 50, 25].map(lvl => (
+                  {[25, 50, 75, 100].map((level) => (
                     <button
-                      key={lvl}
+                      key={level}
                       type="button"
-                      onClick={() => setReturnFuelLevel(lvl)}
-                      className={`py-2 rounded-xl font-semibold border transition ${
-                        returnFuelLevel === lvl
-                          ? 'bg-amber-500 text-black border-amber-400 shadow-md shadow-amber-500/20'
-                          : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+                      onClick={() => setReturnFuelLevel(level)}
+                      className={`py-1.5 rounded border text-xs font-bold tabular-nums transition ${
+                        returnFuelLevel === level
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      {lvl}%
+                      {level}%
                     </button>
                   ))}
                 </div>
+                {returnFuelLevel < initialFuel && (
+                  <div className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded border border-amber-200">
+                    Nhiên liệu thấp hơn lúc giao ({initialFuel}% → {returnFuelLevel}%). Sẽ tính phụ thu chênh lệch xăng khi quyết toán.
+                  </div>
+                )}
               </div>
 
-              {/* Fuel Analysis result */}
-              <div className="p-3 rounded-lg bg-zinc-950/80 border border-zinc-800/80 space-y-1.5 text-xs">
-                <div className="flex justify-between text-zinc-400">
-                  <span>Mức lúc nhận:</span>
-                  <span className="text-white">{initialFuel}%</span>
+              {/* Checklist 7 món phụ kiện hoàn trả */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="font-bold text-zinc-900 text-xs uppercase">Checklist phụ kiện hoàn trả:</div>
+                <div className="space-y-1.5">
+                  {DEFAULT_ACCESSORIES.map((acc) => {
+                    const isChecked = accessories.includes(acc);
+                    return (
+                      <label 
+                        key={acc}
+                        className={`flex items-center gap-2 p-1.5 rounded border cursor-pointer transition ${
+                          isChecked ? 'bg-slate-50 border-slate-200' : 'bg-red-50/50 border-red-200 text-red-800'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleAccessory(acc)}
+                          className="rounded border-slate-300 text-blue-900 focus:ring-blue-900"
+                        />
+                        <span className={`text-xs ${isChecked ? 'text-slate-800 font-medium' : 'text-red-700 font-bold'}`}>
+                          {acc} {!isChecked && '(THIẾU)'}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Mức lúc trả:</span>
-                  <span className="text-white">{returnFuelLevel}%</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-zinc-800 font-semibold">
-                  <span>Chênh lệch thiếu:</span>
-                  <span className={fuelDiff > 0 ? 'text-rose-400' : 'text-emerald-400'}>
-                    {fuelDiff > 0 ? `Thiếu ${fuelDiff}% (Tính phí bù nhiên liệu)` : 'Đầy đủ (Không bù phí)'}
-                  </span>
-                </div>
               </div>
-            </div>
 
-          </div>
-
-          {/* Section 2: Accessories Checklist */}
-          <div className="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 space-y-3">
-            <h4 className="font-semibold text-white flex items-center gap-2 text-sm">
-              <ClipboardCheck size={16} className="text-emerald-400" />
-              Kiểm Tra Phụ Kiện & Giấy Tờ Đi Kèm (Checklist)
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-              {DEFAULT_ACCESSORIES.map(acc => {
-                const checked = accessories.includes(acc);
-                return (
-                  <label 
-                    key={acc}
-                    onClick={() => handleToggleAccessory(acc)}
-                    className={`p-2.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition select-none ${
-                      checked 
-                        ? 'bg-zinc-900/80 border-emerald-500/40 text-zinc-200' 
-                        : 'bg-rose-950/20 border-rose-500/40 text-rose-300'
-                    }`}
-                  >
-                    <input 
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {}}
-                      className="rounded border-zinc-700 text-emerald-500 focus:ring-0 bg-zinc-800"
-                    />
-                    <span className="text-xs">{acc}</span>
-                  </label>
-                );
-              })}
-            </div>
-            {DEFAULT_ACCESSORIES.length !== accessories.length && (
-              <p className="text-rose-400 text-[11px] font-medium flex items-center gap-1.5 pt-1">
-                <AlertTriangle size={14} />
-                Cảnh báo: Có {DEFAULT_ACCESSORIES.length - accessories.length} phụ kiện/giấy tờ chưa được bàn giao lại!
-              </p>
-            )}
-          </div>
-
-          {/* Section 3: Physical Condition & Damages */}
-          <div className="space-y-4 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-white flex items-center gap-2 text-sm">
-                <Car size={16} className="text-blue-400" />
-                Nghiệm Thu Hiện Trạng Xe & Hư Hỏng Mới
-              </h4>
-              <label className="flex items-center gap-2 cursor-pointer text-xs">
-                <input
-                  type="checkbox"
-                  checked={hasNewDamage}
-                  onChange={(e) => setHasNewDamage(e.target.checked)}
-                  className="rounded border-zinc-700 text-rose-500 focus:ring-0 bg-zinc-800"
-                />
-                <span className="text-rose-400 font-medium">Phát hiện vết xước / Hư hỏng mới</span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-zinc-400 block mb-1">Hiện trạng ngoại thất</label>
-                <input
-                  type="text"
-                  value={exteriorCondition}
-                  onChange={(e) => setExteriorCondition(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Hiện trạng nội thất</label>
-                <input
-                  type="text"
-                  value={interiorCondition}
-                  onChange={(e) => setInteriorCondition(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 block mb-1">Hiện trạng lốp & mâm</label>
-                <input
-                  type="text"
-                  value={tireCondition}
-                  onChange={(e) => setTireCondition(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
-                />
-              </div>
-            </div>
-
-            {hasNewDamage && (
-              <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-2 animate-fadeIn">
-                <label className="text-rose-400 font-semibold block text-xs flex items-center gap-1.5">
-                  <ShieldAlert size={15} />
-                  Mô tả chi tiết vết xước, móp méo, vỡ nứt mới phát hiện:
+              {/* Hư hỏng / Trầy xước mới */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-zinc-900 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={hasNewDamage}
+                    onChange={(e) => setHasNewDamage(e.target.checked)}
+                    className="rounded border-slate-300 text-red-600 focus:ring-red-600"
+                  />
+                  <span>Phát hiện vết trầy xước hoặc hư hỏng mới</span>
                 </label>
-                <textarea
-                  rows={2}
-                  value={newDamagesNotes}
-                  onChange={(e) => setNewDamagesNotes(e.target.value)}
-                  placeholder="VD: Cản trước trầy xước sâu 15cm bên phụ; gương chiếu hậu phải nứt ốp ngoài..."
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-white text-xs focus:outline-none focus:border-rose-500"
-                />
+
+                {hasNewDamage && (
+                  <textarea
+                    rows={2}
+                    value={newDamagesNotes}
+                    onChange={(e) => setNewDamagesNotes(e.target.value)}
+                    placeholder="Mô tả cụ thể vị trí trầy xước: cản trước bên phụ trầy 10cm..."
+                    className="w-full bg-slate-50 border border-red-300 rounded p-2 text-xs text-zinc-950 focus:outline-none focus:border-red-500"
+                  />
+                )}
               </div>
-            )}
 
-            <div>
-              <label className="text-zinc-400 block mb-1 flex items-center gap-1.5">
-                <Camera size={14} className="text-zinc-500" />
-                URL ảnh chụp minh chứng hiện trạng khi nhận xe (phân cách dấu phẩy nếu nhiều ảnh)
-              </label>
-              <input
-                type="text"
-                value={evidencePhotoUrls}
-                onChange={(e) => setEvidencePhotoUrls(e.target.value)}
-                placeholder="https://images.unsplash.com/photo-car-return-1.jpg, https://..."
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          {/* Section 4: Next Vehicle Lifecycle Status */}
-          <div className="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/60 space-y-3">
-            <h4 className="font-semibold text-white flex items-center gap-2 text-sm">
-              <Wrench size={16} className="text-purple-400" />
-              Đề Xuất Trạng Thái Khai Thác Kế Tiếp Của Xe
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { key: 'READY', label: 'Sẵn Sàng Cho Thuê', desc: 'Xe sạch sẽ, đạt chuẩn lưu hành ngay', color: 'border-emerald-500/40 text-emerald-400' },
-                { key: 'CLEANING', label: 'Cần Vệ Sinh / Rửa', desc: 'Đưa đi rửa nội ngoại thất trước khi giao', color: 'border-blue-500/40 text-blue-400' },
-                { key: 'MAINTENANCE', label: 'Bảo Dưỡng Định Kỳ', desc: 'Cần thay nhớt / kiểm định kỹ thuật', color: 'border-amber-500/40 text-amber-400' },
-                { key: 'REPAIR', label: 'Sửa Chữa Khắc Phục', desc: 'Có sự cố / hư hỏng cần đưa vào gara', color: 'border-rose-500/40 text-rose-400' }
-              ].map(opt => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setNextVehicleStatus(opt.key)}
-                  className={`p-3 rounded-xl border text-left transition ${
-                    nextVehicleStatus === opt.key 
-                      ? 'bg-zinc-800 border-amber-400 shadow-md ring-1 ring-amber-400/50' 
-                      : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
-                  }`}
+              {/* Trạng thái xe tiếp theo */}
+              <div className="space-y-1 pt-2 border-t border-slate-100">
+                <label className="font-bold text-zinc-900 text-xs">Chuyển trạng thái xe sau khi nhận:</label>
+                <select
+                  value={nextVehicleStatus}
+                  onChange={(e) => setNextVehicleStatus(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900"
                 >
-                  <p className={`font-semibold text-xs ${opt.color}`}>{opt.label}</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">{opt.desc}</p>
-                </button>
-              ))}
+                  <option value="READY">Sẵn sàng cho thuê tiếp (READY)</option>
+                  <option value="CLEANING">Đưa đi vệ sinh / rửa xe (CLEANING)</option>
+                  <option value="MAINTENANCE">Đến hạn bảo dưỡng định kỳ (MAINTENANCE)</option>
+                  <option value="REPAIR">Đưa vào gara sửa chữa (REPAIR)</option>
+                </select>
+              </div>
+
             </div>
+
           </div>
 
         </div>
 
-        {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between bg-zinc-900/90">
+        {/* Modal Footer */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium transition text-xs"
+            className="w-full sm:w-auto px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-md text-xs font-semibold transition"
           >
-            Hủy Bỏ
+            Đóng
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button
               type="button"
-              disabled={loading}
               onClick={() => handleSubmit(false)}
-              className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 font-semibold transition text-xs disabled:opacity-50"
+              disabled={loading}
+              className="w-full sm:w-auto px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 rounded-md text-xs font-semibold transition"
             >
-              {loading ? 'Đang lưu...' : 'Chỉ Lưu Biên Bản'}
+              Chỉ lưu biên bản
             </button>
 
             <button
               type="button"
-              disabled={loading}
               onClick={() => handleSubmit(true)}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-semibold text-xs transition shadow-lg shadow-amber-500/20 flex items-center gap-2 disabled:opacity-50"
+              disabled={loading}
+              className="w-full sm:w-auto px-5 py-2 bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white rounded-md text-xs font-bold transition flex items-center justify-center gap-1.5 uppercase tracking-wider shadow-xs cursor-pointer"
             >
-              <Sparkles size={15} />
-              <span>{loading ? 'Đang xử lý...' : 'Lưu & Sang Quyết Toán Cọc (US-23)'}</span>
+              <span>Lưu & Quyết toán cọc</span>
+              <ArrowRight size={14} />
             </button>
           </div>
         </div>

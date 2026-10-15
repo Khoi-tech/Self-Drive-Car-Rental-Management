@@ -1,6 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Calendar, Users, Fuel, Settings, MapPin, Shield, Clock, CreditCard, ChevronLeft, AlertCircle, Info, CheckCircle, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { 
+  Calendar, 
+  Users, 
+  Fuel, 
+  Settings, 
+  MapPin, 
+  Shield, 
+  Clock, 
+  CreditCard, 
+  ChevronLeft, 
+  AlertCircle, 
+  Info, 
+  CheckCircle2, 
+  Upload, 
+  ChevronDown, 
+  ChevronUp, 
+  FileText,
+  User,
+  Phone,
+  Mail,
+  ShieldCheck,
+  ArrowRight
+} from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
 import pricingService from '../../services/pricingService';
@@ -58,10 +80,9 @@ const BookingPage = () => {
     }
   };
 
-  // URLs derived from search query params
   const startTimeStr = searchParams.get('startTime') || '';
   const endTimeStr = searchParams.get('endTime') || '';
-  const pickupLocation = searchParams.get('pickupLocation') || 'VP VELORA (Trụ sở)';
+  const pickupLocation = searchParams.get('pickupLocation') || 'VP VELORA (Trụ sở Tân Bình)';
   const dropoffLocation = searchParams.get('dropoffLocation') || pickupLocation;
 
   useEffect(() => {
@@ -108,7 +129,7 @@ const BookingPage = () => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
 
-    // 1. Kiểm tra thông tin người thuê
+    // Validation
     if (!formData.customerName?.trim()) {
       setError('Vui lòng nhập Họ và tên người thuê.');
       return;
@@ -130,27 +151,13 @@ const BookingPage = () => {
       return;
     }
 
-    // 2. Kiểm tra thông tin tài xế phụ (nếu bật checkbox)
     if (hasAdditionalDriver) {
-      if (!additionalDriver.fullName?.trim()) {
-        setError('Vui lòng nhập Họ và tên của tài xế phụ.');
-        return;
-      }
-      if (!additionalDriver.phoneNumber?.trim()) {
-        setError('Vui lòng nhập Số điện thoại của tài xế phụ.');
-        return;
-      }
-      if (!additionalDriver.idCardNumber?.trim()) {
-        setError('Vui lòng nhập Số CCCD của tài xế phụ.');
-        return;
-      }
-      if (!additionalDriver.licenseNumber?.trim()) {
-        setError('Vui lòng nhập Số GPLX của tài xế phụ.');
+      if (!additionalDriver.fullName?.trim() || !additionalDriver.phoneNumber?.trim()) {
+        setError('Vui lòng nhập đầy đủ thông tin tài xế phụ.');
         return;
       }
     }
 
-    // 3. Kiểm tra đồng ý điều khoản
     if (!agreed) {
       setError('Vui lòng tích chọn đồng ý với Điều kiện thuê xe & Mẫu hợp đồng của VELORA.');
       return;
@@ -172,7 +179,6 @@ const BookingPage = () => {
         customerIdCard: formData.customerIdCard.trim(),
         driverLicenseNumber: formData.driverLicenseNumber.trim(),
         notes: formData.notes?.trim() || '',
-        // 4 ảnh giấy tờ định danh (CCCD 2 mặt & GPLX 2 mặt)
         idCardFrontUrl: idCardFrontPreview || 'https://example.com/id-front.jpg',
         idCardBackUrl: idCardBackPreview || 'https://example.com/id-back.jpg',
         driverLicenseFrontUrl: licenseFrontPreview || 'https://example.com/dl-front.jpg',
@@ -193,22 +199,7 @@ const BookingPage = () => {
     } catch (err) {
       console.error('Submit error:', err);
       let errMsg = 'Có lỗi xảy ra khi gửi yêu cầu thuê xe';
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          errMsg = err.response.data;
-        } else if (err.response.data.message) {
-          errMsg = err.response.data.message;
-        } else if (err.response.data.Message) {
-          errMsg = err.response.data.Message;
-        } else if (err.response.data.errors) {
-          const keys = Object.keys(err.response.data.errors);
-          if (keys.length > 0) {
-            errMsg = err.response.data.errors[keys[0]][0] || errMsg;
-          }
-        }
-      } else if (err.message) {
-        errMsg = err.message;
-      }
+      if (err.response?.data?.message) errMsg = err.response.data.message;
       setError(errMsg);
     } finally {
       setSubmitting(false);
@@ -217,477 +208,486 @@ const BookingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (error && !vehicle) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center">
-        <h2 className="text-2xl mb-4 text-red-400">{error}</h2>
-        <button onClick={() => navigate('/cars')} className="text-zinc-400 hover:text-white">Quay lại danh mục</button>
-      </div>
-    );
-  }
-
-  // SUCCESS SCREEN
-  if (successResponse) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white">
-        <Navbar isVisible={true} />
-        <div className="pt-32 pb-20 px-4 flex justify-center">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-xl w-full text-center shadow-2xl">
-            <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10" />
-            </div>
-            <h1 className="text-3xl font-bold mb-4">Gửi yêu cầu thuê xe thành công!</h1>
-            <div className="bg-black/30 p-4 rounded-xl mb-6">
-              <p className="text-sm text-zinc-400 mb-1">Mã đơn thuê</p>
-              <p className="text-xl font-mono text-white tracking-widest">{successResponse.id.substring(0, 8).toUpperCase()}</p>
-            </div>
-            <p className="text-zinc-400 mb-8 leading-relaxed">
-              Yêu cầu của bạn đang ở trạng thái <strong className="text-yellow-400 font-medium">CHỜ DUYỆT (Pending Review)</strong>. 
-              Nhân viên VELORA sẽ kiểm tra hồ sơ và liên hệ với bạn qua số điện thoại <strong className="text-white">{successResponse.customerPhone}</strong> trong vòng 15 phút tới.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
-                onClick={() => navigate('/')}
-                className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium transition-colors"
-              >
-                Về trang chủ
-              </button>
-              <button 
-                onClick={() => navigate('/cars')}
-                className="px-6 py-3 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-colors"
-              >
-                Xem danh mục xe khác
-              </button>
-            </div>
-          </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-3 border-slate-300 border-t-blue-900 rounded-full animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-500">Đang chuẩn bị hồ sơ thuê xe...</span>
         </div>
       </div>
     );
   }
 
+  // SUCCESS CONFIRMATION VIEW
+  if (successResponse) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
+        <Navbar isVisible={true} />
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-28 pb-16 flex-1 w-full flex items-center justify-center">
+          <div className="bg-white rounded-lg border border-slate-200 p-8 shadow-sm text-center space-y-6 w-full">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto text-emerald-600">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                Gửi Hồ Sơ Thành Công
+              </span>
+              <h1 className="text-2xl font-extrabold text-zinc-950 mt-3 mb-2">
+                Đơn thuê xe của bạn đã được tiếp nhận!
+              </h1>
+              <p className="text-xs text-slate-600 max-w-md mx-auto">
+                Mã đơn thuê: <strong className="text-zinc-950 tabular-nums">#{successResponse.id?.substring(0, 8) || 'VELORA-BOOKING'}</strong>. 
+                Đội ngũ điều hành VELORA đang tiến hành thẩm định CCCD & GPLX của bạn.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-md text-left text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Phương tiện:</span>
+                <span className="font-bold text-zinc-950">{vehicle?.make} {vehicle?.model} ({vehicle?.licensePlate})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Người đặt:</span>
+                <span className="font-bold text-zinc-950">{formData.customerName} - {formData.customerPhone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Tiền đặt cọc xe:</span>
+                <span className="font-bold text-blue-900 tabular-nums">{formatCurrencyVND(vehicle?.depositAmount || 15000000)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <Link
+                to="/profile"
+                className="px-6 py-2.5 bg-slate-900 hover:bg-blue-900 text-white rounded-md text-xs font-bold transition-colors"
+              >
+                Xem tiến độ duyệt trong Hồ sơ cá nhân
+              </Link>
+              <Link
+                to="/cars"
+                className="px-6 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-md text-xs font-semibold transition-colors"
+              >
+                Tiếp tục xem xe khác
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-white/20">
+    <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
 
-      <div className="pt-24 pb-20 px-4 md:px-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center text-zinc-400 hover:text-white transition-colors mb-6"
-        >
-          <ChevronLeft className="w-5 h-5 mr-1" />
-          Quay lại trang chi tiết
-        </button>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 flex-1 w-full">
+        
+        {/* Navigation Breadcrumb */}
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-6">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="flex items-center gap-1 hover:text-blue-900 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Quay lại xe</span>
+          </button>
+          <span>/</span>
+          <span className="text-zinc-900 font-bold">Đặt xe & Thẩm định hồ sơ</span>
+        </div>
 
-        <h1 className="text-3xl md:text-4xl font-semibold mb-8 tracking-tight">Hoàn tất đặt xe</h1>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-xl mb-8 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <div>{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* 2-Column Checkout Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* CỘT TRÁI: FORM */}
-          <div className="lg:col-span-7 space-y-8">
+          {/* CỘT TRÁI: FORM ĐẶT XE (7 Cols) */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             
-            {/* Section: Thông tin liên hệ */}
-            <section className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800">
-              <h2 className="text-xl font-medium mb-6 flex items-center">
-                <Users className="w-5 h-5 mr-3 text-zinc-400" />
-                Thông tin người thuê
-              </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Họ và tên *</label>
-                  <input 
-                    type="text" name="customerName"
-                    value={formData.customerName} onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                    placeholder="VD: Nguyễn Văn A"
-                  />
+              {/* Box 1: Thông tin người thuê chính */}
+              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                  <User className="w-4 h-4 text-blue-900" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                    1. Thông tin người thuê xe (Khách hàng chính)
+                  </h2>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Số điện thoại *</label>
-                  <input 
-                    type="tel" name="customerPhone"
-                    value={formData.customerPhone} onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                    placeholder="VD: 0912345678"
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm text-zinc-400">Email *</label>
-                  <input 
-                    type="email" name="customerEmail"
-                    value={formData.customerEmail} onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                    placeholder="VD: email@example.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Số CCCD/CMND *</label>
-                  <input 
-                    type="text" name="customerIdCard"
-                    value={formData.customerIdCard} onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                    placeholder="VD: 079123456789"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Số Giấy phép lái xe *</label>
-                  <input 
-                    type="text" name="driverLicenseNumber"
-                    value={formData.driverLicenseNumber} onChange={handleInputChange}
-                    className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                    placeholder="VD: B2-12345678"
-                  />
-                </div>
-              </div>
-            </section>
 
-            {/* Section: Hồ sơ định danh */}
-            <section className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800 space-y-6">
-              <div>
-                <h2 className="text-xl font-medium mb-1 flex items-center">
-                  <Shield className="w-5 h-5 mr-3 text-zinc-400" />
-                  Hồ sơ định danh (2 mặt CCCD & GPLX)
-                </h2>
-                <p className="text-sm text-zinc-400">Vui lòng tải lên ảnh chụp rõ nét 2 mặt của Căn cước công dân và Giấy phép lái xe để chúng tôi xác minh hồ sơ.</p>
-              </div>
-
-              {/* Nhóm 1: CCCD */}
-              <div>
-                <div className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  1. Căn cước công dân (CCCD / CMND)
-                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* CCCD Mặt trước */}
-                  <label className="border border-dashed border-zinc-700 rounded-xl p-5 flex flex-col items-center justify-center text-center hover:bg-zinc-800/50 hover:border-zinc-500 transition-all cursor-pointer group relative overflow-hidden min-h-[140px]">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={(e) => handleFileChange(e, setIdCardFrontFile, setIdCardFrontPreview)} 
-                      className="hidden" 
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Họ và tên <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="customerName"
+                      value={formData.customerName}
+                      onChange={handleInputChange}
+                      placeholder="NGUYEN VAN A"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Số điện thoại <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="customerPhone"
+                      value={formData.customerPhone}
+                      onChange={handleInputChange}
+                      placeholder="0901234567"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Địa chỉ Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      name="customerEmail"
+                      value={formData.customerEmail}
+                      onChange={handleInputChange}
+                      placeholder="customer@example.com"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Số CCCD / CMND gắn chip <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="customerIdCard"
+                      value={formData.customerIdCard}
+                      onChange={handleInputChange}
+                      placeholder="079099xxxxxx"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Số Giấy phép lái xe (GPLX B1/B2) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="driverLicenseNumber"
+                      value={formData.driverLicenseNumber}
+                      onChange={handleInputChange}
+                      placeholder="790123456789"
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Tải ảnh hồ sơ định danh (4 slots) */}
+              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                  <ShieldCheck className="w-4 h-4 text-blue-900" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                    2. Tải ảnh giấy tờ định danh (CCCD & GPLX)
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Slot 1: CCCD Mặt Trước */}
+                  <div className="border border-dashed border-slate-300 rounded-md p-4 bg-slate-50 text-center hover:bg-white transition-colors">
+                    <div className="text-xs font-bold text-zinc-900 mb-1">CCCD Mặt trước</div>
+                    <div className="text-[11px] text-slate-500 mb-3">Rõ số, quốc huy và ảnh chân dung</div>
                     {idCardFrontPreview ? (
-                      <div className="flex flex-col items-center w-full">
-                        <img src={idCardFrontPreview} alt="CCCD Mặt trước" className="w-24 h-16 object-cover rounded-lg border border-zinc-600 mb-2 shadow" />
-                        <div className="flex items-center text-xs text-green-400 font-medium truncate max-w-[180px]">
-                          <CheckCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
-                          <span className="truncate">{idCardFrontFile?.name || 'Mặt trước CCCD'}</span>
-                        </div>
-                        <span className="text-[11px] text-zinc-400 mt-1 underline">Đổi ảnh</span>
+                      <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                        <img src={idCardFrontPreview} alt="CCCD Trước" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors mb-2" />
-                        <span className="text-sm font-medium">Mặt trước CCCD</span>
-                        <span className="text-xs text-zinc-500 mt-1">Ảnh chụp rõ nét, không lóa</span>
-                      </>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                        <Upload className="w-3.5 h-3.5 text-blue-900" />
+                        <span>Chọn ảnh tải lên</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setIdCardFrontFile, setIdCardFrontPreview)} />
+                      </label>
                     )}
-                  </label>
+                  </div>
 
-                  {/* CCCD Mặt sau */}
-                  <label className="border border-dashed border-zinc-700 rounded-xl p-5 flex flex-col items-center justify-center text-center hover:bg-zinc-800/50 hover:border-zinc-500 transition-all cursor-pointer group relative overflow-hidden min-h-[140px]">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={(e) => handleFileChange(e, setIdCardBackFile, setIdCardBackPreview)} 
-                      className="hidden" 
-                    />
+                  {/* Slot 2: CCCD Mặt Sau */}
+                  <div className="border border-dashed border-slate-300 rounded-md p-4 bg-slate-50 text-center hover:bg-white transition-colors">
+                    <div className="text-xs font-bold text-zinc-900 mb-1">CCCD Mặt sau</div>
+                    <div className="text-[11px] text-slate-500 mb-3">Rõ chip điện tử & đặc điểm nhận dạng</div>
                     {idCardBackPreview ? (
-                      <div className="flex flex-col items-center w-full">
-                        <img src={idCardBackPreview} alt="CCCD Mặt sau" className="w-24 h-16 object-cover rounded-lg border border-zinc-600 mb-2 shadow" />
-                        <div className="flex items-center text-xs text-green-400 font-medium truncate max-w-[180px]">
-                          <CheckCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
-                          <span className="truncate">{idCardBackFile?.name || 'Mặt sau CCCD'}</span>
-                        </div>
-                        <span className="text-[11px] text-zinc-400 mt-1 underline">Đổi ảnh</span>
+                      <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                        <img src={idCardBackPreview} alt="CCCD Sau" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors mb-2" />
-                        <span className="text-sm font-medium">Mặt sau CCCD</span>
-                        <span className="text-xs text-zinc-500 mt-1">Chứa vân tay và chip</span>
-                      </>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                        <Upload className="w-3.5 h-3.5 text-blue-900" />
+                        <span>Chọn ảnh tải lên</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setIdCardBackFile, setIdCardBackPreview)} />
+                      </label>
                     )}
-                  </label>
-                </div>
-              </div>
+                  </div>
 
-              {/* Nhóm 2: GPLX */}
-              <div>
-                <div className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  2. Giấy phép lái xe (GPLX)
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* GPLX Mặt trước */}
-                  <label className="border border-dashed border-zinc-700 rounded-xl p-5 flex flex-col items-center justify-center text-center hover:bg-zinc-800/50 hover:border-zinc-500 transition-all cursor-pointer group relative overflow-hidden min-h-[140px]">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={(e) => handleFileChange(e, setLicenseFrontFile, setLicenseFrontPreview)} 
-                      className="hidden" 
-                    />
+                  {/* Slot 3: GPLX Mặt Trước */}
+                  <div className="border border-dashed border-slate-300 rounded-md p-4 bg-slate-50 text-center hover:bg-white transition-colors">
+                    <div className="text-xs font-bold text-zinc-900 mb-1">GPLX Mặt trước</div>
+                    <div className="text-[11px] text-slate-500 mb-3">Rõ hạng bằng B1/B2 và ngày hết hạn</div>
                     {licenseFrontPreview ? (
-                      <div className="flex flex-col items-center w-full">
-                        <img src={licenseFrontPreview} alt="GPLX Mặt trước" className="w-24 h-16 object-cover rounded-lg border border-zinc-600 mb-2 shadow" />
-                        <div className="flex items-center text-xs text-green-400 font-medium truncate max-w-[180px]">
-                          <CheckCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
-                          <span className="truncate">{licenseFrontFile?.name || 'Mặt trước GPLX'}</span>
-                        </div>
-                        <span className="text-[11px] text-zinc-400 mt-1 underline">Đổi ảnh</span>
+                      <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                        <img src={licenseFrontPreview} alt="GPLX Trước" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors mb-2" />
-                        <span className="text-sm font-medium">Mặt trước GPLX</span>
-                        <span className="text-xs text-zinc-500 mt-1">Hạng bằng B1/B2 còn hạn</span>
-                      </>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                        <Upload className="w-3.5 h-3.5 text-blue-900" />
+                        <span>Chọn ảnh tải lên</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setLicenseFrontFile, setLicenseFrontPreview)} />
+                      </label>
                     )}
-                  </label>
+                  </div>
 
-                  {/* GPLX Mặt sau */}
-                  <label className="border border-dashed border-zinc-700 rounded-xl p-5 flex flex-col items-center justify-center text-center hover:bg-zinc-800/50 hover:border-zinc-500 transition-all cursor-pointer group relative overflow-hidden min-h-[140px]">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={(e) => handleFileChange(e, setLicenseBackFile, setLicenseBackPreview)} 
-                      className="hidden" 
-                    />
+                  {/* Slot 4: GPLX Mặt Sau */}
+                  <div className="border border-dashed border-slate-300 rounded-md p-4 bg-slate-50 text-center hover:bg-white transition-colors">
+                    <div className="text-xs font-bold text-zinc-900 mb-1">GPLX Mặt sau</div>
+                    <div className="text-[11px] text-slate-500 mb-3">Mặt sau giấy phép lái xe</div>
                     {licenseBackPreview ? (
-                      <div className="flex flex-col items-center w-full">
-                        <img src={licenseBackPreview} alt="GPLX Mặt sau" className="w-24 h-16 object-cover rounded-lg border border-zinc-600 mb-2 shadow" />
-                        <div className="flex items-center text-xs text-green-400 font-medium truncate max-w-[180px]">
-                          <CheckCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
-                          <span className="truncate">{licenseBackFile?.name || 'Mặt sau GPLX'}</span>
-                        </div>
-                        <span className="text-[11px] text-zinc-400 mt-1 underline">Đổi ảnh</span>
+                      <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                        <img src={licenseBackPreview} alt="GPLX Sau" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors mb-2" />
-                        <span className="text-sm font-medium">Mặt sau GPLX</span>
-                        <span className="text-xs text-zinc-500 mt-1">Các hạng xe được phép lái</span>
-                      </>
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                        <Upload className="w-3.5 h-3.5 text-blue-900" />
+                        <span>Chọn ảnh tải lên</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setLicenseBackFile, setLicenseBackPreview)} />
+                      </label>
                     )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 3: Người lái bổ sung (Additional Drivers) */}
+              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-900" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                      3. Người lái bổ sung (Tùy chọn)
+                    </h2>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasAdditionalDriver}
+                      onChange={(e) => setHasAdditionalDriver(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-900 focus:ring-blue-900"
+                    />
+                    <span>Thêm người lái phụ</span>
                   </label>
                 </div>
-              </div>
-            </section>
 
-            {/* Section: Tài xế phụ */}
-            <section className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800">
-              <div 
-                className="flex justify-between items-center cursor-pointer"
-                onClick={() => setHasAdditionalDriver(!hasAdditionalDriver)}
-              >
-                <div className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    checked={hasAdditionalDriver}
-                    onChange={(e) => setHasAdditionalDriver(e.target.checked)}
-                    className="w-5 h-5 mr-4 accent-white bg-zinc-800 border-zinc-700 rounded cursor-pointer"
+                {hasAdditionalDriver && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Họ tên người lái phụ</label>
+                      <input
+                        type="text"
+                        name="fullName"
+                        value={additionalDriver.fullName}
+                        onChange={handleAdditionalDriverChange}
+                        placeholder="TRAN VAN B"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số điện thoại</label>
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        value={additionalDriver.phoneNumber}
+                        onChange={handleAdditionalDriverChange}
+                        placeholder="0987654321"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số CCCD lái phụ</label>
+                      <input
+                        type="text"
+                        name="idCardNumber"
+                        value={additionalDriver.idCardNumber}
+                        onChange={handleAdditionalDriverChange}
+                        placeholder="079099xxxxxx"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số GPLX lái phụ</label>
+                      <input
+                        type="text"
+                        name="licenseNumber"
+                        value={additionalDriver.licenseNumber}
+                        onChange={handleAdditionalDriverChange}
+                        placeholder="790123456789"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Box 4: Ghi chú & Đồng ý điều khoản */}
+              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Ghi chú thêm cho chuyến đi
+                  </label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    rows={2}
+                    placeholder="Ví dụ: Xin giao xe tại sảnh khách sạn lúc 8h sáng..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white"
                   />
-                  <h2 className="text-xl font-medium flex items-center">Đăng ký thêm người lái phụ</h2>
-                </div>
-                {hasAdditionalDriver ? <ChevronUp className="text-zinc-500" /> : <ChevronDown className="text-zinc-500" />}
-              </div>
-
-              {hasAdditionalDriver && (
-                <div className="mt-6 pt-6 border-t border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-5 animate-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Họ và tên tài xế phụ *</label>
-                    <input 
-                      type="text" name="fullName"
-                      value={additionalDriver.fullName} onChange={handleAdditionalDriverChange}
-                      className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                      placeholder="VD: Trần Văn B"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Số điện thoại *</label>
-                    <input 
-                      type="tel" name="phoneNumber"
-                      value={additionalDriver.phoneNumber} onChange={handleAdditionalDriverChange}
-                      className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                      placeholder="VD: 0987654321"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Số CCCD/CMND *</label>
-                    <input 
-                      type="text" name="idCardNumber"
-                      value={additionalDriver.idCardNumber} onChange={handleAdditionalDriverChange}
-                      className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                      placeholder="VD: 079987654321"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Số Giấy phép lái xe *</label>
-                    <input 
-                      type="text" name="licenseNumber"
-                      value={additionalDriver.licenseNumber} onChange={handleAdditionalDriverChange}
-                      className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors"
-                      placeholder="VD: B2-87654321"
-                    />
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Section: Ghi chú */}
-            <section className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800">
-              <h2 className="text-xl font-medium mb-4">Ghi chú chuyến đi</h2>
-              <textarea 
-                name="notes"
-                value={formData.notes} onChange={handleInputChange}
-                rows="3"
-                className="w-full bg-black/50 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:border-white transition-colors resize-none"
-                placeholder="Yêu cầu giao xe tận nơi, ghế trẻ em..."
-              />
-            </section>
-
-          </div>
-
-          {/* CỘT PHẢI: WIDGET TÓM TẮT */}
-          <div className="lg:col-span-5">
-            <div className="sticky top-24 space-y-6">
-              
-              <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
-                <h3 className="text-lg font-medium mb-6">Tóm tắt chuyến đi</h3>
-                
-                {/* Vehicle Mini Card */}
-                {vehicle && (
-                  <div className="flex gap-4 items-center pb-6 border-b border-zinc-800 mb-6">
-                    <div className="w-24 h-16 bg-black rounded-lg overflow-hidden shrink-0">
-                      {vehicle.imageUrl ? (
-                        <img src={vehicle.imageUrl} alt={vehicle.model} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-700">No Image</div>
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-lg">{vehicle.make} {vehicle.model}</h4>
-                      <p className="text-sm text-zinc-400">{vehicle.manufactureYear} • {vehicle.transmission === 'AUTO' ? 'Tự động' : 'Số sàn'}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Itinerary */}
-                <div className="space-y-4 mb-6 pb-6 border-b border-zinc-800">
-                  <div className="flex items-start gap-3">
-                    <Calendar className="w-5 h-5 text-zinc-400 mt-0.5" />
-                    <div>
-                      <div className="text-sm text-zinc-400">Nhận xe</div>
-                      <div className="font-medium">{new Date(startTimeStr).toLocaleString('vi-VN')}</div>
-                      <div className="text-sm text-zinc-500">{pickupLocation}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Clock className="w-5 h-5 text-zinc-400 mt-0.5" />
-                    <div>
-                      <div className="text-sm text-zinc-400">Trả xe</div>
-                      <div className="font-medium">{new Date(endTimeStr).toLocaleString('vi-VN')}</div>
-                      <div className="text-sm text-zinc-500">{dropoffLocation}</div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Pricing Details */}
-                {preview && vehicle && (
-                  <div className="space-y-3 mb-6">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-zinc-400">Đơn giá gốc ({preview.rentalDays} ngày)</span>
-                      <span>{formatCurrencyVND((preview.basePrice || vehicle.dailyRate) * preview.rentalDays)}</span>
-                    </div>
-                    {preview.discountPercentage > 0 && (
-                      <div className="flex justify-between text-sm text-green-400">
-                        <span>Ưu đãi dài ngày ({preview.discountPercentage}%)</span>
-                        <span>-{formatCurrencyVND(((preview.basePrice || vehicle.dailyRate) * preview.rentalDays) - preview.rentalPrice)}</span>
-                      </div>
-                    )}
-                    {preview.holidaySurcharge > 0 && (
-                      <div className="flex justify-between text-sm text-orange-400">
-                        <span>Phụ thu ngày lễ ({preview.holidaySurcharge}%)</span>
-                        <span>+{formatCurrencyVND((preview.basePrice || vehicle.dailyRate) * (preview.holidaySurcharge / 100))}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-zinc-400">Tiền đặt cọc</span>
-                      <span>{formatCurrencyVND(vehicle.depositAmount)}</span>
-                    </div>
-                    
-                    <div className="pt-4 mt-2 border-t border-zinc-800 flex justify-between items-center">
-                      <span className="font-medium">Tổng tiền thuê</span>
-                      <span className="text-2xl font-bold">{formatCurrencyVND(preview.rentalPrice)}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Terms Agreement */}
-                <div className={`mb-6 bg-black/30 p-4 rounded-xl border transition-all ${!agreed && error ? 'border-red-500/80 bg-red-500/10' : 'border-zinc-800'}`}>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                <div className="pt-2">
+                  <label className="flex items-start gap-2.5 text-xs text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
                       checked={agreed}
-                      onChange={(e) => {
-                        setAgreed(e.target.checked);
-                        if (error && error.includes('Điều kiện thuê xe')) setError(null);
-                      }}
-                      className="mt-1 w-5 h-5 accent-white bg-zinc-800 border-zinc-700 rounded cursor-pointer shrink-0" 
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      className="rounded border-slate-300 text-blue-900 focus:ring-blue-900 mt-0.5"
                     />
-                    <span className="text-sm text-zinc-300 leading-relaxed">
-                      Tôi xác nhận đã đọc và đồng ý với <a href="#" className="text-white underline underline-offset-2">Điều kiện thuê xe</a> & <a href="#" className="text-white underline underline-offset-2">Mẫu hợp đồng</a> của VELORA.
+                    <span>
+                      Tôi xác nhận đã đọc và đồng ý với toàn bộ <strong>Điều kiện thuê xe</strong>, <strong>Biểu phí bồi thường</strong> và cam kết xuất trình giấy tờ gốc khi nhận bàn giao xe.
                     </span>
                   </label>
                 </div>
 
-                {/* Prominent Error Message right above Submit Button */}
                 {error && (
-                  <div className="mb-4 bg-red-500/15 border border-red-500/60 text-red-300 p-4 rounded-xl text-sm flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <div className="leading-snug font-medium">{error}</div>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
                   </div>
                 )}
+              </div>
 
-                <button 
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="w-full bg-white text-black py-4 rounded-xl font-semibold text-lg hover:bg-gray-200 transition-colors shadow-lg shadow-white/10 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center cursor-pointer"
-                >
-                  {submitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2"></div>
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    'Xác nhận gửi yêu cầu thuê xe'
-                  )}
-                </button>
+            </form>
 
-                <div className="mt-4 flex items-center gap-2 justify-center text-xs text-zinc-500">
-                  <Shield className="w-4 h-4" /> Thông tin của bạn được bảo mật tuyệt đối
+          </div>
+
+          {/* CỘT PHẢI: TỔNG QUAN ĐƠN THUÊ & THANH TOÁN (5 Cols Sticky) */}
+          <div className="lg:col-span-5 xl:col-span-4">
+            <div className="sticky top-24 bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-6">
+              
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="w-16 h-12 bg-slate-100 rounded overflow-hidden shrink-0 border border-slate-200">
+                  <img
+                    src={vehicle?.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=400&q=80'}
+                    alt="Car"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-zinc-950 leading-tight">
+                    {vehicle?.make} {vehicle?.model}
+                  </h3>
+                  <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                    <span className="license-plate text-[10px] px-1.5 py-0.2">{vehicle?.licensePlate}</span>
+                    <span>• {vehicle?.seats} chỗ</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Itinerary info */}
+              <div className="space-y-2 text-xs bg-slate-50 p-3.5 rounded-md border border-slate-200/80">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Nhận xe:</span>
+                  <span className="font-semibold text-zinc-950 tabular-nums">
+                    {new Date(startTimeStr).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Trả xe:</span>
+                  <span className="font-semibold text-zinc-950 tabular-nums">
+                    {new Date(endTimeStr).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Địa điểm:</span>
+                  <span className="font-semibold text-zinc-950 text-right truncate max-w-[180px]">
+                    {pickupLocation}
+                  </span>
+                </div>
+              </div>
+
+              {/* Financial Breakdown */}
+              {preview && (
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Tiền thuê ({preview.rentalDays} ngày)</span>
+                    <span className="tabular-nums font-semibold text-zinc-950">
+                      {formatCurrencyVND((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays)}
+                    </span>
+                  </div>
+
+                  {preview.discountPercentage > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-semibold">
+                      <span>Chiết khấu ({preview.discountPercentage}%)</span>
+                      <span className="tabular-nums">
+                        -{formatCurrencyVND(((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays) - preview.rentalPrice)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100">
+                    <span>Tiền cọc xe (Hoàn trả 100%)</span>
+                    <span className="tabular-nums font-semibold text-zinc-950">
+                      {formatCurrencyVND(vehicle?.depositAmount || 15000000)}
+                    </span>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
+                    <span className="font-bold text-zinc-950">Tổng tiền thuê</span>
+                    <span className="text-xl font-extrabold text-blue-900 tabular-nums">
+                      {formatCurrencyVND(preview.rentalPrice)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit CTA */}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+              >
+                {submitting ? (
+                  <span>Đang khởi tạo hồ sơ...</span>
+                ) : (
+                  <>
+                    <span>Gửi yêu cầu thuê xe</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="text-[11px] text-slate-500 text-center leading-relaxed">
+                Hồ sơ sẽ được thẩm định trực tuyến trong 10-15 phút. Bạn sẽ nhận được thông báo ký hợp đồng điện tử qua hệ thống.
+              </div>
+
             </div>
           </div>
-        </form>
-      </div>
+
+        </div>
+      </main>
     </div>
   );
 };

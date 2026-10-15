@@ -244,52 +244,52 @@ const RentalRequestsPage = () => {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-between">
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-zinc-500 uppercase font-semibold">Tất cả đơn</p>
-            <p className="text-2xl font-bold text-zinc-900 mt-1">{requests.length}</p>
+            <p className="text-xs text-slate-500 uppercase font-semibold">Tất cả đơn</p>
+            <p className="text-2xl font-bold text-zinc-950 mt-1 tabular-nums">{requests.length}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
             <FileText size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-amber-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-amber-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-amber-700 uppercase font-semibold">Chờ duyệt hồ sơ</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{pendingCount}</p>
+            <p className="text-2xl font-bold text-amber-700 mt-1 tabular-nums">{pendingCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
             <Clock size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-emerald-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-emerald-700 uppercase font-semibold">Đã phê duyệt</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{approvedCount}</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1 tabular-nums">{approvedCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
             <CheckCircle2 size={20} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-rose-200 shadow-sm flex items-center justify-between bg-gradient-to-br from-rose-50/50 to-white">
+        <div className="bg-white p-4 rounded-lg border border-rose-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs text-rose-700 uppercase font-semibold">Đã từ chối</p>
-            <p className="text-2xl font-bold text-rose-600 mt-1">{rejectedCount}</p>
+            <p className="text-2xl font-bold text-rose-700 mt-1 tabular-nums">{rejectedCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+          <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
             <XCircle size={20} />
           </div>
         </div>
       </div>
 
       {/* Search and Tabs */}
-      <div className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm space-y-4">
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
           {/* Tabs */}
-          <div className="flex border-b border-zinc-200 w-full md:w-auto overflow-x-auto">
+          <div className="flex border-b border-slate-200 w-full md:w-auto overflow-x-auto">
             {[
               { key: 'ALL', label: 'Tất cả' },
               { key: 'PENDING', label: `Chờ duyệt (${pendingCount})` },
@@ -299,10 +299,10 @@ const RentalRequestsPage = () => {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
                   activeTab === tab.key
-                    ? 'border-zinc-900 text-zinc-900 font-semibold'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+                    ? 'border-[#0F172A] text-zinc-950'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
                 }`}
               >
                 {tab.label}
@@ -312,20 +312,20 @@ const RentalRequestsPage = () => {
 
           {/* Search box */}
           <div className="relative w-full md:w-80">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-zinc-400">
-              <Search size={16} />
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+              <Search size={15} />
             </span>
             <input
               type="text"
               placeholder="Tìm khách hàng, SĐT, biển số..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
+              className="w-full pl-9 pr-8 py-2 border border-slate-200 bg-slate-50 rounded-md text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0F172A]"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-600"
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
               >
                 <X size={14} />
               </button>
@@ -334,45 +334,45 @@ const RentalRequestsPage = () => {
         </div>
 
         {/* Requests Table */}
-        <div className="overflow-x-auto rounded-lg border border-zinc-200">
-          <table className="w-full text-left text-sm text-zinc-600">
-            <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-left text-xs text-slate-600">
+            <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3">Mã đơn / Ngày tạo</th>
-                <th className="px-4 py-3">Khách hàng</th>
-                <th className="px-4 py-3">Xe thuê</th>
-                <th className="px-4 py-3">Lịch thuê</th>
-                <th className="px-4 py-3 text-right">Tổng tiền / Tiền cọc</th>
-                <th className="px-4 py-3 text-center">Hồ sơ ảnh</th>
-                <th className="px-4 py-3 text-center">Trạng thái</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
+                <th className="px-4 py-3.5">Mã đơn / Ngày tạo</th>
+                <th className="px-4 py-3.5">Khách hàng</th>
+                <th className="px-4 py-3.5">Xe thuê</th>
+                <th className="px-4 py-3.5">Lịch thuê</th>
+                <th className="px-4 py-3.5 text-right">Tổng tiền / Tiền cọc</th>
+                <th className="px-4 py-3.5 text-center">Hồ sơ ảnh</th>
+                <th className="px-4 py-3.5 text-center">Trạng thái</th>
+                <th className="px-4 py-3.5 text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-zinc-500">
+                  <td colSpan="8" className="px-4 py-12 text-center text-slate-400">
                     <div className="inline-flex items-center gap-2">
-                      <RefreshCw size={18} className="animate-spin text-zinc-400" />
+                      <RefreshCw size={18} className="animate-spin text-[#0F172A]" />
                       <span>Đang tải danh sách đơn thuê...</span>
                     </div>
                   </td>
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-zinc-400">
-                    <FileText size={36} className="mx-auto mb-2 text-zinc-300" />
-                    <p className="font-medium text-zinc-600">Không tìm thấy đơn thuê nào</p>
-                    <p className="text-xs text-zinc-400 mt-1">Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm</p>
+                  <td colSpan="8" className="px-4 py-12 text-center text-slate-400">
+                    <FileText size={32} className="mx-auto mb-2 text-slate-300" />
+                    <p className="font-medium text-slate-600">Không tìm thấy đơn thuê nào</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm</p>
                   </td>
                 </tr>
               ) : (
                 filteredRequests.map((req) => {
                   const statusInfo = STATUS_CONFIG[req.status] || {
                     label: req.status || 'Chờ duyệt',
-                    bg: 'bg-zinc-100',
-                    text: 'text-zinc-600',
-                    border: 'border-zinc-200',
+                    bg: 'bg-slate-100',
+                    text: 'text-slate-600',
+                    border: 'border-slate-200',
                     icon: Clock
                   };
                   const StatusIcon = statusInfo?.icon || Clock;
@@ -380,91 +380,93 @@ const RentalRequestsPage = () => {
                   const hasPhotos = req.idCardFrontUrl || req.idCardBackUrl || req.driverLicenseFrontUrl || req.driverLicenseBackUrl;
 
                   return (
-                    <tr key={req.id} className="hover:bg-zinc-50/80 transition group">
+                    <tr key={req.id} className="hover:bg-slate-50/80 transition group">
                       {/* Code & Created */}
-                      <td className="px-4 py-3 font-mono text-xs">
-                        <span className="font-semibold text-zinc-900 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                      <td className="px-4 py-3.5 font-mono text-xs">
+                        <span className="font-semibold text-zinc-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                           {req.id.substring(0, 8).toUpperCase()}
                         </span>
-                        <div className="text-[11px] text-zinc-400 mt-1">
+                        <div className="text-[11px] text-slate-400 mt-1 tabular-nums">
                           {formatDateTime(req.createdAt)}
                         </div>
                       </td>
 
                       {/* Customer */}
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-zinc-900">{req.customerName}</div>
-                        <div className="text-xs text-zinc-500 flex items-center gap-1 mt-0.5">
-                          <Phone size={12} className="text-zinc-400" />
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium text-zinc-950">{req.customerName}</div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 tabular-nums">
+                          <Phone size={10} className="text-slate-400" />
                           {req.customerPhone}
                         </div>
-                        <div className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
-                          <Mail size={12} className="text-zinc-400" />
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Mail size={10} className="text-slate-400" />
                           <span className="truncate max-w-[140px]">{req.customerEmail}</span>
                         </div>
                       </td>
 
                       {/* Vehicle */}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           {req.carImageUrl ? (
                             <img 
                               src={req.carImageUrl} 
                               alt={req.carModel} 
-                              className="w-12 h-9 object-cover rounded border border-zinc-200 flex-shrink-0"
+                              className="w-12 h-9 object-cover rounded border border-slate-200 flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-12 h-9 bg-zinc-100 rounded flex items-center justify-center text-zinc-400 flex-shrink-0">
+                            <div className="w-12 h-9 bg-slate-100 rounded flex items-center justify-center text-slate-400 flex-shrink-0">
                               <Car size={16} />
                             </div>
                           )}
                           <div>
-                            <div className="font-medium text-zinc-900">{req.carMake} {req.carModel}</div>
-                            <div className="text-xs text-zinc-500 font-mono">
-                              Biển số: {req.carLicensePlate || 'Chưa gán'}
+                            <div className="font-semibold text-zinc-950">{req.carMake} {req.carModel}</div>
+                            <div className="mt-1">
+                              <span className="license-plate text-[10px] px-2 py-0.5">
+                                {req.carLicensePlate || 'CHƯA GÁN'}
+                              </span>
                             </div>
                           </div>
                         </div>
                       </td>
 
                       {/* Schedule */}
-                      <td className="px-4 py-3 text-xs">
-                        <div className="text-zinc-900 font-medium">
+                      <td className="px-4 py-3.5 text-xs">
+                        <div className="text-zinc-950 font-medium tabular-nums">
                           {req.totalDays} ngày thuê
                         </div>
-                        <div className="text-zinc-500 mt-0.5">
+                        <div className="text-slate-500 mt-0.5 text-[11px] tabular-nums">
                           {new Date(req.startTime).toLocaleDateString('vi-VN')} - {new Date(req.endTime).toLocaleDateString('vi-VN')}
                         </div>
-                        <div className="text-[11px] text-zinc-400 mt-0.5 truncate max-w-[160px]">
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[160px]">
                           {req.pickupLocation}
                         </div>
                       </td>
 
                       {/* Price */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="font-semibold text-zinc-900">
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="font-bold text-zinc-950 tabular-nums">
                           {formatCurrency(req.estimatedTotalFee)}
                         </div>
-                        <div className="text-xs text-zinc-500 mt-0.5">
-                          Cọc: <span className="font-mono text-zinc-700">{formatCurrency(req.depositAmount)}</span>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          Cọc: <span className="font-mono tabular-nums text-slate-700 font-medium">{formatCurrency(req.depositAmount)}</span>
                         </div>
                       </td>
 
                       {/* Photos Preview */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3.5 text-center">
                         {hasPhotos ? (
-                          <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-100 text-zinc-700 text-xs font-medium">
-                            <ShieldCheck size={14} className="text-emerald-600" />
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
+                            <ShieldCheck size={12} className="text-emerald-600" />
                             <span>Đủ 4 ảnh</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-zinc-400 italic">Thiếu ảnh</span>
+                          <span className="text-xs text-slate-400 italic">Thiếu ảnh</span>
                         )}
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
                           <StatusIcon size={12} />
                           {statusInfo.label}
                         </span>
@@ -476,7 +478,7 @@ const RentalRequestsPage = () => {
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Detail & Inspection */}
                           <button
@@ -484,10 +486,10 @@ const RentalRequestsPage = () => {
                               setSelectedRequest(req);
                               setIsDetailModalOpen(true);
                             }}
-                            className="p-1.5 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition"
+                            className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-slate-100 rounded-md transition"
                             title="Soi hồ sơ định danh chi tiết"
                           >
-                            <Eye size={18} />
+                            <Eye size={16} />
                           </button>
 
                           {/* Quick Actions if PENDING */}
@@ -496,18 +498,18 @@ const RentalRequestsPage = () => {
                               <button
                                 onClick={() => handleApprove(req.id)}
                                 disabled={actionLoading}
-                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                                className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition"
                                 title="Phê duyệt nhanh"
                               >
-                                <CheckCircle2 size={18} />
+                                <CheckCircle2 size={16} />
                               </button>
                               <button
                                 onClick={() => openRejectDialog(req.id)}
                                 disabled={actionLoading}
-                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-md transition"
                                 title="Từ chối yêu cầu"
                               >
-                                <XCircle size={18} />
+                                <XCircle size={16} />
                               </button>
                             </>
                           )}
@@ -517,10 +519,10 @@ const RentalRequestsPage = () => {
                             <Link
                               to={`/contracts/sign/${req.id}`}
                               target="_blank"
-                              className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition"
+                              className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition"
                               title="Xem hợp đồng điện tử"
                             >
-                              <FileText size={18} />
+                              <FileText size={16} />
                             </Link>
                           )}
 
@@ -531,10 +533,10 @@ const RentalRequestsPage = () => {
                                 setHandoverRequest(req);
                                 setIsHandoverModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                              className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
                               title="Lập hoặc xem biên bản bàn giao xe (US-18)"
                             >
-                              <FileCheck size={14} />
+                              <FileCheck size={13} />
                               <span className="hidden sm:inline">Bàn giao</span>
                             </button>
                           )}
@@ -547,10 +549,10 @@ const RentalRequestsPage = () => {
                                   setReturnRequest(req);
                                   setIsReturnModalOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
                                 title="Nghiệm thu hoàn trả xe (US-22)"
                               >
-                                <FileCheck size={14} />
+                                <FileCheck size={13} />
                                 <span className="hidden sm:inline">Trả xe</span>
                               </button>
 
@@ -559,10 +561,10 @@ const RentalRequestsPage = () => {
                                   setSettlementRequest(req);
                                   setIsSettlementModalOpen(true);
                                 }}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
                                 title="Tính phí & Quyết toán cọc (US-23)"
                               >
-                                <DollarSign size={14} />
+                                <DollarSign size={13} />
                                 <span className="hidden sm:inline">Quyết toán</span>
                               </button>
                             </>
@@ -575,10 +577,10 @@ const RentalRequestsPage = () => {
                                 setSettlementRequest(req);
                                 setIsSettlementModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
                               title="Xem phiếu quyết toán & hoàn cọc"
                             >
-                              <DollarSign size={14} />
+                              <DollarSign size={13} />
                               <span className="hidden sm:inline">Phiếu QT</span>
                             </button>
                           )}
@@ -595,23 +597,23 @@ const RentalRequestsPage = () => {
 
       {/* ================= MODAL: SOI HỒ SƠ & DUYỆT CHI TIẾT ================= */}
       {isDetailModalOpen && selectedRequest && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden animate-scaleUp">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-900 text-white">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-[#0F172A] text-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-amber-400">
+                <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-amber-400">
                   <ShieldCheck size={22} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold">Thẩm Định Hồ Sơ Thuê Xe</h2>
-                    <span className="text-xs font-mono bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded border border-zinc-700">
+                    <h2 className="text-base font-bold text-white">Thẩm Định Hồ Sơ Thuê Xe</h2>
+                    <span className="text-xs font-mono bg-white/10 text-slate-200 px-2 py-0.5 rounded border border-white/20">
                       MÃ: {selectedRequest.id.substring(0, 8).toUpperCase()}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs text-slate-300 mt-0.5">
                     Kiểm tra đối chiếu thông tin cá nhân và 4 ảnh giấy tờ định danh (CCCD & GPLX)
                   </p>
                 </div>
@@ -621,14 +623,14 @@ const RentalRequestsPage = () => {
                 {(() => {
                   const s = STATUS_CONFIG[selectedRequest.status] || STATUS_CONFIG.PENDING;
                   return (
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
+                    <span className={`px-2.5 py-1 rounded text-xs font-semibold ${s.bg} ${s.text} border ${s.border}`}>
                       {s.label}
                     </span>
                   );
                 })()}
                 <button
                   onClick={() => setIsDetailModalOpen(false)}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg transition"
+                  className="text-slate-400 hover:text-white p-1 rounded-md transition"
                 >
                   <X size={20} />
                 </button>
@@ -636,15 +638,15 @@ const RentalRequestsPage = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40">
               
               {/* Rejected Alert Box if status is REJECTED */}
               {selectedRequest.status === 'REJECTED' && (
-                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
                   <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
                   <div>
                     <h4 className="text-sm font-semibold text-rose-900">Hồ sơ đã bị từ chối phê duyệt</h4>
-                    <p className="text-sm text-rose-700 mt-1">
+                    <p className="text-xs text-rose-700 mt-1">
                       <span className="font-semibold">Lý do:</span> {selectedRequest.rejectReason || 'Không có lý do chi tiết'}
                     </p>
                   </div>
@@ -655,9 +657,9 @@ const RentalRequestsPage = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* Left Column: Customer & Rental Summary */}
-                <div className="lg:col-span-5 space-y-5">
+                <div className="lg:col-span-5 space-y-4">
                   {/* Customer Information Card */}
-                  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 space-y-3">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
                     <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
                       <User size={14} /> Thông tin khách hàng
                     </h3>
@@ -699,61 +701,63 @@ const RentalRequestsPage = () => {
                   </div>
 
                   {/* Vehicle & Rent Schedule */}
-                  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                       <Car size={14} /> Thông tin xe & Lịch thuê
                     </h3>
 
-                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-zinc-200">
+                    <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-md border border-slate-200">
                       {selectedRequest.carImageUrl ? (
                         <img 
                           src={selectedRequest.carImageUrl} 
                           alt={selectedRequest.carModel} 
-                          className="w-16 h-12 object-cover rounded"
+                          className="w-16 h-12 object-cover rounded border border-slate-200"
                         />
                       ) : (
-                        <div className="w-16 h-12 bg-zinc-100 rounded flex items-center justify-center text-zinc-400">
+                        <div className="w-16 h-12 bg-slate-100 rounded flex items-center justify-center text-slate-400">
                           <Car size={20} />
                         </div>
                       )}
                       <div>
-                        <div className="font-bold text-zinc-900">{selectedRequest.carMake} {selectedRequest.carModel}</div>
-                        <div className="text-xs text-zinc-500 font-mono mt-0.5">
-                          Biển số: {selectedRequest.carLicensePlate || 'Chưa gắn'}
+                        <div className="font-bold text-zinc-950">{selectedRequest.carMake} {selectedRequest.carModel}</div>
+                        <div className="mt-1">
+                          <span className="license-plate text-[10px] px-2 py-0.5">
+                            {selectedRequest.carLicensePlate || 'CHƯA GÁN'}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Thời gian nhận xe:</span>
-                        <span className="font-medium text-zinc-900">{formatDateTime(selectedRequest.startTime)}</span>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-slate-500">Thời gian nhận xe:</span>
+                        <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.startTime)}</span>
                       </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Thời gian trả xe:</span>
-                        <span className="font-medium text-zinc-900">{formatDateTime(selectedRequest.endTime)}</span>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-slate-500">Thời gian trả xe:</span>
+                        <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.endTime)}</span>
                       </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Tổng số ngày:</span>
-                        <span className="font-bold text-zinc-900">{selectedRequest.totalDays} ngày</span>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-slate-500">Tổng số ngày:</span>
+                        <span className="font-bold text-zinc-950 tabular-nums">{selectedRequest.totalDays} ngày</span>
                       </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Điểm nhận/trả xe:</span>
-                        <span className="text-zinc-900 text-right truncate max-w-[200px]">{selectedRequest.pickupLocation}</span>
+                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                        <span className="text-slate-500">Điểm nhận/trả xe:</span>
+                        <span className="text-zinc-950 text-right truncate max-w-[200px]">{selectedRequest.pickupLocation}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Financial Breakdown */}
-                  <div className="bg-zinc-900 text-white rounded-xl p-4 space-y-3">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="bg-[#0F172A] text-white rounded-lg p-4 space-y-3 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                       <DollarSign size={14} className="text-amber-400" /> Chi phí & Tiền cọc
                     </h3>
 
-                    <div className="space-y-1.5 text-xs text-zinc-300">
+                    <div className="space-y-1.5 text-xs text-slate-300">
                       <div className="flex justify-between">
                         <span>Đơn giá ngày:</span>
-                        <span>{formatCurrency(selectedRequest.dailyRate)}</span>
+                        <span className="tabular-nums">{formatCurrency(selectedRequest.dailyRate)}</span>
                       </div>
                       {selectedRequest.discountPercent > 0 && (
                         <div className="flex justify-between text-emerald-400">
@@ -767,13 +771,13 @@ const RentalRequestsPage = () => {
                           <span>+ Phụ thu</span>
                         </div>
                       )}
-                      <div className="flex justify-between pt-2 border-t border-zinc-800 text-sm font-bold text-white">
+                      <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-bold text-white">
                         <span>Dự tính tổng tiền thuê:</span>
-                        <span className="text-emerald-400">{formatCurrency(selectedRequest.estimatedTotalFee)}</span>
+                        <span className="text-emerald-400 tabular-nums">{formatCurrency(selectedRequest.estimatedTotalFee)}</span>
                       </div>
                       <div className="flex justify-between text-xs font-semibold text-amber-300 pt-1">
                         <span>Tiền đặt cọc xe (Deposit):</span>
-                        <span>{formatCurrency(selectedRequest.depositAmount)}</span>
+                        <span className="tabular-nums font-mono">{formatCurrency(selectedRequest.depositAmount)}</span>
                       </div>
                     </div>
                   </div>
@@ -791,14 +795,14 @@ const RentalRequestsPage = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* CCCD Mặt trước */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-700">
+                    <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2 shadow-sm">
+                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-950">
                         <span>1. CCCD / CMND (Mặt trước)</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">CCCD_FRONT</span>
+                        <span className="text-[10px] text-slate-400 font-mono">CCCD_FRONT</span>
                       </div>
                       <div 
                         onClick={() => selectedRequest.idCardFrontUrl && setZoomedImage({ url: selectedRequest.idCardFrontUrl, title: 'CCCD / CMND (Mặt trước)' })}
-                        className="group relative h-48 bg-zinc-200 rounded-lg overflow-hidden border border-zinc-300 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition"
+                        className="group relative h-48 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-[#0F172A] transition"
                       >
                         {selectedRequest.idCardFrontUrl ? (
                           <>
@@ -807,14 +811,14 @@ const RentalRequestsPage = () => {
                               alt="CCCD Mặt trước" 
                               className="w-full h-full object-cover transition duration-300 group-hover:scale-105" 
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
-                              <ZoomIn size={20} />
+                            <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
+                              <ZoomIn size={18} />
                               <span className="text-xs font-medium">Phóng to</span>
                             </div>
                           </>
                         ) : (
-                          <div className="text-center p-4 text-zinc-400 text-xs">
-                            <FileText size={28} className="mx-auto mb-1 opacity-50" />
+                          <div className="text-center p-4 text-slate-400 text-xs">
+                            <FileText size={24} className="mx-auto mb-1 opacity-50" />
                             Chưa có ảnh CCCD mặt trước
                           </div>
                         )}
@@ -822,14 +826,14 @@ const RentalRequestsPage = () => {
                     </div>
 
                     {/* CCCD Mặt sau */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-700">
+                    <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2 shadow-sm">
+                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-950">
                         <span>2. CCCD / CMND (Mặt sau)</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">CCCD_BACK</span>
+                        <span className="text-[10px] text-slate-400 font-mono">CCCD_BACK</span>
                       </div>
                       <div 
                         onClick={() => selectedRequest.idCardBackUrl && setZoomedImage({ url: selectedRequest.idCardBackUrl, title: 'CCCD / CMND (Mặt sau)' })}
-                        className="group relative h-48 bg-zinc-200 rounded-lg overflow-hidden border border-zinc-300 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition"
+                        className="group relative h-48 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-[#0F172A] transition"
                       >
                         {selectedRequest.idCardBackUrl ? (
                           <>
@@ -838,14 +842,14 @@ const RentalRequestsPage = () => {
                               alt="CCCD Mặt sau" 
                               className="w-full h-full object-cover transition duration-300 group-hover:scale-105" 
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
-                              <ZoomIn size={20} />
+                            <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
+                              <ZoomIn size={18} />
                               <span className="text-xs font-medium">Phóng to</span>
                             </div>
                           </>
                         ) : (
-                          <div className="text-center p-4 text-zinc-400 text-xs">
-                            <FileText size={28} className="mx-auto mb-1 opacity-50" />
+                          <div className="text-center p-4 text-slate-400 text-xs">
+                            <FileText size={24} className="mx-auto mb-1 opacity-50" />
                             Chưa có ảnh CCCD mặt sau
                           </div>
                         )}
@@ -853,14 +857,14 @@ const RentalRequestsPage = () => {
                     </div>
 
                     {/* GPLX Mặt trước */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-700">
+                    <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2 shadow-sm">
+                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-950">
                         <span>3. Giấy phép lái xe (Mặt trước)</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">GPLX_FRONT</span>
+                        <span className="text-[10px] text-slate-400 font-mono">GPLX_FRONT</span>
                       </div>
                       <div 
                         onClick={() => selectedRequest.driverLicenseFrontUrl && setZoomedImage({ url: selectedRequest.driverLicenseFrontUrl, title: 'GPLX (Mặt trước)' })}
-                        className="group relative h-48 bg-zinc-200 rounded-lg overflow-hidden border border-zinc-300 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition"
+                        className="group relative h-48 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-[#0F172A] transition"
                       >
                         {selectedRequest.driverLicenseFrontUrl ? (
                           <>
@@ -869,14 +873,14 @@ const RentalRequestsPage = () => {
                               alt="GPLX Mặt trước" 
                               className="w-full h-full object-cover transition duration-300 group-hover:scale-105" 
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
-                              <ZoomIn size={20} />
+                            <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
+                              <ZoomIn size={18} />
                               <span className="text-xs font-medium">Phóng to</span>
                             </div>
                           </>
                         ) : (
-                          <div className="text-center p-4 text-zinc-400 text-xs">
-                            <FileText size={28} className="mx-auto mb-1 opacity-50" />
+                          <div className="text-center p-4 text-slate-400 text-xs">
+                            <FileText size={24} className="mx-auto mb-1 opacity-50" />
                             Chưa có ảnh GPLX mặt trước
                           </div>
                         )}
@@ -884,14 +888,14 @@ const RentalRequestsPage = () => {
                     </div>
 
                     {/* GPLX Mặt sau */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 space-y-2">
-                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-700">
+                    <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2 shadow-sm">
+                      <div className="flex justify-between items-center text-xs font-semibold text-zinc-950">
                         <span>4. Giấy phép lái xe (Mặt sau)</span>
-                        <span className="text-[10px] text-zinc-400 font-mono">GPLX_BACK</span>
+                        <span className="text-[10px] text-slate-400 font-mono">GPLX_BACK</span>
                       </div>
                       <div 
                         onClick={() => selectedRequest.driverLicenseBackUrl && setZoomedImage({ url: selectedRequest.driverLicenseBackUrl, title: 'GPLX (Mặt sau)' })}
-                        className="group relative h-48 bg-zinc-200 rounded-lg overflow-hidden border border-zinc-300 flex items-center justify-center cursor-pointer hover:border-zinc-500 transition"
+                        className="group relative h-48 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-[#0F172A] transition"
                       >
                         {selectedRequest.driverLicenseBackUrl ? (
                           <>
@@ -900,14 +904,14 @@ const RentalRequestsPage = () => {
                               alt="GPLX Mặt sau" 
                               className="w-full h-full object-cover transition duration-300 group-hover:scale-105" 
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
-                              <ZoomIn size={20} />
+                            <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-2 transition">
+                              <ZoomIn size={18} />
                               <span className="text-xs font-medium">Phóng to</span>
                             </div>
                           </>
                         ) : (
-                          <div className="text-center p-4 text-zinc-400 text-xs">
-                            <FileText size={28} className="mx-auto mb-1 opacity-50" />
+                          <div className="text-center p-4 text-slate-400 text-xs">
+                            <FileText size={24} className="mx-auto mb-1 opacity-50" />
                             Chưa có ảnh GPLX mặt sau
                           </div>
                         )}
@@ -916,11 +920,11 @@ const RentalRequestsPage = () => {
                   </div>
 
                   {/* Review Guideline Checklist */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-xs text-blue-900">
-                    <h5 className="font-semibold flex items-center gap-1.5 mb-1.5">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5 text-xs text-blue-900">
+                    <h5 className="font-semibold flex items-center gap-1.5 mb-1.5 text-xs">
                       <ShieldCheck size={15} className="text-blue-600" /> Tiêu chuẩn kiểm duyệt bắt buộc:
                     </h5>
-                    <ul className="list-disc pl-4 space-y-1 text-blue-800">
+                    <ul className="list-disc pl-4 space-y-1 text-blue-800 text-[11px]">
                       <li>Họ tên trên CCCD và GPLX phải trùng khớp với tên người gửi yêu cầu.</li>
                       <li>Số CCCD ({selectedRequest.customerIdCard}) và GPLX ({selectedRequest.driverLicenseNumber}) phải đọc được rõ ràng, không bị che khuất.</li>
                       <li>Hạng bằng lái tối thiểu B2 (được phép điều khiển xe ô tô dưới 9 chỗ ngồi).</li>
@@ -934,31 +938,31 @@ const RentalRequestsPage = () => {
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
               <button
                 onClick={() => setIsDetailModalOpen(false)}
-                className="px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-100 transition"
+                className="px-4 py-2 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition shadow-sm"
               >
                 Đóng
               </button>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 {selectedRequest.status === 'PENDING' ? (
                   <>
                     <button
                       onClick={() => openRejectDialog(selectedRequest.id)}
                       disabled={actionLoading}
-                      className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-sm font-semibold hover:bg-rose-100 transition flex items-center gap-1.5"
+                      className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-xs font-semibold hover:bg-rose-100 transition flex items-center gap-1.5"
                     >
-                      <XCircle size={16} />
+                      <XCircle size={15} />
                       Từ chối hồ sơ
                     </button>
                     <button
                       onClick={() => handleApprove(selectedRequest.id)}
                       disabled={actionLoading}
-                      className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
+                      className="px-5 py-2 bg-emerald-600 text-white rounded-md text-xs font-semibold hover:bg-emerald-700 transition flex items-center gap-1.5 shadow-sm"
                     >
-                      <CheckCircle2 size={16} />
+                      <CheckCircle2 size={15} />
                       Phê duyệt hồ sơ
                     </button>
                   </>
@@ -968,9 +972,9 @@ const RentalRequestsPage = () => {
                     <Link
                       to={`/contracts/sign/${selectedRequest.id}`}
                       target="_blank"
-                      className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition flex items-center gap-1.5 shadow-sm"
+                      className="px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition flex items-center gap-1.5 shadow-sm"
                     >
-                      <FileText size={16} />
+                      <FileText size={15} />
                       Xem hợp đồng điện tử
                     </Link>
                   </div>
@@ -984,38 +988,38 @@ const RentalRequestsPage = () => {
 
       {/* ================= MODAL: TỪ CHỐI HỒ SƠ ================= */}
       {isRejectModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-zinc-200 w-full max-w-lg p-6 space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
-              <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2 text-rose-600">
-                <XCircle size={22} />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2 text-rose-700">
+                <XCircle size={20} />
                 Lý Do Từ Chối Hồ Sơ
               </h3>
               <button 
                 onClick={() => setIsRejectModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600"
+                className="text-slate-400 hover:text-zinc-950 rounded-md p-1 transition"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-slate-500">
               Lý do này sẽ được gửi thông báo cho khách hàng để họ cập nhật lại thông tin hoặc chụp lại ảnh giấy tờ định danh.
             </p>
 
             {/* Quick Reason Presets */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-700">Mẫu lý do thường gặp:</label>
+              <label className="text-xs font-semibold text-slate-700">Mẫu lý do thường gặp:</label>
               <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
                 {REJECT_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setRejectReason(preset)}
-                    className={`text-left text-xs p-2 rounded border transition ${
+                    className={`text-left text-xs p-2 rounded-md border transition ${
                       rejectReason === preset 
                         ? 'bg-rose-50 border-rose-300 text-rose-900 font-medium' 
-                        : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     • {preset}
@@ -1026,21 +1030,21 @@ const RentalRequestsPage = () => {
 
             {/* Reason Textarea */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-700">Nội dung lý do cụ thể:</label>
+              <label className="text-xs font-semibold text-slate-700">Nội dung lý do cụ thể:</label>
               <textarea
                 rows={3}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Nhập lý do chi tiết từ chối..."
-                className="w-full p-2.5 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500"
+                className="w-full p-2.5 border border-slate-300 rounded-md text-xs text-zinc-950 focus:outline-none focus:border-rose-600"
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-2 border-t border-zinc-200">
+            <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setIsRejectModalOpen(false)}
-                className="px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+                className="px-4 py-2 border border-slate-200 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm"
               >
                 Hủy
               </button>
@@ -1048,7 +1052,7 @@ const RentalRequestsPage = () => {
                 type="button"
                 onClick={handleRejectSubmit}
                 disabled={actionLoading || !rejectReason.trim()}
-                className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-semibold hover:bg-rose-700 disabled:opacity-50"
+                className="px-4 py-2 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700 transition shadow-sm disabled:opacity-50"
               >
                 {actionLoading ? 'Đang xử lý...' : 'Xác nhận từ chối'}
               </button>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, RefreshCw, AlertCircle, Car, Power, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Edit2, RefreshCw, AlertCircle, Car, Power, ChevronDown, X, Camera } from 'lucide-react';
 import vehicleService from '../../services/vehicleService';
 import { formatCurrencyVND, getVehicleStatusDisplay, getTransmissionDisplay, getFuelTypeDisplay } from '../../utils/formatters';
+import { parseVehicleImages } from '../../utils/imageGalleryHelper';
 
 const VEHICLE_STATUSES = [
   { value: 'READY', label: 'Sẵn sàng' },
@@ -37,6 +38,9 @@ const VehicleDetailPage = () => {
   // Deactivate
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
+
+  // Gallery zoom preview
+  const [selectedZoomImage, setSelectedZoomImage] = useState(null);
 
   const fetchVehicle = async () => {
     try {
@@ -152,72 +156,106 @@ const VehicleDetailPage = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => navigate('/admin/vehicles')}
-            className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors bg-white border border-zinc-200 rounded-md shadow-sm"
+            className="p-2 text-slate-500 hover:text-zinc-950 transition-colors bg-white border border-slate-200 rounded-md shadow-sm"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">
-              {vehicle.make} {vehicle.model}
-            </h1>
-            <p className="text-zinc-500 mt-0.5">{vehicle.licensePlate}</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+                {vehicle.make} {vehicle.model}
+              </h1>
+              <span className="license-plate text-xs px-2.5 py-0.5">
+                {vehicle.licensePlate}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">Hồ sơ phương tiện chi tiết và lịch sử vận hành</p>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
           <button
             onClick={() => navigate(`/admin/vehicles/${id}/edit`)}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition shadow-sm"
           >
-            <Edit2 size={16} className="mr-1.5" /> Chỉnh sửa
+            <Edit2 size={14} className="mr-1.5 text-slate-500" /> Chỉnh sửa
           </button>
           <button
             onClick={openStatusModal}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-[#0F172A] rounded-md hover:bg-[#1D4ED8] transition shadow-sm"
           >
-            <ChevronDown size={16} className="mr-1.5" /> Đổi trạng thái
+            <ChevronDown size={14} className="mr-1.5" /> Đổi trạng thái
           </button>
           <button
             onClick={() => setShowDeactivateModal(true)}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 transition"
           >
-            <Power size={16} className="mr-1.5" /> Ngừng hoạt động
+            <Power size={14} className="mr-1.5 text-rose-500" /> Ngừng hoạt động
           </button>
         </div>
       </div>
 
       {/* Error banner (for inline errors after load) */}
       {error && vehicle && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-center">
-          <AlertCircle className="text-red-500 mr-3 shrink-0" size={20} />
-          <p className="text-red-700 text-sm">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 p-4 rounded-md flex items-center">
+          <AlertCircle className="text-rose-600 mr-2.5 shrink-0" size={18} />
+          <p className="text-rose-800 text-xs font-medium">{error}</p>
         </div>
       )}
 
       {/* Status badge */}
-      <div>
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusDisplay.color}`}>
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${statusDisplay.color}`}>
+          <span className="w-2 h-2 rounded-full bg-current opacity-70"></span>
           {statusDisplay.label}
         </span>
       </div>
 
-      {/* Vehicle image */}
-      {vehicle.imageUrl && (
-        <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
-          <img
-            src={vehicle.imageUrl}
-            alt={`${vehicle.make} ${vehicle.model}`}
-            className="w-full max-h-80 object-cover"
-          />
-        </div>
-      )}
+      {/* Vehicle image gallery */}
+      {(() => {
+        const galleryImages = parseVehicleImages(vehicle?.imageUrl);
+        if (galleryImages.length === 0) return null;
+        return (
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                <Camera size={15} className="text-blue-900" />
+                Thư viện ảnh phương tiện ({galleryImages.length} góc chụp)
+              </h3>
+              <span className="text-xs text-slate-400">
+                Nhấn vào ảnh để xem độ phân giải cao
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {galleryImages.map((img, idx) => (
+                <div 
+                  key={img.id || idx}
+                  onClick={() => setSelectedZoomImage(img)}
+                  className="group relative rounded-md overflow-hidden aspect-[16/10] bg-slate-100 border border-slate-200 hover:border-blue-900 cursor-pointer shadow-xs transition-all"
+                >
+                  <img 
+                    src={img.url} 
+                    alt={img.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 text-white">
+                    <div className="text-[10px] font-bold truncate leading-tight">{img.title}</div>
+                    <div className="text-[9px] text-slate-300 font-medium truncate mt-0.5">{img.tag}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Info sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Section: Thông tin xe */}
-        <div className="bg-white border border-zinc-200 rounded-lg shadow-sm">
-          <div className="px-6 py-4 border-b border-zinc-200">
-            <h2 className="text-lg font-semibold text-zinc-900">Thông tin xe</h2>
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+          <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-50">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Thông Số Kỹ Thuật</h2>
           </div>
           <div className="px-6 divide-y divide-zinc-100">
             <InfoRow label="Hãng xe" value={vehicle.make} />
@@ -347,6 +385,34 @@ const VehicleDetailPage = () => {
                 className={`px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md transition-colors ${deactivateLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-red-700'}`}
               >
                 {deactivateLoading ? 'Đang xử lý...' : 'Ngừng hoạt động'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Zoom Modal */}
+      {selectedZoomImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedZoomImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[85vh] overflow-hidden rounded-lg shadow-2xl bg-zinc-950" onClick={(e) => e.stopPropagation()}>
+            <img src={selectedZoomImage.url} alt={selectedZoomImage.title} className="w-full max-h-[75vh] object-contain" />
+            <div className="p-4 bg-zinc-900 text-white flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-white">{selectedZoomImage.title}</h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  <span className="text-blue-400 font-semibold">{selectedZoomImage.tag}</span>
+                  {selectedZoomImage.description ? ` • ${selectedZoomImage.description}` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedZoomImage(null)}
+                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

@@ -72,7 +72,12 @@ namespace CarRental.API.Services
             int startOdo = handover?.OdoAtHandover ?? request.Vehicle?.CurrentMileage ?? 0;
             int initialFuelLevel = handover?.FuelLevel ?? 100;
 
-            int totalKm = Math.Max(0, dto.EndOdo - startOdo);
+            if (dto.EndOdo < startOdo)
+            {
+                throw new InvalidOperationException($"Chỉ số ODO khi trả xe ({dto.EndOdo:N0} km) không thể nhỏ hơn ODO lúc nhận xe ({startOdo:N0} km).");
+            }
+
+            int totalKm = dto.EndOdo - startOdo;
 
             // Giới hạn km từ hợp đồng hoặc theo ngày thuê * hạn mức xe
             int? maxKm = contract?.MaxKm;
@@ -117,6 +122,7 @@ namespace CarRental.API.Services
                 InteriorCondition = dto.InteriorCondition ?? "Nội thất bình thường",
                 TireCondition = dto.TireCondition ?? "Lốp xe bình thường",
                 NewDamagesNotes = dto.NewDamagesNotes,
+                DamagePointsJson = dto.DamagePointsJson,
                 AccessoriesChecklist = dto.AccessoriesChecklist,
                 MissingAccessories = dto.MissingAccessories,
                 EvidencePhotoUrls = dto.EvidencePhotoUrls,
@@ -137,6 +143,7 @@ namespace CarRental.API.Services
                 if (dto.EndOdo > request.Vehicle.CurrentMileage)
                 {
                     request.Vehicle.CurrentMileage = dto.EndOdo;
+                    request.Vehicle.UpdatedAt = DateTime.UtcNow;
                 }
             }
 
@@ -177,6 +184,7 @@ namespace CarRental.API.Services
                 InteriorCondition = entity.InteriorCondition,
                 TireCondition = entity.TireCondition,
                 NewDamagesNotes = entity.NewDamagesNotes,
+                DamagePointsJson = entity.DamagePointsJson,
                 AccessoriesChecklist = entity.AccessoriesChecklist,
                 MissingAccessories = entity.MissingAccessories,
                 EvidencePhotoUrls = entity.EvidencePhotoUrls,

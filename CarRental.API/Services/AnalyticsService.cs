@@ -30,11 +30,12 @@ namespace CarRental.API.Services
             int totalVehicles = allVehicles.Count;
             int readyVehicles = allVehicles.Count(v => v.Status == VehicleStatus.READY);
             int rentedVehicles = allVehicles.Count(v => v.Status == VehicleStatus.RENTED);
+            int bookedVehicles = allVehicles.Count(v => v.Status == VehicleStatus.BOOKED);
             int maintenanceVehicles = allVehicles.Count(v => v.Status == VehicleStatus.MAINTENANCE);
             int repairVehicles = allVehicles.Count(v => v.Status == VehicleStatus.REPAIR);
 
             decimal fleetUtilization = totalVehicles > 0
-                ? Math.Round(((decimal)rentedVehicles / totalVehicles) * 100m, 1)
+                ? Math.Round(((decimal)(rentedVehicles + bookedVehicles) / totalVehicles) * 100m, 1)
                 : 0m;
 
             // Rental Request stats
@@ -45,11 +46,23 @@ namespace CarRental.API.Services
             int totalRequests = requests.Count;
             int pendingRequests = requests.Count(r => r.Status == "PENDING");
             int activeRentals = requests.Count(r => r.Status == "ACTIVE");
+            int holdingRequests = requests.Count(r => r.Status == "HOLDING");
+            int disputedRequests = requests.Count(r => r.Status == "DISPUTED");
             int completedRentals = requests.Count(r => r.Status == "COMPLETED");
 
             // Operational stats
             int totalIncidents = await _context.IncidentReports.CountAsync();
             int activeExtensions = await _context.RentalExtensions.CountAsync(e => e.Status == "APPROVED");
+            int cancelledRequests = requests.Count(r => r.Status == "CANCELLED");
+            int totalExtensionsCount = await _context.RentalExtensions.CountAsync();
+
+            var incidents = await _context.IncidentReports.ToListAsync();
+            int insuranceClaimsCount = incidents.Count(i => 
+                i.InsuranceCoverageStatus == "COVERED" || i.InsuranceCoverageStatus == "PENDING_CLAIM");
+            decimal totalCompensationCollected = incidents.Sum(i => i.CustomerPayAmount);
+
+            var maintenanceRecords = await _context.MaintenanceRecords.ToListAsync();
+            decimal totalRepairCost = incidents.Sum(i => i.EstimatedDamageCost) + maintenanceRecords.Sum(m => m.Cost);
 
             var returnProtocols = await _context.ReturnProtocols
                 .Include(p => p.RentalRequest)
@@ -61,7 +74,11 @@ namespace CarRental.API.Services
             // Revenue calculation
             var contracts = await _context.RentalContracts.ToListAsync();
             var validContracts = contracts.Where(c =>
-                c.Status == "DEPOSIT_PAID" || c.Status == "ACTIVE" || c.Status == "COMPLETED").ToList();
+                c.Status == "DEPOSIT_PAID" || c.Status == "CONFIRMED" || c.Status == "ACTIVE" || c.Status == "HOLDING" || c.Status == "DISPUTED" || c.Status == "COMPLETED").ToList();
+
+            decimal riskRecoveryRatio = totalRepairCost > 0
+                ? Math.Min(100m, Math.Round((totalCompensationCollected / totalRepairCost) * 100m, 1))
+                : (totalCompensationCollected > 0 ? 100m : 0m);
 
             decimal baseContractRevenue = validContracts.Sum(c => c.TotalFee);
 
@@ -187,15 +204,24 @@ namespace CarRental.API.Services
                 AvailableVehicles = readyVehicles,
                 RentedVehicles = rentedVehicles,
                 MaintenanceVehicles = maintenanceVehicles,
+                BookedVehicles = bookedVehicles,
                 RepairVehicles = repairVehicles,
                 FleetUtilizationRate = fleetUtilization,
                 TotalRentalRequests = totalRequests,
                 PendingRequests = pendingRequests,
                 ActiveRentals = activeRentals,
+                HoldingRequests = holdingRequests,
+                DisputedRequests = disputedRequests,
                 CompletedRentals = completedRentals,
                 TotalIncidents = totalIncidents,
                 ActiveExtensions = activeExtensions,
                 LateReturnsCount = lateReturnsCount,
+                CancelledRequests = cancelledRequests,
+                TotalExtensions = totalExtensionsCount,
+                InsuranceClaimsCount = insuranceClaimsCount,
+                TotalCompensationCollected = totalCompensationCollected,
+                TotalRepairCost = totalRepairCost,
+                RiskRecoveryRatio = riskRecoveryRatio,
                 TopVehicles = topVehicles,
                 MonthlyRevenue = monthlyRevenue,
                 RecentActivities = recentActivities

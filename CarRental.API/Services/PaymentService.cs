@@ -134,6 +134,17 @@ namespace CarRental.API.Services
             return MapToDto(payment, payment.RentalRequest);
         }
 
+        public async Task<System.Collections.Generic.IEnumerable<PaymentResponseDto>> GetAllPaymentsByRequestIdAsync(Guid requestId)
+        {
+            var payments = await _context.Payments
+                .Include(p => p.RentalRequest)
+                .Where(p => p.RentalRequestId == requestId)
+                .OrderBy(p => p.CreatedAt)
+                .ToListAsync();
+
+            return payments.Select(p => MapToDto(p, p.RentalRequest));
+        }
+
         private PaymentResponseDto MapToDto(Payment payment, RentalRequest? request)
         {
             string shortCode = (request?.Id.ToString() ?? payment.Id.ToString())[..8].ToUpper();

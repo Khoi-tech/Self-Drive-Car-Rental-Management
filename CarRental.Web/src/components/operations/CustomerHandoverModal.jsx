@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileCheck, CheckCircle2, Car, Gauge, Fuel, ShieldAlert, X, AlertCircle } from 'lucide-react';
 import handoverService from '../../services/handoverService';
 import { formatDateTime } from '../../utils/formatters';
+import VehicleDamageMap from './VehicleDamageMap';
 
 const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
   const [protocol, setProtocol] = useState(null);
@@ -73,7 +74,7 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
             </div>
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>Xác Nhận Bàn Giao & Nhận Xe (US-19)</span>
+                <span>Xác Nhận Bàn Giao & Nhận Xe</span>
               </h3>
               <p className="text-xs text-zinc-400">
                 Xe: <strong className="text-zinc-200">{rentalRequest.carMake} {rentalRequest.carModel}</strong> ({rentalRequest.carLicensePlate})
@@ -131,10 +132,23 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               <p className="text-zinc-400">• Nội thất: {protocol.interiorCondition}</p>
               <p className="text-zinc-400">• Lốp & Mâm: {protocol.tireCondition}</p>
               {protocol.existingScratchesNotes && (
-                <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl">
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl">
                   <strong>Vết trầy xước/móp méo đã có trước:</strong> {protocol.existingScratchesNotes}
                 </div>
               )}
+
+              {/* Sơ đồ vết xước 2D bàn giao */}
+              {(() => {
+                let pts = [];
+                if (protocol.damagePointsJson) {
+                  try { pts = JSON.parse(protocol.damagePointsJson); } catch {}
+                }
+                return pts.length > 0 ? (
+                  <div className="pt-2">
+                    <VehicleDamageMap points={pts} mode="readonly" showList={true} />
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Checklist phụ kiện */}

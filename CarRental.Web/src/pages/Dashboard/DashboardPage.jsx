@@ -17,7 +17,12 @@ import {
   Sparkles,
   PieChart,
   Users,
-  FileCheck
+  FileCheck,
+  Ban,
+  CalendarClock,
+  ShieldAlert as ShieldAlertIcon,
+  Timer,
+  Receipt as ReceiptIcon
 } from 'lucide-react';
 import analyticsService from '../../services/analyticsService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
@@ -65,7 +70,7 @@ const DashboardPage = () => {
   const monthRev = data?.thisMonthRevenue ?? 0;
   const growth = data?.revenueGrowthPercent ?? 0;
   const fleetUtil = data?.fleetUtilizationRate ?? 0;
-  const totalVehicles = data?.totalVehicles ?? 27;
+  const totalVehicles = data?.totalVehicles ?? (fleetReport?.totalFleetSize || 0);
   const readyVehicles = data?.availableVehicles ?? 0;
   const rentedVehicles = data?.rentedVehicles ?? 0;
   const maintVehicles = (data?.maintenanceVehicles ?? 0) + (data?.repairVehicles ?? 0);
@@ -229,6 +234,74 @@ const DashboardPage = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Operational Statistics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-red-50 text-red-600 border border-red-100"><Ban size={13} /></div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Đơn Hủy</span>
+          </div>
+          <span className="text-lg font-extrabold text-zinc-950 tabular-nums">{data?.cancelledRequests ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-blue-50 text-blue-600 border border-blue-100"><CalendarClock size={13} /></div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Gia Hạn</span>
+          </div>
+          <span className="text-lg font-extrabold text-zinc-950 tabular-nums">{data?.totalExtensions ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-amber-50 text-amber-600 border border-amber-100"><Timer size={13} /></div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Trả Trễ</span>
+          </div>
+          <span className="text-lg font-extrabold text-zinc-950 tabular-nums">{data?.lateReturnsCount ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-rose-50 text-rose-600 border border-rose-100"><AlertTriangle size={13} /></div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Sự Cố</span>
+          </div>
+          <span className="text-lg font-extrabold text-zinc-950 tabular-nums">{data?.totalIncidents ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-purple-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-purple-50 text-purple-600 border border-purple-100"><ShieldAlertIcon size={13} /></div>
+            <span className="text-[10px] font-bold text-purple-700 uppercase">Giữ PN</span>
+          </div>
+          <span className="text-lg font-extrabold text-purple-700 tabular-nums">{data?.holdingRequests ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-rose-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="p-1 rounded bg-rose-50 text-rose-700 border border-rose-200"><AlertTriangle size={13} /></div>
+            <span className="text-[10px] font-bold text-rose-700 uppercase">Khiếu Nại</span>
+          </div>
+          <span className="text-lg font-extrabold text-rose-700 tabular-nums">{data?.disputedRequests ?? 0}</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="p-1 rounded bg-violet-50 text-violet-600 border border-violet-100"><ReceiptIcon size={13} /></div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Thu Hồi Rủi Ro</span>
+            </div>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
+              {data?.riskRecoveryRatio ?? 100}%
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xs font-extrabold text-emerald-700 tabular-nums">{formatCurrency(data?.totalCompensationCollected ?? 0).replace(' ₫', '')}</span>
+            <span className="text-[10px] text-slate-400">/</span>
+            <span className="text-xs font-extrabold text-rose-600 tabular-nums">{formatCurrency(data?.totalRepairCost ?? 0).replace(' ₫', '')}</span>
+          </div>
+        </div>
       </div>
 
       {activeTab === 'OVERVIEW' ? (

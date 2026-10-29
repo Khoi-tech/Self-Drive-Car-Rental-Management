@@ -216,10 +216,7 @@ const MaintenancePage = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">
-            Quản Lý Kế Hoạch Bảo Dưỡng Xe (US-24)
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-900 text-white font-mono">
-              Sprint 4
-            </span>
+            Quản Lý Kế Hoạch Bảo Dưỡng Xe
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
             Theo dõi cảnh báo định kỳ theo ODO/thời gian, tự động chuyển xe sang MAINTENANCE và khôi phục READY khi hoàn tất
@@ -586,7 +583,7 @@ const MaintenancePage = () => {
 
       </div>
 
-      {/* Modal 1: Lập Lịch Bảo Dưỡng Mới (US-24) */}
+      {/* Modal 1: Lập Lịch Bảo Dưỡng Mới */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-scaleUp my-8">
@@ -743,7 +740,7 @@ const MaintenancePage = () => {
         </div>
       )}
 
-      {/* Modal 2: Nghiệm Thu Hoàn Tất Bảo Dưỡng (US-24) */}
+      {/* Modal 2: Nghiệm Thu Hoàn Tất Bảo Dưỡng */}
       {isCompleteModalOpen && selectedRecord && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scaleUp">

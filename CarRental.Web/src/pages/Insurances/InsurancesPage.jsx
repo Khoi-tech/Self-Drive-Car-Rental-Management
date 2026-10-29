@@ -195,7 +195,7 @@ const InsurancesPage = () => {
             <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
               <ShieldCheck size={20} />
             </div>
-            Quản Lý Bảo Hiểm Phương Tiện (US-19)
+            Quản Lý Bảo Hiểm Phương Tiện
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Theo dõi hợp đồng bảo hiểm TNDS bắt buộc và bảo hiểm vật chất 2 chiều, tự động cảnh báo ngày hết hạn

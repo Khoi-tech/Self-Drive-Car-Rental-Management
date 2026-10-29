@@ -27,9 +27,11 @@ namespace CarRental.API.DTOs.Handover
         public string TireCondition { get; set; } = null!;
         public string AccessoriesChecklist { get; set; } = null!;
         public string? ExistingScratchesNotes { get; set; }
+        public string? DamagePointsJson { get; set; }
         public string? EvidencePhotoUrls { get; set; }
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
+        public string? CustomerSignature { get; set; }
         public string Status { get; set; } = "PENDING_CUSTOMER";
         public DateTime? CreatedAt { get; set; }
     }
@@ -45,9 +47,11 @@ namespace CarRental.API.DTOs.Handover
         public string TireCondition { get; set; } = "4 lốp áp suất tiêu chuẩn, gai lốp tốt, mâm không cấn lề";
         public string AccessoriesChecklist { get; set; } = "Giấy đăng ký xe (Cavet);Giấy chứng nhận đăng kiểm;Bảo hiểm TNDS;Chìa khóa thông minh;Kích lốp;Lốp dự phòng;Camera hành trình";
         public string? ExistingScratchesNotes { get; set; }
+        public string? DamagePointsJson { get; set; }
         public string? EvidencePhotoUrls { get; set; }
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
+        public string? CustomerSignature { get; set; }
     }
 
     public class UpdateHandoverProtocolDto
@@ -59,9 +63,11 @@ namespace CarRental.API.DTOs.Handover
         public string TireCondition { get; set; } = null!;
         public string AccessoriesChecklist { get; set; } = null!;
         public string? ExistingScratchesNotes { get; set; }
+        public string? DamagePointsJson { get; set; }
         public string? EvidencePhotoUrls { get; set; }
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
+        public string? CustomerSignature { get; set; }
         public string Status { get; set; } = "PENDING_CUSTOMER";
     }
 }

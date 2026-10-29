@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import returnProtocolService from '../../services/returnProtocolService';
 import { formatDateTime } from '../../utils/formatters';
+import VehicleDamageMap from '../../components/operations/VehicleDamageMap';
 
 const ReturnsPage = () => {
   const [protocols, setProtocols] = useState([]);
@@ -83,7 +84,7 @@ const ReturnsPage = () => {
             <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
               <FileCheck size={20} />
             </div>
-            Hồ Sơ Biên Bản Hoàn Trả Xe (US-22)
+            Hồ Sơ Biên Bản Hoàn Trả Xe
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Quản lý biên bản nghiệm thu khi khách trả xe, đối chiếu ODO, mức nhiên liệu, kiểm tra trầy xước và phụ kiện
@@ -348,6 +349,19 @@ const ReturnsPage = () => {
                     <p className="text-rose-700 font-medium">
                       <span className="font-bold">Phụ kiện thiếu:</span> {selectedProtocol.missingAccessories}
                     </p>
+                  )}
+
+                  {/* Sơ đồ 2D vết xước đối chiếu */}
+                  {selectedProtocol.damagePointsJson && (
+                    <div className="pt-2">
+                      <VehicleDamageMap 
+                        points={(() => {
+                          try { return JSON.parse(selectedProtocol.damagePointsJson); } catch { return []; }
+                        })()} 
+                        mode="readonly" 
+                        showList={true} 
+                      />
+                    </div>
                   )}
                 </div>
 

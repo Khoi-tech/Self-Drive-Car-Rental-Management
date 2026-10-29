@@ -366,3 +366,89 @@ export const serializeVehicleImages = (imagesArray) => {
 
   return JSON.stringify(clean);
 };
+
+export const DEFAULT_CAR_FALLBACK = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80';
+
+/**
+ * Extracts a safe, valid single image URL for thumbnails and preview cards.
+ * Seamlessly resolves JSON string arrays, delimited strings, raw URLs, or fallbacks.
+ */
+export const getPrimaryImageUrl = (imageUrl, fallback = DEFAULT_CAR_FALLBACK) => {
+  if (!imageUrl || typeof imageUrl !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = imageUrl.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+
+  // 1. JSON Array string: [{"url":"..."}, ...] or ["https://...", ...]
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        for (const item of parsed) {
+          if (typeof item === 'string' && item.trim()) {
+            return item.trim();
+          }
+          if (item && typeof item === 'object' && typeof item.url === 'string' && item.url.trim()) {
+            return item.url.trim();
+          }
+        }
+      }
+    } catch {
+      // not valid json, fallback to delimiters
+    }
+  }
+
+  // 2. Single JSON Object string: {"url":"..."}
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed.url === 'string' && parsed.url.trim()) {
+        return parsed.url.trim();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Newline or comma delimited
+  const firstLine = trimmed.split(/[\r\n]+/)[0]?.trim();
+  if (firstLine && firstLine.includes(',')) {
+    const firstItem = firstLine.split(',')[0]?.trim();
+    if (firstItem && (firstItem.startsWith('http://') || firstItem.startsWith('https://') || firstItem.startsWith('/'))) {
+      return firstItem;
+    }
+  }
+
+  // 4. Pipe delimited: url|title|tag
+  if (trimmed.includes('|')) {
+    const firstPart = trimmed.split('|')[0]?.trim();
+    if (firstPart && (firstPart.startsWith('http://') || firstPart.startsWith('https://') || firstPart.startsWith('/'))) {
+      return firstPart;
+    }
+  }
+
+  // 5. Plain direct URL or absolute path
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/') || trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  return fallback;
+};
+
+/**
+ * Global onError handler for car images to safely fall back to high-res vehicle photo
+ * without causing infinite reload loops.
+ */
+export const handleImageError = (event, fallback = DEFAULT_CAR_FALLBACK) => {
+  if (event && event.currentTarget) {
+    if (event.currentTarget.getAttribute('data-error-handled') === 'true') {
+      return;
+    }
+    event.currentTarget.setAttribute('data-error-handled', 'true');
+    event.currentTarget.src = fallback;
+  }
+};

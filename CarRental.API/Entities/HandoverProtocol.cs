@@ -51,6 +51,9 @@ namespace CarRental.API.Entities
         [Column("damages_desc")]
         public string? ExistingScratchesNotes { get; set; } // Mô tả vết xước, móp cũ đã có trước khi giao
 
+        [Column("damage_points_json")]
+        public string? DamagePointsJson { get; set; } // JSON danh sách điểm vết xước trên sơ đồ 2D xe
+
         [Column("images")]
         public string? EvidencePhotoUrls { get; set; } // Danh sách URL ảnh minh chứng
 
@@ -71,6 +74,9 @@ namespace CarRental.API.Entities
 
         [Column("staff_signature")]
         public string? StaffSignature { get; set; }
+
+        [Column("customer_signature")]
+        public string? CustomerSignature { get; set; }
 
         [Column("status")]
         [MaxLength(50)]

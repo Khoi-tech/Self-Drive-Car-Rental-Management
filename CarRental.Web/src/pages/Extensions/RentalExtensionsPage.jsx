@@ -120,7 +120,7 @@ const RentalExtensionsPage = () => {
             <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
               <Calendar size={20} />
             </div>
-            Quản Lý Gia Hạn Thuê Xe (US-20)
+            Quản Lý Gia Hạn Thuê Xe
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Xét duyệt yêu cầu kéo dài thời gian thuê của khách hàng, kiểm tra tự động chống kẹt lịch xe tiếp theo

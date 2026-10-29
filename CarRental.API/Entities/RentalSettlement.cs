@@ -76,6 +76,35 @@ namespace CarRental.API.Entities
         [Column("refund_amount", TypeName = "decimal(18,2)")]
         public decimal RefundAmount { get; set; } = 0;
 
+        [Column("traffic_fine_hold_amount", TypeName = "decimal(18,2)")]
+        public decimal TrafficFineHoldAmount { get; set; } = 0; // Số tiền giữ lại làm quỹ cọc phạt nguội
+
+        [Column("traffic_fine_refund_date")]
+        public DateTime? TrafficFineRefundDate { get; set; } // Ngày dự kiến hoàn trả cọc phạt nguội (sau 15-30 ngày)
+
+        [Column("traffic_fine_refund_status")]
+        [MaxLength(50)]
+        public string TrafficFineRefundStatus { get; set; } = "NONE"; // NONE, HOLDING, REFUNDED, DEDUCTED
+
+        [Column("traffic_fine_actual_deduction", TypeName = "decimal(18,2)")]
+        public decimal TrafficFineActualDeduction { get; set; } = 0; // Tiền phạt thực tế khấu trừ nếu có lỗi phạt nguội
+
+        [Column("traffic_fine_actual_refund", TypeName = "decimal(18,2)")]
+        public decimal TrafficFineActualRefund { get; set; } = 0; // Tiền thực tế hoàn lại cho khách đợt 2
+
+        [Column("traffic_fine_refunded_at")]
+        public DateTime? TrafficFineRefundedAt { get; set; }
+
+        [Column("traffic_fine_transaction_code")]
+        [MaxLength(100)]
+        public string? TrafficFineTransactionCode { get; set; }
+
+        [Column("traffic_fine_notes")]
+        public string? TrafficFineNotes { get; set; }
+
+        [Column("traffic_fine_violation_proof_url")]
+        public string? TrafficFineViolationProofUrl { get; set; }
+
         [Column("additional_amount_due", TypeName = "decimal(18,2)")]
         public decimal AdditionalAmountDue { get; set; } = 0;
 

@@ -90,6 +90,13 @@ namespace CarRental.API.Controllers
             }
         }
 
+        [HttpGet("car/{carId:guid}/latest-damages")]
+        public async Task<IActionResult> GetLatestDamagesByCar(Guid carId)
+        {
+            var json = await _protocolService.GetLatestDamagePointsByCarIdAsync(carId);
+            return Ok(new { carId, damagePointsJson = json });
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Delete(Guid id)

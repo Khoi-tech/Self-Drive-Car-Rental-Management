@@ -132,7 +132,7 @@ const ContractSignPage = () => {
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-24 pb-16">
         
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="no-print flex items-center justify-between mb-6">
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-900 transition"
@@ -149,7 +149,7 @@ const ContractSignPage = () => {
         </div>
 
         {/* Stepper Progress */}
-        <div className="mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+        <div className="no-print mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="flex items-center gap-2 text-emerald-700 font-semibold">
               <CheckCircle2 size={16} />
@@ -171,7 +171,7 @@ const ContractSignPage = () => {
         </div>
 
         {/* PAPER CONTRACT SHEET */}
-        <div className="bg-white border border-slate-300 rounded-lg shadow-sm p-6 sm:p-12 space-y-8 font-serif text-slate-900">
+        <div id="printable-contract" className="print-container bg-white border border-slate-300 rounded-lg shadow-sm p-6 sm:p-12 space-y-8 font-serif text-slate-900">
           
           {/* Official Document Header */}
           <div className="text-center space-y-1 pb-6 border-b border-slate-200">
@@ -279,7 +279,7 @@ const ContractSignPage = () => {
 
           {/* SIGNATURE FORM (If not signed yet) */}
           {!isSigned && (
-            <div className="pt-8 border-t border-slate-200 font-sans">
+            <div className="no-print pt-8 border-t border-slate-200 font-sans">
               <form onSubmit={handleSign} className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <PenTool className="w-4 h-4 text-blue-900" />
@@ -329,7 +329,7 @@ const ContractSignPage = () => {
 
           {/* NEXT STEP: PAY DEPOSIT CTA */}
           {isSigned && (
-            <div className="pt-6 border-t border-slate-200 font-sans flex flex-col sm:flex-row items-center justify-between gap-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+            <div className="no-print pt-6 border-t border-slate-200 font-sans flex flex-col sm:flex-row items-center justify-between gap-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
               <div>
                 <div className="text-xs font-bold text-blue-950">Hợp đồng đã được ký số thành công!</div>
                 <div className="text-[11px] text-slate-600">Bước tiếp theo: Tiến hành thanh toán tiền đặt cọc giữ xe qua mã VietQR.</div>

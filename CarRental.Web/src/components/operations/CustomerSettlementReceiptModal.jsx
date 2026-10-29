@@ -11,17 +11,23 @@ import {
   AlertCircle,
   FileCheck,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  MessageCircle
 } from 'lucide-react';
 import settlementService from '../../services/settlementService';
 import returnProtocolService from '../../services/returnProtocolService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import VehicleDamageMap from './VehicleDamageMap';
 
 const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
   const [settlement, setSettlement] = useState(null);
   const [returnProtocol, setReturnProtocol] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [isDisputing, setIsDisputing] = useState(false);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
 
   useEffect(() => {
     if (rentalRequest?.id && isOpen) {
@@ -61,19 +67,36 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
     window.print();
   };
 
+  const handleDispute = async () => {
+    if (!disputeReason.trim()) {
+      alert('Vui lòng nhập lý do khiếu nại.');
+      return;
+    }
+    try {
+      setIsDisputing(true);
+      await settlementService.disputeSettlement(settlement.id, disputeReason.trim());
+      setDisputeSubmitted(true);
+      setShowDisputeForm(false);
+    } catch (err) {
+      alert('Không thể gửi khiếu nại. Vui lòng thử lại.');
+    } finally {
+      setIsDisputing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
       <div className="bg-zinc-950 border border-zinc-800 text-white rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80">
+        <div className="no-print px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Receipt size={20} />
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">
-                Phiếu Quyết Toán & Hoàn Cọc (US-10)
+                Phiếu Quyết Toán & Hoàn Cọc
               </h3>
               <p className="text-xs text-zinc-400">
                 Mã đơn: #{rentalRequest.id.slice(0, 8).toUpperCase()} • Hợp đồng hoàn tất
@@ -105,7 +128,7 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
             <div className="space-y-6">
 
               {/* Receipt Visual Card */}
-              <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-6 relative overflow-hidden">
+              <div id="printable-receipt" className="print-container p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-emerald-500/10 via-transparent to-transparent pointer-events-none rounded-full blur-2xl"></div>
 
                 {/* Company & Receipt Header */}
@@ -223,29 +246,107 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
                 </div>
 
                 {/* Final Refund Receipt Box */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/30 via-zinc-950 to-zinc-950 border border-emerald-500/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <span className="text-zinc-400 block text-xs">
-                      {settlement.settlementType === 'REFUND_TO_CUSTOMER' 
-                        ? 'SỐ TIỀN CỌC THỰC TẾ HOÀN LẠI CHO BẠN:' 
-                        : 'SỐ TIỀN PHỤ PHÍ BỔ SUNG ĐÃ NỘP:'}
-                    </span>
-                    <span className="text-2xl font-bold text-emerald-400 block mt-0.5">
-                      {formatCurrency(settlement.refundAmount > 0 ? settlement.refundAmount : settlement.additionalAmountDue)}
-                    </span>
+                <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/30 via-zinc-950 to-zinc-950 border border-emerald-500/40 space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                      <span className="text-zinc-400 block text-xs">
+                        {settlement.settlementType === 'REFUND_TO_CUSTOMER' 
+                          ? (settlement.trafficFineHoldAmount > 0 
+                              ? 'SỐ TIỀN HOÀN CỌC ĐỢT 1 (ĐÃ CHUYỂN VIETQR):' 
+                              : 'SỐ TIỀN CỌC THỰC TẾ HOÀN LẠI CHO BẠN:') 
+                          : 'SỐ TIỀN PHỤ PHÍ BỔ SUNG ĐÃ NỘP:'}
+                      </span>
+                      <span className="text-2xl font-bold text-emerald-400 block mt-0.5">
+                        {formatCurrency(
+                          settlement.settlementType === 'REFUND_TO_CUSTOMER'
+                            ? Math.max(0, settlement.refundAmount - (settlement.trafficFineHoldAmount || 0))
+                            : settlement.additionalAmountDue
+                        )}
+                      </span>
+                    </div>
+
+                    {settlement.refundStatus === 'REFUNDED' && (
+                      <div className="text-right text-[11px] text-zinc-400 space-y-0.5">
+                        <p className="text-emerald-400 font-semibold flex items-center gap-1 justify-end">
+                          <CheckCircle2 size={13} />
+                          Đã chuyển khoản VietQR thành công
+                        </p>
+                        <p>TK nhận: {settlement.refundAccountNumber} ({settlement.refundBankName})</p>
+                        <p>Mã GD: <span className="text-white font-mono">{settlement.refundTransactionCode || 'N/A'}</span></p>
+                      </div>
+                    )}
                   </div>
 
-                  {settlement.refundStatus === 'REFUNDED' && (
-                    <div className="text-right text-[11px] text-zinc-400 space-y-0.5">
-                      <p className="text-emerald-400 font-semibold flex items-center gap-1 justify-end">
-                        <CheckCircle2 size={13} />
-                        Đã chuyển khoản VietQR thành công
-                      </p>
-                      <p>TK nhận: {settlement.refundAccountNumber} ({settlement.refundBankName})</p>
-                      <p>Mã GD: <span className="text-white font-mono">{settlement.refundTransactionCode || 'N/A'}</span></p>
+                  {/* Chi tiết giữ cọc phạt nguội Đợt 2 nếu có */}
+                  {settlement.trafficFineHoldAmount > 0 && (
+                    <div className="pt-3 border-t border-emerald-500/20 space-y-2 text-[11px]">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1">
+                        <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                          Quỹ cọc Phạt nguội (Đợt 2): {formatCurrency(settlement.trafficFineHoldAmount)}
+                        </span>
+                        <span className="text-zinc-400 text-[10px]">
+                          {settlement.trafficFineRefundStatus === 'REFUNDED' ? (
+                            <strong className="text-emerald-400 font-semibold flex items-center gap-1">
+                              <CheckCircle2 size={12} />
+                              Đã hoàn trả thành công Đợt 2 qua VietQR
+                            </strong>
+                          ) : (settlement.trafficFineRefundStatus === 'DEDUCTED' || settlement.trafficFineRefundStatus === 'PARTIAL_REFUNDED') ? (
+                            <strong className="text-amber-400 font-semibold">
+                              Đã khấu trừ vi phạm CSGT & hoàn tiền dư
+                            </strong>
+                          ) : (
+                            <span>Thời hạn đối soát CSGT: <strong className="text-white">{formatDateTime(settlement.trafficFineRefundDate)}</strong></span>
+                          )}
+                        </span>
+                      </div>
+
+                      {settlement.trafficFineRefundStatus === 'HOLDING' && (
+                        <p className="text-[10px] text-zinc-400 italic bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+                          Hệ thống VELORA đang lưu quỹ giữ cọc đối soát phạt nguội. Sau 15 - 30 ngày theo quy định của Cục CSGT, nếu không có lỗi vi phạm, VELORA sẽ chuyển khoản hoàn trả 100% về đúng tài khoản ngân hàng của bạn.
+                        </p>
+                      )}
+
+                      {(settlement.trafficFineRefundStatus === 'REFUNDED' || settlement.trafficFineRefundStatus === 'DEDUCTED' || settlement.trafficFineRefundStatus === 'PARTIAL_REFUNDED') && (
+                        <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-[11px] space-y-1 text-zinc-300">
+                          <div className="flex justify-between">
+                            <span className="text-zinc-400">Số tiền Đợt 2 thực hoàn cho bạn:</span>
+                            <span className="font-bold text-emerald-400">{formatCurrency(settlement.trafficFineActualRefund || settlement.trafficFineHoldAmount)}</span>
+                          </div>
+                          {settlement.trafficFineActualDeduction > 0 && (
+                            <div className="flex justify-between text-rose-400">
+                              <span>Khấu trừ nộp phạt CSGT:</span>
+                              <span>-{formatCurrency(settlement.trafficFineActualDeduction)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-[10px] text-zinc-400 pt-1 border-t border-zinc-800">
+                            <span>Mã GD ngân hàng: <strong className="text-white font-mono">{settlement.trafficFineTransactionCode || 'N/A'}</strong></span>
+                            <span>{formatDateTime(settlement.trafficFineRefundedAt)}</span>
+                          </div>
+                          {settlement.trafficFineNotes && (
+                            <p className="text-[10px] text-zinc-400 italic pt-1">
+                              Ghi chú: {settlement.trafficFineNotes}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* Sơ đồ vết xước 2D nghiệm thu đối chiếu */}
+                {returnProtocol?.damagePointsJson && (
+                  <div className="space-y-2 pt-2">
+                    <h4 className="font-semibold text-zinc-300 text-xs">Sơ Đồ Đối Chiếu Vết Xước & Tổn Thất Ngoại Quan Xe:</h4>
+                    <VehicleDamageMap 
+                      points={(() => {
+                        try { return JSON.parse(returnProtocol.damagePointsJson); } catch { return []; }
+                      })()} 
+                      mode="readonly" 
+                      showList={true} 
+                    />
+                  </div>
+                )}
 
                 {settlement.staffNotes && (
                   <div className="p-3 rounded-lg bg-zinc-950/50 border border-zinc-800/60 text-zinc-400 text-[11px]">
@@ -261,23 +362,75 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between bg-zinc-900/90 print:hidden">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition"
-          >
-            Đóng
-          </button>
+        <div className="px-6 py-4 border-t border-zinc-800 flex flex-col gap-3 bg-zinc-900/90 print:hidden">
+          
+          {/* Dispute Form */}
+          {showDisputeForm && !disputeSubmitted && (
+            <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/30 space-y-2">
+              <p className="text-xs text-orange-300 font-semibold">Nhập lý do khiếu nại quyết toán:</p>
+              <textarea
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                placeholder="Mô tả chi tiết lý do bạn không đồng ý với kết quả quyết toán..."
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-orange-500 resize-none"
+                rows={3}
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button
+                  onClick={() => setShowDisputeForm(false)}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 text-xs font-medium"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleDispute}
+                  disabled={isDisputing}
+                  className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  {isDisputing ? 'Đang gửi...' : 'Gửi Khiếu Nại'}
+                </button>
+              </div>
+            </div>
+          )}
 
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold flex items-center gap-2 transition"
-          >
-            <Printer size={15} />
-            <span>In Phiếu Quyết Toán</span>
-          </button>
+          {disputeSubmitted && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 size={15} />
+              Khiếu nại đã được ghi nhận. Đội ngũ VELORA sẽ liên hệ bạn trong 24 giờ.
+            </div>
+          )}
+
+          <div className="no-print flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition"
+              >
+                Đóng
+              </button>
+
+              {settlement && !disputeSubmitted && !showDisputeForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowDisputeForm(true)}
+                  className="px-4 py-2 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <MessageCircle size={14} />
+                  <span>Khiếu nại quyết toán</span>
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="px-5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-xs font-semibold flex items-center gap-2 transition"
+            >
+              <Printer size={15} />
+              <span>In Phiếu Quyết Toán</span>
+            </button>
+          </div>
         </div>
 
       </div>

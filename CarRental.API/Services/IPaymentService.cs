@@ -9,5 +9,6 @@ namespace CarRental.API.Services
         Task<PaymentResponseDto> CreateDepositPaymentAsync(CreatePaymentDto dto);
         Task<PaymentResponseDto> ConfirmPaymentAsync(string transactionCode);
         Task<PaymentResponseDto?> GetPaymentByRequestIdAsync(Guid requestId);
+        Task<System.Collections.Generic.IEnumerable<PaymentResponseDto>> GetAllPaymentsByRequestIdAsync(Guid requestId);
     }
 }

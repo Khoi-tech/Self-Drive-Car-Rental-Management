@@ -38,9 +38,15 @@ const handoverService = {
     return res?.data || res;
   },
 
-  // Xác nhận bàn giao xe (US-19) - Kích hoạt đơn ACTIVE & xe RENTED
+  // Xác nhận bàn giao xe - Kích hoạt đơn ACTIVE & xe RENTED
   confirm: async (id, data = {}) => {
     const res = await api.post(`/handover-protocols/${id}/confirm`, data);
+    return res?.data || res;
+  },
+
+  // Lấy các vết tổn thất đã ghi nhận của xe từ chuyến trước để kế thừa
+  getLatestDamagesByCar: async (carId) => {
+    const res = await api.get(`/handover-protocols/car/${carId}/latest-damages`);
     return res?.data || res;
   }
 };

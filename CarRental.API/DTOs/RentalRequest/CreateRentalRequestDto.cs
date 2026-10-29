@@ -41,6 +41,11 @@ namespace CarRental.API.DTOs.RentalRequest
         [StringLength(50)]
         public string DriverLicenseNumber { get; set; } = null!;
 
+        [StringLength(50)]
+        public string? DriverLicenseClass { get; set; } // B1_AUTO, B1, B2, C, D
+
+        public DateTime? DriverLicenseExpiry { get; set; }
+
         public string? IdCardFrontUrl { get; set; }
         public string? IdCardBackUrl { get; set; }
         public string? DriverLicenseFrontUrl { get; set; }

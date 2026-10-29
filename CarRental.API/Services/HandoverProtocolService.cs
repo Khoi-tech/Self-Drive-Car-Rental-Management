@@ -72,6 +72,18 @@ namespace CarRental.API.Services
                 throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
             }
 
+            // Validate ODO continuity: ODO at handover cannot be lower than current vehicle mileage
+            if (dto.OdoAtHandover > 0 && request.Vehicle != null && dto.OdoAtHandover < request.Vehicle.CurrentMileage)
+            {
+                throw new InvalidOperationException($"Chỉ số ODO lúc bàn giao ({dto.OdoAtHandover:N0} km) không thể nhỏ hơn ODO hiện tại của xe ({request.Vehicle.CurrentMileage:N0} km).");
+            }
+
+            // Inherit latest damage points from prior trips if none provided
+            if (string.IsNullOrWhiteSpace(dto.DamagePointsJson) && request.CarId != Guid.Empty)
+            {
+                dto.DamagePointsJson = await GetLatestDamagePointsByCarIdAsync(request.CarId);
+            }
+
             int fuelInt = ParseFuelLevel(dto.FuelLevel);
 
             // Check if protocol already exists
@@ -87,9 +99,11 @@ namespace CarRental.API.Services
                 existing.TireCondition = dto.TireCondition ?? existing.TireCondition;
                 existing.AccessoriesChecklist = dto.AccessoriesChecklist ?? existing.AccessoriesChecklist;
                 existing.ExistingScratchesNotes = dto.ExistingScratchesNotes ?? existing.ExistingScratchesNotes;
+                existing.DamagePointsJson = dto.DamagePointsJson ?? existing.DamagePointsJson;
                 existing.EvidencePhotoUrls = dto.EvidencePhotoUrls ?? existing.EvidencePhotoUrls;
                 existing.StaffNotes = dto.StaffNotes ?? existing.StaffNotes;
                 existing.StaffSignature = dto.StaffSignature ?? existing.StaffSignature;
+                existing.CustomerSignature = dto.CustomerSignature ?? existing.CustomerSignature;
                 existing.StaffName = !string.IsNullOrWhiteSpace(dto.StaffName) ? dto.StaffName : existing.StaffName;
                 existing.UpdatedAt = DateTime.UtcNow;
 
@@ -121,9 +135,11 @@ namespace CarRental.API.Services
                 TireCondition = dto.TireCondition ?? "4 lốp áp suất tiêu chuẩn, gai lốp tốt, mâm không cấn lề",
                 AccessoriesChecklist = dto.AccessoriesChecklist ?? "Giấy đăng ký xe (Cavet);Giấy chứng nhận đăng kiểm;Bảo hiểm TNDS;Chìa khóa thông minh;Kích lốp;Lốp dự phòng;Camera hành trình",
                 ExistingScratchesNotes = dto.ExistingScratchesNotes,
+                DamagePointsJson = dto.DamagePointsJson,
                 EvidencePhotoUrls = dto.EvidencePhotoUrls,
                 StaffNotes = dto.StaffNotes,
                 StaffSignature = dto.StaffSignature,
+                CustomerSignature = dto.CustomerSignature,
                 Status = "PENDING_CUSTOMER",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -150,6 +166,7 @@ namespace CarRental.API.Services
             protocol.TireCondition = dto.TireCondition;
             protocol.AccessoriesChecklist = dto.AccessoriesChecklist;
             protocol.ExistingScratchesNotes = dto.ExistingScratchesNotes;
+            protocol.DamagePointsJson = dto.DamagePointsJson ?? protocol.DamagePointsJson;
             protocol.EvidencePhotoUrls = dto.EvidencePhotoUrls;
             protocol.StaffNotes = dto.StaffNotes;
             protocol.StaffSignature = dto.StaffSignature;
@@ -173,7 +190,8 @@ namespace CarRental.API.Services
 
             protocol.Status = "CONFIRMED";
             if (!string.IsNullOrWhiteSpace(dto.StaffName)) protocol.StaffName = dto.StaffName;
-            if (!string.IsNullOrWhiteSpace(dto.CustomerSignature)) protocol.StaffSignature = dto.CustomerSignature;
+            if (!string.IsNullOrWhiteSpace(dto.StaffSignature)) protocol.StaffSignature = dto.StaffSignature;
+            if (!string.IsNullOrWhiteSpace(dto.CustomerSignature)) protocol.CustomerSignature = dto.CustomerSignature;
             if (!string.IsNullOrWhiteSpace(dto.Notes)) protocol.StaffNotes = $"{protocol.StaffNotes}\n[Xác nhận bàn giao]: {dto.Notes}".Trim();
             protocol.UpdatedAt = DateTime.UtcNow;
 
@@ -241,12 +259,38 @@ namespace CarRental.API.Services
                 TireCondition = h.TireCondition,
                 AccessoriesChecklist = h.AccessoriesChecklist,
                 ExistingScratchesNotes = h.ExistingScratchesNotes,
+                DamagePointsJson = h.DamagePointsJson,
                 EvidencePhotoUrls = h.EvidencePhotoUrls,
                 StaffNotes = h.StaffNotes,
                 StaffSignature = h.StaffSignature,
+                CustomerSignature = h.CustomerSignature,
                 Status = h.Status,
                 CreatedAt = h.CreatedAt
             };
+        }
+
+        public async Task<string?> GetLatestDamagePointsByCarIdAsync(Guid carId)
+        {
+            // 1. Look for the latest ReturnProtocol of this car with damage points
+            var latestReturn = await _context.ReturnProtocols
+                .Include(r => r.RentalRequest)
+                .Where(r => r.RentalRequest != null && r.RentalRequest.CarId == carId && !string.IsNullOrWhiteSpace(r.DamagePointsJson))
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (latestReturn != null && !string.IsNullOrWhiteSpace(latestReturn.DamagePointsJson))
+            {
+                return latestReturn.DamagePointsJson;
+            }
+
+            // 2. Otherwise look for the latest HandoverProtocol of this car with damage points
+            var latestHandover = await _context.HandoverProtocols
+                .Include(h => h.RentalRequest)
+                .Where(h => h.RentalRequest != null && h.RentalRequest.CarId == carId && !string.IsNullOrWhiteSpace(h.DamagePointsJson))
+                .OrderByDescending(h => h.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            return latestHandover?.DamagePointsJson;
         }
     }
 }

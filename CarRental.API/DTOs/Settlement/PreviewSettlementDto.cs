@@ -36,6 +36,8 @@ namespace CarRental.API.DTOs.Settlement
 
         public decimal DamageFee { get; set; }
         public string? DamageNotes { get; set; }
+        public string? DamagePointsJson { get; set; }
+        public string? EvidencePhotoUrls { get; set; }
 
         public decimal CleaningFee { get; set; }
         public decimal OtherFee { get; set; }

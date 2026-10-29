@@ -81,6 +81,9 @@ namespace CarRental.API.Entities
         [Column("new_damages_notes")]
         public string? NewDamagesNotes { get; set; }
 
+        [Column("damage_points_json")]
+        public string? DamagePointsJson { get; set; } // JSON danh sách điểm vết xước cũ và mới trên sơ đồ 2D xe
+
         [Column("accessories_checklist")]
         public string? AccessoriesChecklist { get; set; } = "Giấy đăng ký xe (Cavet);Giấy chứng nhận đăng kiểm;Bảo hiểm TNDS;Chìa khóa thông minh;Kích lốp;Lốp dự phòng;Camera hành trình";
 

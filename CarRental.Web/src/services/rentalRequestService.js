@@ -63,6 +63,16 @@ const rentalRequestService = {
       console.error('Error rejecting rental request:', error);
       throw error;
     }
+  },
+
+  cancelRequest: async (id) => {
+    try {
+      const response = await api.put(`/rental-requests/${id}/cancel`);
+      return response;
+    } catch (error) {
+      console.error('Error cancelling rental request:', error);
+      throw error;
+    }
   }
 };
 

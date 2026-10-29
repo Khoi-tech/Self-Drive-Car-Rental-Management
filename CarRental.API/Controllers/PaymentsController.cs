@@ -42,7 +42,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("confirm")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize]
         public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto dto)
         {
             if (!ModelState.IsValid)
@@ -74,6 +74,13 @@ namespace CarRental.API.Controllers
                 return NotFound(new { Message = "Chưa có thông tin thanh toán cho đơn thuê này." });
             }
             return Ok(payment);
+        }
+
+        [HttpGet("by-request/{requestId:guid}")]
+        public async Task<IActionResult> GetAllPaymentsByRequestId(Guid requestId)
+        {
+            var payments = await _paymentService.GetAllPaymentsByRequestIdAsync(requestId);
+            return Ok(payments);
         }
     }
 }

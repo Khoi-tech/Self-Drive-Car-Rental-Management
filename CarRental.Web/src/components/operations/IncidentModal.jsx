@@ -75,7 +75,7 @@ const IncidentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>Báo Cáo Sự Cố Khẩn Cấp (US-09)</span>
+                <span>Báo Cáo Sự Cố Khẩn Cấp</span>
               </h3>
               <p className="text-xs text-zinc-400">
                 Phương tiện: <strong className="text-zinc-200">{rentalRequest.carMake} {rentalRequest.carModel}</strong> ({rentalRequest.carLicensePlate})

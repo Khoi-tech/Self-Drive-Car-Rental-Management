@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
 import { formatCurrency } from '../../utils/formatters';
+import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 
 const BRANDS = ['Porsche', 'Mercedes-Benz', 'BMW', 'Audi', 'Lexus', 'Land Rover', 'VinFast', 'Toyota', 'Ford'];
 const LOCATIONS = [
@@ -376,8 +377,9 @@ const CarCatalogPage = () => {
                       {/* 16:10 Image Container */}
                       <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden border-b border-slate-100">
                         <img
-                          src={car.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'}
+                          src={getPrimaryImageUrl(car.imageUrl)}
                           alt={`${car.make} ${car.model}`}
+                          onError={handleImageError}
                           className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                         />
 

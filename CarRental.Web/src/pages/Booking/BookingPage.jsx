@@ -28,8 +28,11 @@ import vehicleService from '../../services/vehicleService';
 import pricingService from '../../services/pricingService';
 import rentalRequestService from '../../services/rentalRequestService';
 import { formatCurrencyVND } from '../../utils/formatters';
+import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
+import { useAuth } from '../../context/AuthContext';
 
 const BookingPage = () => {
+  const { user } = useAuth();
   const { carId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -48,8 +51,22 @@ const BookingPage = () => {
     customerEmail: '',
     customerIdCard: '',
     driverLicenseNumber: '',
+    driverLicenseClass: 'B2',
+    driverLicenseExpiry: '',
     notes: ''
   });
+
+  // Auto-prefill customer info if user is logged in
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        customerName: prev.customerName || user.fullName || user.name || '',
+        customerPhone: prev.customerPhone || user.phoneNumber || user.phone || '',
+        customerEmail: prev.customerEmail || user.email || '',
+      }));
+    }
+  }, [user]);
 
   const [hasAdditionalDriver, setHasAdditionalDriver] = useState(false);
   const [additionalDriver, setAdditionalDriver] = useState({
@@ -151,6 +168,28 @@ const BookingPage = () => {
       return;
     }
 
+    if (!formData.driverLicenseClass) {
+      setError('Vui lòng chọn Hạng Giấy phép lái xe.');
+      return;
+    }
+
+    if (!formData.driverLicenseExpiry) {
+      setError('Vui lòng nhập Ngày hết hạn Giấy phép lái xe.');
+      return;
+    }
+
+    const expiryDate = new Date(formData.driverLicenseExpiry);
+    const returnDate = new Date(endTimeStr);
+    if (expiryDate <= returnDate) {
+      setError(`GPLX của bạn hết hạn vào ngày ${expiryDate.toLocaleDateString('vi-VN')}, trước hoặc đúng ngày trả xe (${returnDate.toLocaleDateString('vi-VN')}). Không đủ điều kiện thuê xe.`);
+      return;
+    }
+
+    if (formData.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL') {
+      setError(`GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn (${vehicle?.make} ${vehicle?.model}).`);
+      return;
+    }
+
     if (hasAdditionalDriver) {
       if (!additionalDriver.fullName?.trim() || !additionalDriver.phoneNumber?.trim()) {
         setError('Vui lòng nhập đầy đủ thông tin tài xế phụ.');
@@ -178,6 +217,8 @@ const BookingPage = () => {
         customerEmail: formData.customerEmail.trim(),
         customerIdCard: formData.customerIdCard.trim(),
         driverLicenseNumber: formData.driverLicenseNumber.trim(),
+        driverLicenseClass: formData.driverLicenseClass,
+        driverLicenseExpiry: new Date(formData.driverLicenseExpiry).toISOString(),
         notes: formData.notes?.trim() || '',
         idCardFrontUrl: idCardFrontPreview || 'https://example.com/id-front.jpg',
         idCardBackUrl: idCardBackPreview || 'https://example.com/id-back.jpg',
@@ -195,7 +236,19 @@ const BookingPage = () => {
       }
 
       const res = await rentalRequestService.createRequest(requestPayload);
-      setSuccessResponse(res.data || res);
+      const createdData = res.data || res;
+      setSuccessResponse(createdData);
+
+      // Persist in localStorage so ProfilePage can immediately resolve bookings even if different from login email
+      if (requestPayload.customerEmail) {
+        localStorage.setItem('velora_last_booking_email', requestPayload.customerEmail);
+      }
+      if (requestPayload.customerPhone) {
+        localStorage.setItem('velora_last_booking_phone', requestPayload.customerPhone);
+      }
+      if (createdData?.id) {
+        localStorage.setItem('velora_last_booking_id', createdData.id);
+      }
     } catch (err) {
       console.error('Submit error:', err);
       let errMsg = 'Có lỗi xảy ra khi gửi yêu cầu thuê xe';
@@ -373,9 +426,9 @@ const BookingPage = () => {
                     />
                   </div>
 
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số Giấy phép lái xe (GPLX B1/B2) <span className="text-red-500">*</span>
+                      Số Giấy phép lái xe <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -387,6 +440,75 @@ const BookingPage = () => {
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Hạng Giấy phép lái xe <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="driverLicenseClass"
+                      value={formData.driverLicenseClass}
+                      onChange={handleInputChange}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    >
+                      <option value="B1_AUTO">Hạng B1 — Số tự động (Không được lái số sàn)</option>
+                      <option value="B1">Hạng B1 — Cơ học (Số sàn & tự động)</option>
+                      <option value="B2">Hạng B2 — Xe đến 9 chỗ (Số sàn & tự động)</option>
+                      <option value="C">Hạng C — Xe tải & du lịch đến 9 chỗ</option>
+                      <option value="D">Hạng D — Xe chở người đến 30 chỗ</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-zinc-900 mb-1">
+                      Ngày hết hạn GPLX <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="driverLicenseExpiry"
+                      value={formData.driverLicenseExpiry}
+                      onChange={handleInputChange}
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      * Theo quy định pháp luật, ngày hết hạn GPLX phải sau thời điểm trả xe ({new Date(endTimeStr || Date.now()).toLocaleDateString('vi-VN')}).
+                    </p>
+                  </div>
+
+                  {/* Realtime Warnings for Eligibility */}
+                  {formData.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL' && (
+                    <div className="sm:col-span-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Không tương thích hộp số: </span>
+                        Dòng xe <strong>{vehicle?.make} {vehicle?.model}</strong> là <strong>SỐ SÀN (MANUAL)</strong>. 
+                        Người có GPLX hạng B1 số tự động không được phép điều khiển dòng xe này theo luật Giao thông Đường bộ.
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.driverLicenseExpiry && new Date(formData.driverLicenseExpiry) <= new Date(endTimeStr) && (
+                    <div className="sm:col-span-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Cảnh báo hết hạn bằng lái: </span>
+                        GPLX của bạn hết hạn vào ngày <strong>{new Date(formData.driverLicenseExpiry).toLocaleDateString('vi-VN')}</strong>, 
+                        trước ngày kết thúc kỳ thuê ({new Date(endTimeStr).toLocaleDateString('vi-VN')}). Vui lòng kiểm tra lại.
+                      </div>
+                    </div>
+                  )}
+
+                  {vehicle?.dailyRate >= 1500000 && (
+                    <div className="sm:col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-xs flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Điều kiện phân khúc xe sang / cao cấp: </span>
+                        Dòng xe giá trị cao yêu cầu khách hàng đã có ít nhất <strong>01 chuyến đi hoàn tất tốt</strong> trên hệ thống VELORA và không có lịch sử tranh chấp vi phạm.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -589,8 +711,9 @@ const BookingPage = () => {
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
                 <div className="w-16 h-12 bg-slate-100 rounded overflow-hidden shrink-0 border border-slate-200">
                   <img
-                    src={vehicle?.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=400&q=80'}
-                    alt="Car"
+                    src={getPrimaryImageUrl(vehicle?.imageUrl)}
+                    alt={`${vehicle?.make || ''} ${vehicle?.model || 'Car'}`}
+                    onError={handleImageError}
                     className="w-full h-full object-cover"
                   />
                 </div>

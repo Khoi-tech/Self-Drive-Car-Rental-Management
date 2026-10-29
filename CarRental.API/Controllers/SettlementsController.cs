@@ -10,6 +10,7 @@ using CarRental.API.Services;
 namespace CarRental.API.Controllers
 {
     [ApiController]
+    [Route("api/rental-settlements")]
     [Route("api/[controller]")]
     public class SettlementsController : ControllerBase
     {
@@ -86,7 +87,7 @@ namespace CarRental.API.Controllers
                 var staffName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Nhân viên quyết toán VELORA";
 
                 var result = await _service.CreateSettlementAsync(dto, staffId, staffName);
-                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+                return Ok(result);
             }
             catch (KeyNotFoundException ex)
             {
@@ -117,6 +118,29 @@ namespace CarRental.API.Controllers
             }
         }
 
+        [HttpPost("{id}/confirm-traffic-fine-refund")]
+        [Authorize(Roles = "ADMIN,STAFF")]
+        public async Task<ActionResult<SettlementResponseDto>> ConfirmTrafficFineRefund(Guid id, [FromBody] ConfirmTrafficFineRefundDto dto)
+        {
+            try
+            {
+                var result = await _service.ConfirmTrafficFineRefundAsync(id, dto);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("{id}/confirm-additional-payment")]
         [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmAdditionalPayment(Guid id, [FromBody] ConfirmAdditionalPaymentDto dto)
@@ -125,6 +149,53 @@ namespace CarRental.API.Controllers
             {
                 var result = await _service.ConfirmAdditionalPaymentAsync(id, dto);
                 return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id}/dispute")]
+        [Authorize]
+        public async Task<ActionResult> DisputeSettlement(Guid id, [FromBody] DisputeSettlementDto dto)
+        {
+            try
+            {
+                var result = await _service.DisputeSettlementAsync(id, dto.Reason);
+                return Ok(new { 
+                    message = "Đã ghi nhận khiếu nại thành công. Đơn thuê đã được chuyển sang trạng thái đang xử lý khiếu nại (DISPUTED).", 
+                    disputeReason = dto.Reason,
+                    data = result 
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id}/resolve-dispute")]
+        [Authorize(Roles = "ADMIN,STAFF")]
+        public async Task<ActionResult<SettlementResponseDto>> ResolveDispute(Guid id, [FromBody] ResolveDisputeDto dto)
+        {
+            try
+            {
+                var adminName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Ban Quản Trị VELORA";
+                var result = await _service.ResolveDisputeAsync(id, dto, adminName);
+                return Ok(new
+                {
+                    message = "Đã phân xử khiếu nại thành công. Đơn thuê đã được cập nhật trạng thái.",
+                    data = result
+                });
             }
             catch (KeyNotFoundException ex)
             {

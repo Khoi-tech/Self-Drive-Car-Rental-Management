@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import handoverService from '../../services/handoverService';
 import { formatDateTime } from '../../utils/formatters';
+import VehicleDamageMap from '../operations/VehicleDamageMap';
 
 const DEFAULT_ACCESSORIES = [
   'Giấy đăng ký xe (Cavet công chứng còn hạn)',
@@ -43,6 +44,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
   const [tireCondition, setTireCondition] = useState('4 lốp gai sâu trên 6mm, áp suất 2.3 bar tiêu chuẩn, mâm xe không cấn lề.');
   const [selectedAccessories, setSelectedAccessories] = useState(DEFAULT_ACCESSORIES);
   const [existingScratchesNotes, setExistingScratchesNotes] = useState('');
+  const [damagePoints, setDamagePoints] = useState([]);
   const [evidencePhotoUrls, setEvidencePhotoUrls] = useState('');
   const [staffNotes, setStaffNotes] = useState('Đã đối chiếu CCCD và GPLX gốc của khách hàng. Xe trong trạng thái hoàn hảo.');
 
@@ -63,6 +65,11 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             setInteriorCondition(data.interiorCondition || '');
             setTireCondition(data.tireCondition || '');
             setExistingScratchesNotes(data.existingScratchesNotes || '');
+            if (data.damagePointsJson) {
+              try { setDamagePoints(JSON.parse(data.damagePointsJson)); } catch { setDamagePoints([]); }
+            } else {
+              setDamagePoints([]);
+            }
             setEvidencePhotoUrls(data.evidencePhotoUrls || '');
             setStaffNotes(data.staffNotes || '');
             if (data.accessoriesChecklist) {
@@ -70,7 +77,23 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             }
           } else {
             setExistingProtocol(null);
-            setOdoAtHandover(rentalRequest.vehicle?.currentMileage || rentalRequest.currentMileage || 0);
+            const currentOdo = rentalRequest.vehicle?.currentMileage || rentalRequest.currentMileage || 0;
+            setOdoAtHandover(currentOdo);
+
+            // Inherit damage points from vehicle's previous rentals
+            const targetCarId = rentalRequest.carId || rentalRequest.vehicle?.id;
+            if (targetCarId) {
+              try {
+                const dmgRes = await handoverService.getLatestDamagesByCar(targetCarId);
+                const jsonStr = dmgRes?.damagePointsJson || dmgRes?.data?.damagePointsJson;
+                if (jsonStr) {
+                  const pts = JSON.parse(jsonStr).map(p => ({ ...p, type: 'OLD' }));
+                  setDamagePoints(pts);
+                }
+              } catch (e) {
+                console.warn('Could not inherit damage points:', e);
+              }
+            }
           }
         } catch (err) {
           setExistingProtocol(null);
@@ -94,6 +117,13 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    const currentOdo = rentalRequest.vehicle?.currentMileage || rentalRequest.currentMileage || 0;
+    if (Number(odoAtHandover) < currentOdo) {
+      alert(`Chỉ số ODO lúc bàn giao (${Number(odoAtHandover).toLocaleString('vi-VN')} km) không thể nhỏ hơn ODO hiện tại của xe (${currentOdo.toLocaleString('vi-VN')} km).`);
+      return;
+    }
+
     try {
       setLoading(true);
       const payload = {
@@ -106,6 +136,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
         tireCondition,
         accessoriesChecklist: selectedAccessories.join(';'),
         existingScratchesNotes,
+        damagePointsJson: JSON.stringify(damagePoints),
         evidencePhotoUrls,
         staffNotes
       };
@@ -138,7 +169,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             </div>
             <div>
               <h2 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                <span>Biên Bản Bàn Giao Xe Ô Tô Tự Lái (US-18)</span>
+                <span>Biên Bản Bàn Giao Xe Ô Tô Tự Lái</span>
                 {existingProtocol && (
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold">
                     {existingProtocol.protocolNumber}
@@ -322,6 +353,15 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     onChange={(e) => setExistingScratchesNotes(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-md p-2.5 text-zinc-950 text-xs focus:outline-none focus:border-[#0F172A]"
                   />
+
+                  {/* Sơ đồ 2D chấm điểm vết xước */}
+                  <div className="mt-3">
+                    <VehicleDamageMap
+                      points={damagePoints}
+                      onChange={setDamagePoints}
+                      mode="handover"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -458,15 +498,24 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                   </div>
 
                   <div>
-                    <h3 className="font-bold uppercase text-zinc-950 text-[11px]">IV. ĐÁNH GIÁ TÌNH TRẠNG KỸ THUẬT:</h3>
+                    <h3 className="font-bold uppercase text-zinc-950 text-[11px]">IV. ĐÁNH GIÁ TÌNH TRẠNG KỸ THUẬT & SƠ ĐỒ VẾT XƯỚC:</h3>
                     <ul className="list-disc pl-5 space-y-1 mt-1 text-slate-700">
                       <li>Ngoại thất: {exteriorCondition}</li>
                       <li>Nội thất: {interiorCondition}</li>
                       <li>Lốp & Mâm: {tireCondition}</li>
                       {existingScratchesNotes && (
-                        <li className="text-rose-700 font-medium">Vết trầy xước/móp méo đã ghi nhận trước: {existingScratchesNotes}</li>
+                        <li className="text-amber-700 font-medium">Vết trầy xước/móp méo đã ghi nhận trước: {existingScratchesNotes}</li>
                       )}
                     </ul>
+
+                    {damagePoints.length > 0 && (
+                      <div className="mt-3">
+                        <VehicleDamageMap
+                          points={damagePoints}
+                          mode="readonly"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>

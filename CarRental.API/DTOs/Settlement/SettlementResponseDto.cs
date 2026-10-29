@@ -31,6 +31,15 @@ namespace CarRental.API.DTOs.Settlement
         public decimal BalanceAmount { get; set; }
         public string SettlementType { get; set; } = "REFUND_TO_CUSTOMER";
         public decimal RefundAmount { get; set; }
+        public decimal TrafficFineHoldAmount { get; set; }
+        public DateTime? TrafficFineRefundDate { get; set; }
+        public string TrafficFineRefundStatus { get; set; } = "NONE";
+        public decimal TrafficFineActualDeduction { get; set; }
+        public decimal TrafficFineActualRefund { get; set; }
+        public DateTime? TrafficFineRefundedAt { get; set; }
+        public string? TrafficFineTransactionCode { get; set; }
+        public string? TrafficFineNotes { get; set; }
+        public string? TrafficFineViolationProofUrl { get; set; }
         public decimal AdditionalAmountDue { get; set; }
 
         public string RefundStatus { get; set; } = "PENDING";

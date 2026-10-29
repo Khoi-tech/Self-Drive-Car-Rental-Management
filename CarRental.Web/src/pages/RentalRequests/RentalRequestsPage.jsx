@@ -24,7 +24,9 @@ import {
   FileCheck
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
+import settlementService from '../../services/settlementService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import HandoverModal from '../../components/handover/HandoverModal';
 import ReturnProtocolModal from '../../components/operations/ReturnProtocolModal';
 import SettlementModal from '../../components/operations/SettlementModal';
@@ -38,6 +40,8 @@ const STATUS_CONFIG = {
   ACTIVE: { label: 'Đang thuê xe', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', icon: CheckCircle2 },
   COMPLETED: { label: 'Đã hoàn tất', bg: 'bg-zinc-100', text: 'text-zinc-800', border: 'border-zinc-300', icon: CheckCircle2 },
   CANCELLED: { label: 'Đã hủy', bg: 'bg-zinc-100', text: 'text-zinc-600', border: 'border-zinc-200', icon: XCircle },
+  HOLDING: { label: 'Giữ cọc phạt nguội', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', icon: ShieldAlert },
+  DISPUTED: { label: 'Đang khiếu nại', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300', icon: AlertTriangle },
 };
 
 const REJECT_PRESETS = [
@@ -62,15 +66,15 @@ const RentalRequestsPage = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Handover Modal State (US-18)
+  // Handover Modal State
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [handoverRequest, setHandoverRequest] = useState(null);
 
-  // Return Protocol Modal State (US-22)
+  // Return Protocol Modal State
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnRequest, setReturnRequest] = useState(null);
 
-  // Settlement Modal State (US-23)
+  // Settlement Modal State
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [settlementRequest, setSettlementRequest] = useState(null);
 
@@ -83,14 +87,32 @@ const RentalRequestsPage = () => {
   // Lightbox Zoom Image Modal
   const [zoomedImage, setZoomedImage] = useState(null);
 
+  // Settlement Map for Traffic Fine Escrow tracking
+  const [settlementsMap, setSettlementsMap] = useState({});
+
   // Fetch data
   const loadRequests = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await rentalRequestService.getAllRequests();
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const [reqRes, settleRes] = await Promise.allSettled([
+        rentalRequestService.getAllRequests(),
+        settlementService.getAll()
+      ]);
+
+      const list = reqRes.status === 'fulfilled'
+        ? (Array.isArray(reqRes.value) ? reqRes.value : (Array.isArray(reqRes.value?.data) ? reqRes.value.data : []))
+        : [];
       setRequests(list);
+
+      if (settleRes.status === 'fulfilled') {
+        const sList = Array.isArray(settleRes.value) ? settleRes.value : (Array.isArray(settleRes.value?.data) ? settleRes.value.data : []);
+        const sMap = {};
+        sList.forEach(s => {
+          if (s.rentalRequestId) sMap[s.rentalRequestId] = s;
+        });
+        setSettlementsMap(sMap);
+      }
     } catch (err) {
       console.error(err);
       setError('Không thể tải danh sách đơn thuê xe. Vui lòng thử lại!');
@@ -103,9 +125,29 @@ const RentalRequestsPage = () => {
     loadRequests();
   }, []);
 
+  // Stats count
+  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
+  const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
+  const confirmedCount = requests.filter(r => r.status === 'CONFIRMED' || r.status === 'SIGNED').length;
+  const activeCount = requests.filter(r => r.status === 'ACTIVE').length;
+  const holdingCount = requests.filter(r => r.status === 'HOLDING' || settlementsMap[r.id]?.trafficFineRefundStatus === 'HOLDING').length;
+  const disputedCount = requests.filter(r => r.status === 'DISPUTED').length;
+  const completedCount = requests.filter(r => r.status === 'COMPLETED' && (!settlementsMap[r.id] || settlementsMap[r.id]?.trafficFineRefundStatus !== 'HOLDING')).length;
+  const cancelledCount = requests.filter(r => r.status === 'CANCELLED' || r.status === 'REJECTED').length;
+
   // Filter requests
   const filteredRequests = requests.filter(item => {
-    const matchTab = activeTab === 'ALL' || item.status === activeTab;
+    let matchTab = true;
+    if (activeTab === 'PENDING') matchTab = item.status === 'PENDING';
+    else if (activeTab === 'APPROVED') matchTab = item.status === 'APPROVED';
+    else if (activeTab === 'CONFIRMED') matchTab = item.status === 'CONFIRMED' || item.status === 'SIGNED';
+    else if (activeTab === 'ACTIVE') matchTab = item.status === 'ACTIVE';
+    else if (activeTab === 'HOLDING') matchTab = item.status === 'HOLDING' || settlementsMap[item.id]?.trafficFineRefundStatus === 'HOLDING';
+    else if (activeTab === 'DISPUTED') matchTab = item.status === 'DISPUTED';
+    else if (activeTab === 'COMPLETED') matchTab = item.status === 'COMPLETED' && (!settlementsMap[item.id] || settlementsMap[item.id]?.trafficFineRefundStatus !== 'HOLDING');
+    else if (activeTab === 'CANCELLED') matchTab = item.status === 'CANCELLED' || item.status === 'REJECTED';
+    else matchTab = true;
+
     const searchLower = searchTerm.toLowerCase();
     const matchSearch = !searchTerm || 
       item.customerName?.toLowerCase().includes(searchLower) ||
@@ -115,11 +157,6 @@ const RentalRequestsPage = () => {
       item.id?.toLowerCase().includes(searchLower);
     return matchTab && matchSearch;
   });
-
-  // Stats count
-  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
-  const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
-  const rejectedCount = requests.filter(r => r.status === 'REJECTED').length;
 
   // Handle Approve
   const handleApprove = async (id) => {
@@ -196,11 +233,8 @@ const RentalRequestsPage = () => {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
             Quản Lý Đơn Thuê & Duyệt Hồ Sơ
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-zinc-900 text-white font-mono">
-              Sprint 3 - US-16
-            </span>
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
             Kiểm duyệt hồ sơ định danh (CCCD, GPLX), xét duyệt yêu cầu thuê xe và cấp phép bước hợp đồng
@@ -242,45 +276,110 @@ const RentalRequestsPage = () => {
         </div>
       )}
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
+      {/* 1-Click Operational Smart Filter KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        <div 
+          onClick={() => setActiveTab('ALL')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'ALL' ? 'ring-2 ring-slate-900 border-slate-900 shadow-sm' : 'border-slate-200 hover:border-slate-400'
+          }`}
+        >
           <div>
-            <p className="text-xs text-slate-500 uppercase font-semibold">Tất cả đơn</p>
-            <p className="text-2xl font-bold text-zinc-950 mt-1 tabular-nums">{requests.length}</p>
+            <p className="text-[11px] text-slate-500 uppercase font-semibold">Tất cả đơn</p>
+            <p className="text-xl font-bold text-zinc-950 mt-0.5 tabular-nums">{requests.length}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-            <FileText size={20} />
+          <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center text-slate-600">
+            <FileText size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-amber-200 shadow-sm flex items-center justify-between">
+        <div 
+          onClick={() => setActiveTab('PENDING')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'PENDING' ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/30 shadow-sm' : 'border-amber-200 hover:border-amber-400'
+          }`}
+        >
           <div>
-            <p className="text-xs text-amber-700 uppercase font-semibold">Chờ duyệt hồ sơ</p>
-            <p className="text-2xl font-bold text-amber-700 mt-1 tabular-nums">{pendingCount}</p>
+            <p className="text-[11px] text-amber-700 uppercase font-semibold">Chờ duyệt</p>
+            <p className="text-xl font-bold text-amber-700 mt-0.5 tabular-nums">{pendingCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-            <Clock size={20} />
+          <div className="w-8 h-8 rounded-md bg-amber-50 flex items-center justify-center text-amber-600">
+            <Clock size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-emerald-200 shadow-sm flex items-center justify-between">
+        <div 
+          onClick={() => setActiveTab('CONFIRMED')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'CONFIRMED' ? 'ring-2 ring-blue-600 border-blue-600 bg-blue-50/30 shadow-sm' : 'border-blue-200 hover:border-blue-400'
+          }`}
+        >
           <div>
-            <p className="text-xs text-emerald-700 uppercase font-semibold">Đã phê duyệt</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1 tabular-nums">{approvedCount}</p>
+            <p className="text-[11px] text-blue-700 uppercase font-semibold">Đã cọc & Giữ</p>
+            <p className="text-xl font-bold text-blue-700 mt-0.5 tabular-nums">{confirmedCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 size={20} />
+          <div className="w-8 h-8 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
+            <FileCheck size={16} />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-rose-200 shadow-sm flex items-center justify-between">
+        <div 
+          onClick={() => setActiveTab('ACTIVE')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'ACTIVE' ? 'ring-2 ring-teal-600 border-teal-600 bg-teal-50/30 shadow-sm' : 'border-teal-200 hover:border-teal-400'
+          }`}
+        >
           <div>
-            <p className="text-xs text-rose-700 uppercase font-semibold">Đã từ chối</p>
-            <p className="text-2xl font-bold text-rose-700 mt-1 tabular-nums">{rejectedCount}</p>
+            <p className="text-[11px] text-teal-700 uppercase font-semibold">Đang thuê</p>
+            <p className="text-xl font-bold text-teal-700 mt-0.5 tabular-nums">{activeCount}</p>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
-            <XCircle size={20} />
+          <div className="w-8 h-8 rounded-md bg-teal-50 flex items-center justify-center text-teal-600">
+            <Car size={16} />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('HOLDING')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'HOLDING' ? 'ring-2 ring-purple-600 border-purple-600 bg-purple-50/30 shadow-sm' : 'border-purple-200 hover:border-purple-400'
+          }`}
+        >
+          <div>
+            <p className="text-[11px] text-purple-700 uppercase font-semibold">Giữ phạt nguội</p>
+            <p className="text-xl font-bold text-purple-700 mt-0.5 tabular-nums">{holdingCount}</p>
+          </div>
+          <div className="w-8 h-8 rounded-md bg-purple-50 flex items-center justify-center text-purple-600">
+            <ShieldAlert size={16} />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('DISPUTED')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'DISPUTED' ? 'ring-2 ring-rose-600 border-rose-600 bg-rose-50/30 shadow-sm' : 'border-rose-200 hover:border-rose-400'
+          }`}
+        >
+          <div>
+            <p className="text-[11px] text-rose-700 uppercase font-semibold">Khiếu nại</p>
+            <p className="text-xl font-bold text-rose-700 mt-0.5 tabular-nums">{disputedCount}</p>
+          </div>
+          <div className="w-8 h-8 rounded-md bg-rose-50 flex items-center justify-center text-rose-600">
+            <AlertTriangle size={16} />
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('COMPLETED')}
+          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
+            activeTab === 'COMPLETED' ? 'ring-2 ring-slate-800 border-slate-800 bg-slate-100/50 shadow-sm' : 'border-slate-200 hover:border-slate-400'
+          }`}
+        >
+          <div>
+            <p className="text-[11px] text-zinc-600 uppercase font-semibold">Hoàn tất / Đóng</p>
+            <p className="text-xl font-bold text-zinc-800 mt-0.5 tabular-nums">{completedCount}</p>
+          </div>
+          <div className="w-8 h-8 rounded-md bg-zinc-100 flex items-center justify-center text-zinc-700">
+            <CheckCircle2 size={16} />
           </div>
         </div>
       </div>
@@ -294,12 +393,17 @@ const RentalRequestsPage = () => {
               { key: 'ALL', label: 'Tất cả' },
               { key: 'PENDING', label: `Chờ duyệt (${pendingCount})` },
               { key: 'APPROVED', label: `Đã duyệt (${approvedCount})` },
-              { key: 'REJECTED', label: `Từ chối (${rejectedCount})` },
+              { key: 'CONFIRMED', label: `Đã cọc (${confirmedCount})` },
+              { key: 'ACTIVE', label: `Đang thuê (${activeCount})` },
+              { key: 'HOLDING', label: `Giữ phạt nguội (${holdingCount})` },
+              { key: 'DISPUTED', label: `Khiếu nại (${disputedCount})` },
+              { key: 'COMPLETED', label: `Hoàn tất (${completedCount})` },
+              { key: 'CANCELLED', label: `Hủy / Từ chối (${cancelledCount})` },
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
+                className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-[#0F172A] text-zinc-950'
                     : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -378,6 +482,7 @@ const RentalRequestsPage = () => {
                   const StatusIcon = statusInfo?.icon || Clock;
 
                   const hasPhotos = req.idCardFrontUrl || req.idCardBackUrl || req.driverLicenseFrontUrl || req.driverLicenseBackUrl;
+                  const settle = settlementsMap[req.id];
 
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/80 transition group">
@@ -409,8 +514,9 @@ const RentalRequestsPage = () => {
                         <div className="flex items-center gap-3">
                           {req.carImageUrl ? (
                             <img 
-                              src={req.carImageUrl} 
+                              src={getPrimaryImageUrl(req.carImageUrl)} 
                               alt={req.carModel} 
+                              onError={handleImageError}
                               className="w-12 h-9 object-cover rounded border border-slate-200 flex-shrink-0"
                             />
                           ) : (
@@ -470,6 +576,32 @@ const RentalRequestsPage = () => {
                           <StatusIcon size={12} />
                           {statusInfo.label}
                         </span>
+
+                        {/* Traffic Fine Escrow Tag if COMPLETED */}
+                        {req.status === 'COMPLETED' && settle?.trafficFineHoldAmount > 0 && (
+                          <div className="mt-1 flex justify-center">
+                            {settle.trafficFineRefundStatus === 'HOLDING' ? (
+                              <span 
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                title={`Giữ cọc phạt nguội ${formatCurrency(settle.trafficFineHoldAmount)} đến ${formatDateTime(settle.trafficFineRefundDate)}`}
+                              >
+                                <Clock size={10} className="text-indigo-600" />
+                                <span>Giữ PN: {formatCurrency(settle.trafficFineHoldAmount)}</span>
+                              </span>
+                            ) : settle.trafficFineRefundStatus === 'REFUNDED' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 size={10} className="text-emerald-600" />
+                                <span>Hoàn đủ 2 đợt</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <AlertTriangle size={10} className="text-amber-600" />
+                                <span>Đã trừ phạt & hoàn dư</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
                         {req.status === 'REJECTED' && req.rejectReason && (
                           <p className="text-[11px] text-rose-600 mt-1 max-w-[130px] truncate mx-auto" title={req.rejectReason}>
                             {req.rejectReason}
@@ -514,8 +646,8 @@ const RentalRequestsPage = () => {
                             </>
                           )}
 
-                          {/* Link to Contract if APPROVED or CONFIRMED */}
-                          {(req.status === 'APPROVED' || req.status === 'CONFIRMED') && (
+                          {/* Link to Contract if APPROVED, SIGNED or CONFIRMED */}
+                          {(req.status === 'APPROVED' || req.status === 'SIGNED' || req.status === 'CONFIRMED') && (
                             <Link
                               to={`/contracts/sign/${req.id}`}
                               target="_blank"
@@ -534,7 +666,7 @@ const RentalRequestsPage = () => {
                                 setIsHandoverModalOpen(true);
                               }}
                               className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                              title="Lập hoặc xem biên bản bàn giao xe (US-18)"
+                              title="Lập hoặc xem biên bản bàn giao xe"
                             >
                               <FileCheck size={13} />
                               <span className="hidden sm:inline">Bàn giao</span>
@@ -550,7 +682,7 @@ const RentalRequestsPage = () => {
                                   setIsReturnModalOpen(true);
                                 }}
                                 className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                                title="Nghiệm thu hoàn trả xe (US-22)"
+                                title="Nghiệm thu hoàn trả xe"
                               >
                                 <FileCheck size={13} />
                                 <span className="hidden sm:inline">Trả xe</span>
@@ -562,7 +694,7 @@ const RentalRequestsPage = () => {
                                   setIsSettlementModalOpen(true);
                                 }}
                                 className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                                title="Tính phí & Quyết toán cọc (US-23)"
+                                title="Tính phí & Quyết toán cọc"
                               >
                                 <DollarSign size={13} />
                                 <span className="hidden sm:inline">Quyết toán</span>
@@ -570,18 +702,39 @@ const RentalRequestsPage = () => {
                             </>
                           )}
 
-                          {/* View Settlement Button if COMPLETED */}
-                          {req.status === 'COMPLETED' && (
+                          {/* Dispute Resolution Button if DISPUTED */}
+                          {req.status === 'DISPUTED' && (
                             <button
                               onClick={() => {
                                 setSettlementRequest(req);
                                 setIsSettlementModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                              title="Xem phiếu quyết toán & hoàn cọc"
+                              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1 animate-pulse"
+                              title="Phân xử khiếu nại tài chính của khách hàng"
+                            >
+                              <ShieldAlert size={13} />
+                              <span className="hidden sm:inline">Phân xử</span>
+                            </button>
+                          )}
+
+                          {/* View Settlement Button if COMPLETED or HOLDING */}
+                          {(req.status === 'COMPLETED' || req.status === 'HOLDING') && (
+                            <button
+                              onClick={() => {
+                                setSettlementRequest(req);
+                                setIsSettlementModalOpen(true);
+                              }}
+                              className={`px-2.5 py-1.5 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1 ${
+                                req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING'
+                                  ? 'bg-purple-700 hover:bg-purple-600 ring-2 ring-purple-300'
+                                  : 'bg-slate-800 hover:bg-slate-700'
+                              }`}
+                              title={req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING' ? "Đối soát & Hoàn cọc phạt nguội Đợt 2" : "Xem phiếu quyết toán & hoàn cọc"}
                             >
                               <DollarSign size={13} />
-                              <span className="hidden sm:inline">Phiếu QT</span>
+                              <span className="hidden sm:inline">
+                                {req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING' ? 'Đối soát Đ2' : 'Phiếu QT'}
+                              </span>
                             </button>
                           )}
                         </div>
@@ -709,8 +862,9 @@ const RentalRequestsPage = () => {
                     <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-md border border-slate-200">
                       {selectedRequest.carImageUrl ? (
                         <img 
-                          src={selectedRequest.carImageUrl} 
+                          src={getPrimaryImageUrl(selectedRequest.carImageUrl)} 
                           alt={selectedRequest.carModel} 
+                          onError={handleImageError}
                           className="w-16 h-12 object-cover rounded border border-slate-200"
                         />
                       ) : (
@@ -1086,7 +1240,7 @@ const RentalRequestsPage = () => {
         </div>
       )}
 
-      {/* ================= MODAL: LẬP BIÊN BẢN BÀN GIAO XE (US-18) ================= */}
+      {/* ================= MODAL: LẬP BIÊN BẢN BÀN GIAO XE ================= */}
       {isHandoverModalOpen && handoverRequest && (
         <HandoverModal
           isOpen={isHandoverModalOpen}
@@ -1099,7 +1253,7 @@ const RentalRequestsPage = () => {
         />
       )}
 
-      {/* ================= MODAL: NGHIỆM THU HOÀN TRẢ XE (US-22) ================= */}
+      {/* ================= MODAL: NGHIỆM THU HOÀN TRẢ XE ================= */}
       {isReturnModalOpen && returnRequest && (
         <ReturnProtocolModal
           isOpen={isReturnModalOpen}
@@ -1119,7 +1273,7 @@ const RentalRequestsPage = () => {
         />
       )}
 
-      {/* ================= MODAL: QUYẾT TOÁN CỌC & HOÀN TIỀN (US-23) ================= */}
+      {/* ================= MODAL: QUYẾT TOÁN CỌC & HOÀN TIỀN ================= */}
       {isSettlementModalOpen && settlementRequest && (
         <SettlementModal
           isOpen={isSettlementModalOpen}

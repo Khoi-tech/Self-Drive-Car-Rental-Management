@@ -29,6 +29,7 @@ namespace CarRental.API.DTOs.ReturnProtocol
         public string? InteriorCondition { get; set; }
         public string? TireCondition { get; set; }
         public string? NewDamagesNotes { get; set; }
+        public string? DamagePointsJson { get; set; }
         public string? AccessoriesChecklist { get; set; }
         public string? MissingAccessories { get; set; }
         public string? EvidencePhotoUrls { get; set; }

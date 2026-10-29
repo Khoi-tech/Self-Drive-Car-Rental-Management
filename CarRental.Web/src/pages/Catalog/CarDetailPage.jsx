@@ -28,7 +28,7 @@ import vehicleService from '../../services/vehicleService';
 import pricingService from '../../services/pricingService';
 import rentalConditionService from '../../services/rentalConditionService';
 import { formatCurrencyVND } from '../../utils/formatters';
-import { parseVehicleImages } from '../../utils/imageGalleryHelper';
+import { parseVehicleImages, getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 
 // Helper to construct a curated multi-photo gallery for a vehicle
 const getVehicleGallery = (vehicle) => {
@@ -72,7 +72,7 @@ const getVehicleGallery = (vehicle) => {
 
   const defaultFallbacks = [
     {
-      url: configuredImages[0]?.url || vehicle.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
+      url: configuredImages[0]?.url || getPrimaryImageUrl(vehicle?.imageUrl),
       title: 'Ngoại thất góc 3/4 trước',
       shortLabel: 'Ngoại thất',
       tag: 'Góc chính',
@@ -357,6 +357,7 @@ const CarDetailPage = () => {
                 <img 
                   src={activeImage.url} 
                   alt={`${vehicle.make} ${vehicle.model} - ${activeImage.title}`} 
+                  onError={handleImageError}
                   className="w-full h-full object-cover transition-opacity duration-300" 
                 />
 
@@ -444,6 +445,7 @@ const CarDetailPage = () => {
                       <img 
                         src={img.url} 
                         alt={img.title} 
+                        onError={handleImageError}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
                       />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1">
@@ -787,6 +789,7 @@ const CarDetailPage = () => {
             <img 
               src={gallery[activeImageIndex]?.url} 
               alt={gallery[activeImageIndex]?.title} 
+              onError={handleImageError}
               className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl transition-all"
             />
 
@@ -825,7 +828,7 @@ const CarDetailPage = () => {
                     : 'opacity-50 hover:opacity-100'
                 }`}
               >
-                <img src={img.url} alt={img.shortLabel} className="w-full h-full object-cover" />
+                <img src={img.url} alt={img.shortLabel} onError={handleImageError} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

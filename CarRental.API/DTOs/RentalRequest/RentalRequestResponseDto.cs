@@ -26,6 +26,8 @@ namespace CarRental.API.DTOs.RentalRequest
         public string CustomerEmail { get; set; } = null!;
         public string CustomerIdCard { get; set; } = null!;
         public string DriverLicenseNumber { get; set; } = null!;
+        public string? DriverLicenseClass { get; set; }
+        public DateTime? DriverLicenseExpiry { get; set; }
         
         public string? IdCardFrontUrl { get; set; }
         public string? IdCardBackUrl { get; set; }

@@ -46,6 +46,13 @@ namespace CarRental.API.Entities
         [Column("driver_license_back_url")]
         public string? DriverLicenseBackUrl { get; set; }
 
+        [Column("driver_license_class")]
+        [MaxLength(50)]
+        public string? DriverLicenseClass { get; set; }
+
+        [Column("driver_license_expiry")]
+        public DateTime? DriverLicenseExpiry { get; set; }
+
         [Column("start_time")]
         public DateTime StartTime { get; set; }
 

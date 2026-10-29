@@ -10,6 +10,7 @@ using CarRental.API.Services;
 namespace CarRental.API.Controllers
 {
     [ApiController]
+    [Route("api/return-protocols")]
     [Route("api/[controller]")]
     public class ReturnProtocolsController : ControllerBase
     {

@@ -25,7 +25,7 @@ const settlementService = {
     return res?.data || res;
   },
 
-  // Tạo/Chốt phiếu quyết toán (US-23)
+  // Tạo/Chốt phiếu quyết toán
   create: async (data) => {
     const res = await api.post('/settlements', data);
     return res?.data || res;
@@ -37,9 +37,27 @@ const settlementService = {
     return res?.data || res;
   },
 
+  // Xác nhận hoàn cọc Đợt 2 (Phạt nguội sau đối soát CSGT)
+  confirmTrafficFineRefund: async (id, data) => {
+    const res = await api.post(`/settlements/${id}/confirm-traffic-fine-refund`, data);
+    return res?.data || res;
+  },
+
   // Xác nhận khách đã đóng tiền phạt thiếu
   confirmAdditionalPayment: async (id, data) => {
     const res = await api.post(`/settlements/${id}/confirm-additional-payment`, data);
+    return res?.data || res;
+  },
+
+  // Khiếu nại quyết toán
+  disputeSettlement: async (id, reason) => {
+    const res = await api.post(`/settlements/${id}/dispute`, { reason });
+    return res?.data || res;
+  },
+
+  // Phân xử khiếu nại (Admin/Staff)
+  resolveDispute: async (id, data) => {
+    const res = await api.post(`/settlements/${id}/resolve-dispute`, data);
     return res?.data || res;
   }
 };

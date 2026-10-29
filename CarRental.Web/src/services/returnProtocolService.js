@@ -19,7 +19,7 @@ const returnProtocolService = {
     return res?.data || res;
   },
 
-  // Lập biên bản hoàn trả xe mới (US-22)
+  // Lập biên bản hoàn trả xe mới
   create: async (data) => {
     const res = await api.post('/returnprotocols', data);
     return res?.data || res;

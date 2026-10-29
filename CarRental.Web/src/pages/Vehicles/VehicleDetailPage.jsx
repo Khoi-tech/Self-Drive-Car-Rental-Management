@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, RefreshCw, AlertCircle, Car, Power, ChevronDown, X, Camera } from 'lucide-react';
 import vehicleService from '../../services/vehicleService';
 import { formatCurrencyVND, getVehicleStatusDisplay, getTransmissionDisplay, getFuelTypeDisplay } from '../../utils/formatters';
-import { parseVehicleImages } from '../../utils/imageGalleryHelper';
+import { parseVehicleImages, handleImageError } from '../../utils/imageGalleryHelper';
 
 const VEHICLE_STATUSES = [
   { value: 'READY', label: 'Sẵn sàng' },
@@ -237,6 +237,7 @@ const VehicleDetailPage = () => {
                   <img 
                     src={img.url} 
                     alt={img.title} 
+                    onError={handleImageError}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
                   />
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 text-white">
@@ -398,7 +399,7 @@ const VehicleDetailPage = () => {
           onClick={() => setSelectedZoomImage(null)}
         >
           <div className="relative max-w-4xl max-h-[85vh] overflow-hidden rounded-lg shadow-2xl bg-zinc-950" onClick={(e) => e.stopPropagation()}>
-            <img src={selectedZoomImage.url} alt={selectedZoomImage.title} className="w-full max-h-[75vh] object-contain" />
+            <img src={selectedZoomImage.url} alt={selectedZoomImage.title} onError={handleImageError} className="w-full max-h-[75vh] object-contain" />
             <div className="p-4 bg-zinc-900 text-white flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-white">{selectedZoomImage.title}</h4>

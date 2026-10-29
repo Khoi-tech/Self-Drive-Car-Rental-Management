@@ -13,6 +13,9 @@ namespace CarRental.API.Services
         Task<SettlementResponseDto?> GetByRequestIdAsync(Guid requestId);
         Task<IEnumerable<SettlementResponseDto>> GetAllAsync();
         Task<SettlementResponseDto> ConfirmRefundAsync(Guid id, ConfirmRefundDto dto);
+        Task<SettlementResponseDto> ConfirmTrafficFineRefundAsync(Guid id, ConfirmTrafficFineRefundDto dto);
         Task<SettlementResponseDto> ConfirmAdditionalPaymentAsync(Guid id, ConfirmAdditionalPaymentDto dto);
+        Task<SettlementResponseDto> DisputeSettlementAsync(Guid id, string reason);
+        Task<SettlementResponseDto> ResolveDisputeAsync(Guid id, ResolveDisputeDto dto, string adminName);
     }
 }

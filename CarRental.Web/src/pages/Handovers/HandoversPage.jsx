@@ -80,7 +80,7 @@ const HandoversPage = () => {
             <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
               <FileCheck size={20} />
             </div>
-            Hồ Sơ Biên Bản Bàn Giao Xe (US-18)
+            Hồ Sơ Biên Bản Bàn Giao Xe
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Quản lý biên bản giao nhận thực tế, ghi nhận ODO xuất phát, mức xăng, hiện trạng xe và checklist phụ kiện

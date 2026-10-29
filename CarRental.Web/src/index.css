@@ -187,3 +187,113 @@ table td,
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+/* ==========================================================================
+   Print / Legal PDF Formatting (@media print)
+   Standardized A4 portrait with crisp typography & clear signature blocks
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+
+  /* Reset layout */
+  html, body {
+    background: #ffffff !important;
+    color: #09090b !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation, buttons, modals backdrops, sidebars */
+  nav,
+  header,
+  footer,
+  aside,
+  button,
+  .no-print,
+  .print-hidden,
+  .fixed.inset-0.bg-black\/80 {
+    background: transparent !important;
+    position: static !important;
+  }
+
+  .no-print,
+  nav,
+  button,
+  input,
+  textarea,
+  .animate-pulse {
+    display: none !important;
+  }
+
+  /* Force print containers to full width white background */
+  .print-container,
+  #printable-receipt,
+  #printable-contract,
+  .printable-document {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* Override dark mode inside modal when printing */
+  #printable-receipt,
+  #printable-receipt * {
+    color: #09090b !important;
+    background-color: transparent !important;
+    border-color: #cbd5e1 !important;
+    text-shadow: none !important;
+  }
+
+  #printable-receipt h2,
+  #printable-receipt h3,
+  #printable-receipt h4 {
+    color: #0f172a !important;
+  }
+
+  #printable-receipt .text-white {
+    color: #09090b !important;
+  }
+
+  #printable-receipt .text-zinc-400,
+  #printable-receipt .text-zinc-500 {
+    color: #475569 !important;
+  }
+
+  #printable-receipt .bg-zinc-900\/60,
+  #printable-receipt .bg-zinc-950\/60,
+  #printable-receipt .bg-zinc-900\/80 {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  /* Keep colors accurate */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .avoid-break,
+  tr,
+  table,
+  .signature-box {
+    page-break-inside: avoid;
+  }
+}

@@ -13,6 +13,7 @@ namespace CarRental.API.DTOs.Analytics
         public int TotalVehicles { get; set; }
         public int AvailableVehicles { get; set; }
         public int RentedVehicles { get; set; }
+        public int BookedVehicles { get; set; }
         public int MaintenanceVehicles { get; set; }
         public int RepairVehicles { get; set; }
 
@@ -21,11 +22,19 @@ namespace CarRental.API.DTOs.Analytics
         public int TotalRentalRequests { get; set; }
         public int PendingRequests { get; set; }
         public int ActiveRentals { get; set; }
+        public int HoldingRequests { get; set; }
+        public int DisputedRequests { get; set; }
         public int CompletedRentals { get; set; }
 
         public int TotalIncidents { get; set; }
         public int ActiveExtensions { get; set; }
         public int LateReturnsCount { get; set; }
+        public int CancelledRequests { get; set; }
+        public int TotalExtensions { get; set; }
+        public int InsuranceClaimsCount { get; set; }
+        public decimal TotalCompensationCollected { get; set; }
+        public decimal TotalRepairCost { get; set; }
+        public decimal RiskRecoveryRatio { get; set; }
 
         // Top Cars & Recent Activities
         public List<TopVehicleItemDto> TopVehicles { get; set; } = new List<TopVehicleItemDto>();

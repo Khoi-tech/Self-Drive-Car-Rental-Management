@@ -20,6 +20,7 @@ import Navbar from '../components/layout/Navbar';
 import IntroVideo from '../components/intro/IntroVideo';
 import vehicleService from '../services/vehicleService';
 import { formatCurrency } from '../utils/formatters';
+import { getPrimaryImageUrl, handleImageError } from '../utils/imageGalleryHelper';
 
 const LOCATIONS = [
   'Hồ Chí Minh (Trụ sở Tân Bình)',
@@ -121,7 +122,7 @@ const Home = () => {
               <div className="lg:col-span-7 space-y-6">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs font-semibold text-slate-800 tracking-wide uppercase">
                   <span className="w-2 h-2 rounded-full bg-blue-700"></span>
-                  Nền Tảng Quản Lý Thuê Xe Tự Lái Chuẩn Đức
+                  Nền Tảng Quản Lý Thuê Xe Tự Lái Velora
                 </div>
 
                 <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-zinc-950 leading-[1.15]">
@@ -321,8 +322,9 @@ const Home = () => {
                     {/* 16:10 Image Container */}
                     <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden border-b border-slate-100">
                       <img
-                        src={car.imageUrl || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'}
+                        src={getPrimaryImageUrl(car.imageUrl)}
                         alt={`${car.make} ${car.model}`}
+                        onError={handleImageError}
                         className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                       />
                       

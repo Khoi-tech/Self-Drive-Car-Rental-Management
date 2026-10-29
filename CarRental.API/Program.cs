@@ -13,6 +13,9 @@ using CarRental.API.Data;
 using CarRental.API.Entities;
 using CarRental.API.Services;
 
+// Enable legacy timestamp behavior to allow local and UTC DateTimes seamlessly with PostgreSQL
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -180,6 +183,7 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_name VARCHAR(100);
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_notes TEXT;
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_signature TEXT;
+            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS customer_signature TEXT;
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'PENDING_CUSTOMER';
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS handover_date TIMESTAMPTZ DEFAULT NOW();
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
@@ -329,6 +333,31 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ DEFAULT NOW();
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_hold_amount NUMERIC(18,2) DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_date TIMESTAMPTZ;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_status VARCHAR(50) DEFAULT 'NONE';
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_actual_deduction NUMERIC(18,2) DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_actual_refund NUMERIC(18,2) DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refunded_at TIMESTAMPTZ;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_transaction_code VARCHAR(100);
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_notes TEXT;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_violation_proof_url TEXT;
+
+            UPDATE rental_settlements 
+            SET traffic_fine_refund_status = 'HOLDING' 
+            WHERE traffic_fine_hold_amount > 0 AND (traffic_fine_refund_status IS NULL OR traffic_fine_refund_status = 'NONE');
+
+            -- PHASE 2: Advanced Rental Eligibility & 2D Vehicle Damage Mapping
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_class VARCHAR(50);
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_expiry TIMESTAMPTZ;
+            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
+            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
+
+            -- Synchronize RentalRequest status to SIGNED for any orders whose contracts have already been signed
+            UPDATE rental_requests r
+            SET status = 'SIGNED', updated_at = NOW()
+            FROM rental_contracts c
+            WHERE c.request_id = r.id AND c.status = 'SIGNED' AND r.status = 'APPROVED';
 
             INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
             VALUES ('20261014060016_AddOperationalAndSprintTables', '10.0.12')
@@ -456,6 +485,231 @@ using (var scope = app.Services.CreateScope())
         }
     } catch (Exception ex) {
         Console.WriteLine($"Error seeding insurances: {ex.Message}");
+    }
+
+    // SEED TEST DATA FOR PHASE 1 & 2: Manual Cars & Complete Test Orders for both customer accounts
+    try {
+        // 1. Update 3 cars to MANUAL transmission so customers can test B1_AUTO vs MANUAL validation
+        var vios = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-123.45");
+        if (vios != null)
+        {
+            vios.Model = "Vios 1.5 MT (Số Sàn)";
+            vios.Transmission = TransmissionType.MANUAL;
+        }
+
+        var innova = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-901.23");
+        if (innova != null)
+        {
+            innova.Model = "Innova 2.0E MT (Số Sàn)";
+            innova.Transmission = TransmissionType.MANUAL;
+        }
+
+        var xpander = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-334.55");
+        if (xpander != null)
+        {
+            xpander.Model = "Xpander 1.5 MT (Số Sàn)";
+            xpander.Transmission = TransmissionType.MANUAL;
+        }
+
+        db.SaveChanges();
+
+        // 2. Prepare test customer accounts
+        var targetEmails = new[] { "customer@velora.vn", "hhuynhkhoi1505@gmail.com" };
+        var sampleDamageJson = "[{\"id\":\"dp_old_1\",\"view\":\"FRONT\",\"x\":48,\"y\":82,\"description\":\"Trầy xước nhẹ cản trước 4cm\",\"severity\":\"MINOR\",\"type\":\"OLD\",\"fee\":0},{\"id\":\"dp_new_1\",\"view\":\"REAR\",\"x\":52,\"y\":85,\"description\":\"Móp cản sau bên lái\",\"severity\":\"MODERATE\",\"type\":\"NEW\",\"fee\":500000}]";
+
+        var carVios = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-123.45") ?? db.Vehicles.First();
+        var carInnova = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-901.23") ?? db.Vehicles.Skip(1).First();
+        var carBmw = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51H-97177") ?? db.Vehicles.Skip(2).First();
+        var carMerc = db.Vehicles.FirstOrDefault(v => v.LicensePlate == "51K-888.88") ?? db.Vehicles.Skip(3).First();
+
+        foreach (var email in targetEmails)
+        {
+            // Case A: CONFIRMED request -> Test Hủy Đơn (Cancel Rental & VietQR Refund)
+            if (!db.RentalRequests.Any(r => r.CustomerEmail == email && r.Status == "CONFIRMED"))
+            {
+                db.RentalRequests.Add(new RentalRequest
+                {
+                    Id = Guid.NewGuid(),
+                    CarId = carMerc.Id,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    CustomerEmail = email,
+                    CustomerIdCard = "079099123456",
+                    DriverLicenseNumber = "790123999888",
+                    DriverLicenseClass = "B2",
+                    DriverLicenseExpiry = DateTime.UtcNow.AddYears(3),
+                    StartTime = DateTime.UtcNow.AddHours(36), // > 24 hours away for 100% refund demo
+                    EndTime = DateTime.UtcNow.AddHours(84),
+                    PickupLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    DropoffLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    TotalDays = 2,
+                    DailyRate = carMerc.DailyRate,
+                    DepositAmount = carMerc.DepositAmount,
+                    EstimatedTotalFee = carMerc.DailyRate * 2,
+                    Status = "CONFIRMED",
+                    Notes = "Đơn mẫu sẵn sàng test nút HỦY ĐƠN (Đợt 1)",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            // Case B: APPROVED request -> Test Bàn Giao Xe & Chấm Sơ Đồ 2D Vết Vàng
+            if (!db.RentalRequests.Any(r => r.CustomerEmail == email && r.Status == "APPROVED"))
+            {
+                db.RentalRequests.Add(new RentalRequest
+                {
+                    Id = Guid.NewGuid(),
+                    CarId = carVios.Id,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    CustomerEmail = email,
+                    CustomerIdCard = "079099123456",
+                    DriverLicenseNumber = "790123999888",
+                    DriverLicenseClass = "B2",
+                    DriverLicenseExpiry = DateTime.UtcNow.AddYears(3),
+                    StartTime = DateTime.UtcNow.AddDays(1),
+                    EndTime = DateTime.UtcNow.AddDays(3),
+                    PickupLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    DropoffLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    TotalDays = 2,
+                    DailyRate = carVios.DailyRate,
+                    DepositAmount = carVios.DepositAmount,
+                    EstimatedTotalFee = carVios.DailyRate * 2,
+                    Status = "APPROVED",
+                    Notes = "Đơn mẫu sẵn sàng test BÀN GIAO XE & SƠ ĐỒ 2D (Đợt 2)",
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            // Case C: ACTIVE request -> Test Trả Xe, Chấm Vết Đỏ & Giữ Cọc Phạt Nguội
+            if (!db.RentalRequests.Any(r => r.CustomerEmail == email && r.Status == "ACTIVE"))
+            {
+                var activeReqId = Guid.NewGuid();
+                db.RentalRequests.Add(new RentalRequest
+                {
+                    Id = activeReqId,
+                    CarId = carInnova.Id,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    CustomerEmail = email,
+                    CustomerIdCard = "079099123456",
+                    DriverLicenseNumber = "790123999888",
+                    DriverLicenseClass = "B2",
+                    DriverLicenseExpiry = DateTime.UtcNow.AddYears(3),
+                    StartTime = DateTime.UtcNow.AddDays(-2),
+                    EndTime = DateTime.UtcNow.AddDays(1),
+                    PickupLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    DropoffLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    TotalDays = 3,
+                    DailyRate = carInnova.DailyRate,
+                    DepositAmount = carInnova.DepositAmount,
+                    EstimatedTotalFee = carInnova.DailyRate * 3,
+                    Status = "ACTIVE",
+                    Notes = "Đơn mẫu sẵn sàng test TRẢ XE & QUỸ PHẠT NGUỘI (Đợt 2)",
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+
+                // Seed Handover Protocol for this active request
+                db.HandoverProtocols.Add(new HandoverProtocol
+                {
+                    Id = Guid.NewGuid(),
+                    ProtocolNumber = $"BBBG-{activeReqId.ToString()[..8].ToUpper()}",
+                    RentalRequestId = activeReqId,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    OdoAtHandover = 15000,
+                    FuelLevel = 100,
+                    ExteriorCondition = "Sơn bóng sạch, có 1 vết trầy xước nhẹ cản trước",
+                    InteriorCondition = "Sạch sẽ nguyên vẹn",
+                    TireCondition = "4 lốp áp suất tiêu chuẩn",
+                    ExistingScratchesNotes = "Trầy xước nhẹ cản trước 4cm (đã chấm điểm vàng trên sơ đồ 2D)",
+                    DamagePointsJson = "[{\"id\":\"dp_old_init\",\"view\":\"FRONT\",\"x\":48,\"y\":82,\"description\":\"Trầy cản trước 4cm\",\"severity\":\"MINOR\",\"type\":\"OLD\",\"fee\":0}]",
+                    Status = "CONFIRMED",
+                    HandoverDate = DateTime.UtcNow.AddDays(-2),
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+            }
+
+            // Case D: COMPLETED request -> Test Xem Phiếu Quyết Toán, Quỹ Phạt Nguội & Nút Khiếu Nại (DISPUTED)
+            if (!db.RentalRequests.Any(r => r.CustomerEmail == email && r.Status == "COMPLETED"))
+            {
+                var completedReqId = Guid.NewGuid();
+                db.RentalRequests.Add(new RentalRequest
+                {
+                    Id = completedReqId,
+                    CarId = carBmw.Id,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    CustomerEmail = email,
+                    CustomerIdCard = "079099123456",
+                    DriverLicenseNumber = "790123999888",
+                    DriverLicenseClass = "B2",
+                    DriverLicenseExpiry = DateTime.UtcNow.AddYears(3),
+                    StartTime = DateTime.UtcNow.AddDays(-5),
+                    EndTime = DateTime.UtcNow.AddDays(-2),
+                    PickupLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    DropoffLocation = "VP VELORA (Trụ sở Tân Bình)",
+                    TotalDays = 3,
+                    DailyRate = carBmw.DailyRate,
+                    DepositAmount = carBmw.DepositAmount,
+                    EstimatedTotalFee = carBmw.DailyRate * 3,
+                    Status = "COMPLETED",
+                    Notes = "Đơn mẫu sẵn sàng test XEM QUYẾT TOÁN & KHIẾU NẠI (DISPUTED)",
+                    CreatedAt = DateTime.UtcNow.AddDays(-5)
+                });
+
+                var returnProtocolId = Guid.NewGuid();
+                db.ReturnProtocols.Add(new ReturnProtocol
+                {
+                    Id = returnProtocolId,
+                    ProtocolNumber = $"BBHT-{completedReqId.ToString()[..8].ToUpper()}",
+                    RentalRequestId = completedReqId,
+                    CustomerName = email.Contains("khoi") ? "Huỳnh Minh Khôi" : "Khách Hàng Mẫu",
+                    CustomerPhone = "0909123456",
+                    StartOdo = 20000,
+                    EndOdo = 20380,
+                    TotalKmDriven = 380,
+                    InitialFuelLevel = 100,
+                    ReturnFuelLevel = 100,
+                    ExteriorCondition = "Có 1 vết móp mới cản sau bên lái",
+                    NewDamagesNotes = "Vết móp cản sau bên lái (Phạt: 500.000 đ)",
+                    DamagePointsJson = sampleDamageJson,
+                    Status = "COMPLETED",
+                    ReturnDate = DateTime.UtcNow.AddDays(-2),
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+
+                db.RentalSettlements.Add(new RentalSettlement
+                {
+                    Id = Guid.NewGuid(),
+                    SettlementNumber = $"QT-{DateTime.UtcNow:yyyyMMdd}-{completedReqId.ToString()[..4].ToUpper()}",
+                    RentalRequestId = completedReqId,
+                    ReturnProtocolId = returnProtocolId,
+                    RentalFee = carBmw.DailyRate * 3,
+                    DepositAmount = carBmw.DepositAmount,
+                    DamageFee = 500000,
+                    TotalDeduction = 500000,
+                    BalanceAmount = carBmw.DepositAmount - 500000,
+                    SettlementType = "REFUND_TO_CUSTOMER",
+                    RefundAmount = carBmw.DepositAmount - 500000,
+                    TrafficFineHoldAmount = 2000000,
+                    TrafficFineRefundDate = DateTime.UtcNow.AddDays(20),
+                    RefundStatus = "REFUNDED",
+                    RefundMethod = "VIETQR",
+                    RefundBankName = "VCB",
+                    RefundAccountNumber = "0123456789",
+                    RefundAccountName = email.Contains("khoi") ? "HUYNH MINH KHOI" : "KHACH HANG MAU",
+                    RefundTransactionCode = "FT26295819028",
+                    StaffNotes = "Đã đối soát xong biên bản hoàn trả xe. Tạm giữ 2.000.000 VNĐ quỹ cọc phạt nguội.",
+                    Status = "SETTLED",
+                    SettledAt = DateTime.UtcNow.AddDays(-2),
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                });
+            }
+        }
+
+        db.SaveChanges();
+    } catch (Exception ex) {
+        Console.WriteLine($"Error seeding test data: {ex.Message}");
     }
 }
 

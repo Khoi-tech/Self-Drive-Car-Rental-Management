@@ -12,5 +12,6 @@ namespace CarRental.API.Services
         Task<List<RentalRequestResponseDto>> GetByCustomerAsync(string? email, string? phone);
         Task<RentalRequestResponseDto> ApproveRequestAsync(Guid id);
         Task<RentalRequestResponseDto> RejectRequestAsync(Guid id, string reason);
+        Task<CancelRentalResultDto> CancelRequestAsync(Guid id);
     }
 }

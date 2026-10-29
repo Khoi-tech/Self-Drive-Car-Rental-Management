@@ -85,10 +85,13 @@ const DepositPaymentPage = () => {
     try {
       setConfirming(true);
       const res = await paymentService.confirmPayment(paymentData.transactionCode);
-      setPaymentData(res?.data || res);
+      const confirmedPayment = res?.data?.data || res?.data || res;
+      setPaymentData(confirmedPayment);
       setIsSuccess(true);
     } catch (err) {
-      alert(err.response?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán.');
+      console.error('Error confirming deposit payment:', err);
+      const msg = err.response?.data?.message || err.response?.data?.Message || err.message || 'Có lỗi xảy ra khi xác nhận thanh toán.';
+      alert(msg);
     } finally {
       setConfirming(false);
     }

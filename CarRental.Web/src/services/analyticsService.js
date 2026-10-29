@@ -1,7 +1,7 @@
 import api from './api';
 
 const analyticsService = {
-  // Lấy dữ liệu tổng quan Dashboard KPI (US-25)
+  // Lấy dữ liệu tổng quan Dashboard KPI
   getDashboardOverview: async () => {
     const res = await api.get('/analytics/dashboard-overview');
     return res?.data || res;

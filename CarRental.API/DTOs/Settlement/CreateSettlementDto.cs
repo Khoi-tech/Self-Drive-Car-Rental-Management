@@ -38,6 +38,10 @@ namespace CarRental.API.DTOs.Settlement
 
         public string? RefundAccountName { get; set; }
 
+        public decimal TrafficFineHoldAmount { get; set; } = 0;
+
+        public DateTime? TrafficFineRefundDate { get; set; }
+
         public string? StaffNotes { get; set; }
     }
 }

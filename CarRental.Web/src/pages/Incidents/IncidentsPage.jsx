@@ -202,10 +202,7 @@ const IncidentsPage = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 flex items-center gap-2">
-            Điều Phối Cứu Hộ & Xử Lý Sự Cố (US-21)
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-900 text-white font-mono">
-              Sprint 4
-            </span>
+            Điều Phối Cứu Hộ & Xử Lý Sự Cố
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
             Tiếp nhận báo cáo khẩn cấp từ khách thuê xe, điều phối cứu hộ, đổi xe thay thế, ghi nhận bồi thường & bảo hiểm
@@ -506,7 +503,7 @@ const IncidentsPage = () => {
 
       </div>
 
-      {/* Modal Xử lý & Giải quyết Sự cố (US-21) */}
+      {/* Modal Xử lý & Giải quyết Sự cố */}
       {isResolveModalOpen && selectedIncident && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-lg max-w-xl w-full p-5 shadow-xl border border-slate-200 space-y-4 my-8">
@@ -514,7 +511,7 @@ const IncidentsPage = () => {
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-rose-700 flex items-center gap-2">
                 <Wrench size={18} />
-                <span>Biên Bản Điều Phối & Giải Quyết Sự Cố (US-21)</span>
+                <span>Biên Bản Điều Phối & Giải Quyết Sự Cố</span>
               </h3>
               <button 
                 onClick={() => { setIsResolveModalOpen(false); setSelectedIncident(null); }}

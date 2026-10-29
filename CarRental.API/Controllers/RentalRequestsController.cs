@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.RentalRequest;
 using CarRental.API.Services;
@@ -119,6 +120,29 @@ namespace CarRental.API.Controllers
             {
                 var result = await _rentalRequestService.RejectRequestAsync(id, dto.Reason);
                 return Ok(new { Message = "Từ chối yêu cầu thuê xe thành công", Data = result });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
+            }
+        }
+
+        [HttpPut("{id:guid}/cancel")]
+        [Authorize]
+        public async Task<IActionResult> CancelRequest(Guid id)
+        {
+            try
+            {
+                var result = await _rentalRequestService.CancelRequestAsync(id);
+                return Ok(new { Message = "Hủy đơn thuê xe thành công.", Data = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { Message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {

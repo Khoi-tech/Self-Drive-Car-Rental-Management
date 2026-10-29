@@ -52,9 +52,15 @@ namespace CarRental.API.Services
             {
                 var diff = returnProtocol.ReturnDate - request.EndTime;
                 lateHours = (decimal)Math.Round(diff.TotalHours, 1);
-                if (lateHours > 1.0m) // Miễn phí trễ dưới 1 giờ
+                if (lateHours >= 5.0m)
                 {
-                    // Đơn giá trễ: 100,000 VND / giờ
+                    // Trễ từ 5 giờ trở lên tính tròn 1 ngày thuê xe (hoặc số ngày trễ tương ứng)
+                    int lateDays = (int)Math.Ceiling(lateHours / 24m);
+                    lateReturnFee = lateDays * (request.DailyRate > 0 ? request.DailyRate : 1000000m);
+                }
+                else if (lateHours >= 1.0m)
+                {
+                    // Trễ 1 - 5 giờ: 100,000 VND / giờ
                     lateReturnFee = Math.Round(lateHours * 100000m, 0);
                 }
             }
@@ -70,6 +76,26 @@ namespace CarRental.API.Services
             decimal damageFee = 0;
             string? damageNotes = returnProtocol.NewDamagesNotes;
 
+            // Kế thừa phí hư hỏng từ các điểm đỏ mới (NEW) trên sơ đồ xe 2D
+            if (!string.IsNullOrWhiteSpace(returnProtocol.DamagePointsJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(returnProtocol.DamagePointsJson);
+                    foreach (var element in doc.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "NEW")
+                        {
+                            if (element.TryGetProperty("fee", out var feeProp) && feeProp.TryGetDecimal(out var feeVal))
+                            {
+                                damageFee += feeVal;
+                            }
+                        }
+                    }
+                }
+                catch { /* Ignore invalid JSON */ }
+            }
+
             var incidents = await _context.IncidentReports
                 .Where(i => i.RentalRequestId == requestId && i.CustomerPayAmount > 0)
                 .ToListAsync();
@@ -83,10 +109,17 @@ namespace CarRental.API.Services
                     : $"{damageNotes}; Bồi thường sự cố: {incSummary}";
             }
 
+            // 5. Phí vệ sinh nếu xe cần rửa / dọn nội thất
+            decimal cleaningFee = 0;
+            if (returnProtocol.NextVehicleStatus == "CLEANING")
+            {
+                cleaningFee = 200000m; // 200,000đ dọn vệ sinh khoang xe
+            }
+
             decimal depositAmount = contract?.DepositAmount ?? request.DepositAmount;
             decimal rentalFee = contract?.TotalFee ?? request.EstimatedTotalFee;
 
-            decimal totalDeduction = extraKmFee + lateReturnFee + fuelFee + damageFee;
+            decimal totalDeduction = extraKmFee + lateReturnFee + fuelFee + damageFee + cleaningFee;
             decimal balance = depositAmount - totalDeduction;
 
             string settlementType = "REFUND_TO_CUSTOMER";
@@ -134,7 +167,7 @@ namespace CarRental.API.Services
                 FuelFee = fuelFee,
                 DamageFee = damageFee,
                 DamageNotes = damageNotes,
-                CleaningFee = 0,
+                CleaningFee = cleaningFee,
                 OtherFee = 0,
                 TotalDeduction = totalDeduction,
                 BalanceAmount = balance,
@@ -214,6 +247,12 @@ namespace CarRental.API.Services
                 settlement.BalanceAmount = balance;
                 settlement.SettlementType = settlementType;
                 settlement.RefundAmount = refundAmount;
+                settlement.TrafficFineHoldAmount = dto.TrafficFineHoldAmount;
+                settlement.TrafficFineRefundDate = dto.TrafficFineRefundDate;
+                if (dto.TrafficFineHoldAmount > 0 && (settlement.TrafficFineRefundStatus == "NONE" || string.IsNullOrEmpty(settlement.TrafficFineRefundStatus)))
+                {
+                    settlement.TrafficFineRefundStatus = "HOLDING";
+                }
                 settlement.AdditionalAmountDue = additionalDue;
                 settlement.RefundStatus = refundStatus;
                 settlement.RefundBankName = dto.RefundBankName;
@@ -246,6 +285,9 @@ namespace CarRental.API.Services
                     BalanceAmount = balance,
                     SettlementType = settlementType,
                     RefundAmount = refundAmount,
+                    TrafficFineHoldAmount = dto.TrafficFineHoldAmount,
+                    TrafficFineRefundDate = dto.TrafficFineRefundDate,
+                    TrafficFineRefundStatus = dto.TrafficFineHoldAmount > 0 ? "HOLDING" : "NONE",
                     AdditionalAmountDue = additionalDue,
                     RefundStatus = refundStatus,
                     RefundMethod = "VIETQR",
@@ -262,12 +304,12 @@ namespace CarRental.API.Services
             }
 
             // Hoàn tất đơn thuê và hợp đồng
-            request.Status = "COMPLETED";
+            request.Status = dto.TrafficFineHoldAmount > 0 ? "HOLDING" : "COMPLETED";
             request.UpdatedAt = DateTime.UtcNow;
 
             if (contract != null)
             {
-                contract.Status = "COMPLETED";
+                contract.Status = dto.TrafficFineHoldAmount > 0 ? "HOLDING" : "COMPLETED";
                 contract.UpdatedAt = DateTime.UtcNow;
             }
 
@@ -301,6 +343,7 @@ namespace CarRental.API.Services
             var settlement = await _context.RentalSettlements
                 .Include(s => s.RentalRequest)
                     .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             return settlement != null ? MapToDto(settlement) : null;
@@ -333,6 +376,7 @@ namespace CarRental.API.Services
             var settlement = await _context.RentalSettlements
                 .Include(s => s.RentalRequest)
                     .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (settlement == null)
@@ -350,24 +394,44 @@ namespace CarRental.API.Services
             settlement.RefundedAt = DateTime.UtcNow;
             settlement.Status = "SETTLED";
             settlement.SettledAt = DateTime.UtcNow;
+            if (settlement.TrafficFineHoldAmount > 0 && (settlement.TrafficFineRefundStatus == "NONE" || string.IsNullOrEmpty(settlement.TrafficFineRefundStatus)))
+            {
+                settlement.TrafficFineRefundStatus = "HOLDING";
+            }
             settlement.UpdatedAt = DateTime.UtcNow;
 
-            // Lưu lịch sử thanh toán hoàn cọc (Payment record)
+            decimal immediateRefund = Math.Max(0, settlement.RefundAmount - (settlement.TrafficFineHoldAmount > 0 ? settlement.TrafficFineHoldAmount : 0));
+
+            // Lưu lịch sử thanh toán hoàn cọc Đợt 1 (Payment record)
             var payment = new Payment
             {
                 Id = Guid.NewGuid(),
                 ContractId = settlement.ContractId,
                 RentalRequestId = settlement.RentalRequestId,
-                Amount = settlement.RefundAmount,
+                Amount = immediateRefund > 0 ? immediateRefund : settlement.RefundAmount,
                 Type = "REFUND",
                 Status = "SUCCESS",
                 PaymentMethod = settlement.RefundMethod,
                 TransactionCode = dto.RefundTransactionCode,
                 PaidAt = DateTime.UtcNow,
-                Note = $"Hoàn tiền cọc quyết toán hợp đồng {settlement.SettlementNumber}",
+                Note = settlement.TrafficFineHoldAmount > 0
+                    ? $"Hoàn cọc Đợt 1 quyết toán {settlement.SettlementNumber} (Đã giữ lại {settlement.TrafficFineHoldAmount:N0}đ cọc phạt nguội)"
+                    : $"Hoàn tiền cọc quyết toán hợp đồng {settlement.SettlementNumber}",
                 CreatedAt = DateTime.UtcNow
             };
             _context.Payments.Add(payment);
+
+            if (settlement.RentalRequest != null)
+            {
+                settlement.RentalRequest.Status = settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING" ? "HOLDING" : "COMPLETED";
+                settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (settlement.RentalContract != null)
+            {
+                settlement.RentalContract.Status = settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING" ? "HOLDING" : "COMPLETED";
+                settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
             return MapToDto(settlement);
@@ -378,6 +442,7 @@ namespace CarRental.API.Services
             var settlement = await _context.RentalSettlements
                 .Include(s => s.RentalRequest)
                     .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (settlement == null)
@@ -405,6 +470,186 @@ namespace CarRental.API.Services
                 CreatedAt = DateTime.UtcNow
             };
             _context.Payments.Add(payment);
+
+            await _context.SaveChangesAsync();
+            return MapToDto(settlement);
+        }
+
+        public async Task<SettlementResponseDto> ConfirmTrafficFineRefundAsync(Guid id, ConfirmTrafficFineRefundDto dto)
+        {
+            var settlement = await _context.RentalSettlements
+                .Include(s => s.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (settlement == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
+            }
+
+            if (settlement.TrafficFineHoldAmount <= 0)
+            {
+                throw new InvalidOperationException("Đơn này không có quỹ giữ cọc phạt nguội.");
+            }
+
+            decimal deduction = Math.Max(0, dto.ActualDeduction);
+            decimal actualRefund = Math.Max(0, settlement.TrafficFineHoldAmount - deduction);
+
+            settlement.TrafficFineActualDeduction = deduction;
+            settlement.TrafficFineActualRefund = actualRefund;
+            settlement.TrafficFineRefundStatus = deduction > 0 ? (actualRefund > 0 ? "PARTIAL_REFUNDED" : "DEDUCTED") : "REFUNDED";
+            settlement.TrafficFineRefundedAt = DateTime.UtcNow;
+            settlement.TrafficFineTransactionCode = dto.TransactionCode;
+            settlement.TrafficFineNotes = dto.ViolationNotes;
+            settlement.TrafficFineViolationProofUrl = dto.ViolationProofUrl;
+            settlement.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(dto.StaffNotes))
+            {
+                settlement.StaffNotes = string.IsNullOrWhiteSpace(settlement.StaffNotes)
+                    ? dto.StaffNotes
+                    : $"{settlement.StaffNotes}\n[ĐỐI SOÁT PHẠT NGUỘI]: {dto.StaffNotes}";
+            }
+
+            // Ghi nhận Payment hoàn cọc Đợt 2 (nếu có hoàn tiền)
+            if (actualRefund > 0)
+            {
+                var payment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    ContractId = settlement.ContractId,
+                    RentalRequestId = settlement.RentalRequestId,
+                    Amount = actualRefund,
+                    Type = "REFUND_TRAFFIC_FINE",
+                    Status = "SUCCESS",
+                    PaymentMethod = "VIETQR",
+                    TransactionCode = dto.TransactionCode,
+                    PaidAt = DateTime.UtcNow,
+                    Note = $"Hoàn trả cọc phạt nguội Đợt 2 phiếu quyết toán {settlement.SettlementNumber}{(deduction > 0 ? $" (Đã khấu trừ {deduction:N0}đ vi phạm)" : "")}",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Payments.Add(payment);
+            }
+
+            if (settlement.RentalRequest != null)
+            {
+                settlement.RentalRequest.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING")
+                    ? "HOLDING"
+                    : "COMPLETED";
+                settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (settlement.RentalContract != null)
+            {
+                settlement.RentalContract.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING")
+                    ? "HOLDING"
+                    : "COMPLETED";
+                settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return MapToDto(settlement);
+        }
+
+        public async Task<SettlementResponseDto> DisputeSettlementAsync(Guid id, string reason)
+        {
+            var settlement = await _context.RentalSettlements
+                .Include(s => s.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (settlement == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
+            }
+
+            settlement.Status = "DISPUTED";
+            settlement.StaffNotes = string.IsNullOrWhiteSpace(settlement.StaffNotes)
+                ? $"[KHIẾU NẠI KHÁCH HÀNG {DateTime.UtcNow:dd/MM/yyyy HH:mm}]: {reason}"
+                : $"{settlement.StaffNotes}\n[KHIẾU NẠI KHÁCH HÀNG {DateTime.UtcNow:dd/MM/yyyy HH:mm}]: {reason}";
+            settlement.UpdatedAt = DateTime.UtcNow;
+
+            if (settlement.RentalRequest != null)
+            {
+                settlement.RentalRequest.Status = "DISPUTED";
+                settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (settlement.RentalContract != null)
+            {
+                settlement.RentalContract.Status = "DISPUTED";
+                settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return MapToDto(settlement);
+        }
+
+        public async Task<SettlementResponseDto> ResolveDisputeAsync(Guid id, ResolveDisputeDto dto, string adminName)
+        {
+            var settlement = await _context.RentalSettlements
+                .Include(s => s.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (settlement == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
+            }
+
+            decimal adjustedAmount = Math.Max(0, dto.AdjustedRefundAmount);
+            string actionText = dto.ResolutionAction switch
+            {
+                "ACCEPT_REFUND" => $"CHẤP NHẬN KHIẾU NẠI VÀ HOÀN THÊM {adjustedAmount:N0}đ",
+                "COMPROMISE" => $"THỎA THUẬN HÒA GIẢI VÀ ĐIỀU CHỈNH HOÀN {adjustedAmount:N0}đ",
+                "REJECT" => "BÁC BỎ KHIẾU NẠI (GIỮ NGUYÊN QUYẾT ĐỊNH)",
+                _ => dto.ResolutionAction
+            };
+
+            settlement.Status = "SETTLED";
+            settlement.StaffNotes = string.IsNullOrWhiteSpace(settlement.StaffNotes)
+                ? $"[PHÂN XỬ QUẢN TRỊ VIÊN {DateTime.UtcNow:dd/MM/yyyy HH:mm} - {adminName}]: {actionText}. Lý do: {dto.ResolutionNotes}"
+                : $"{settlement.StaffNotes}\n[PHÂN XỬ QUẢN TRỊ VIÊN {DateTime.UtcNow:dd/MM/yyyy HH:mm} - {adminName}]: {actionText}. Lý do: {dto.ResolutionNotes}";
+
+            // Nếu có hoàn thêm tiền cho khách
+            if (adjustedAmount > 0)
+            {
+                settlement.RefundAmount += adjustedAmount;
+                settlement.TotalDeduction = Math.Max(0, settlement.TotalDeduction - adjustedAmount);
+
+                var payment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    ContractId = settlement.ContractId,
+                    RentalRequestId = settlement.RentalRequestId,
+                    Amount = adjustedAmount,
+                    Type = "REFUND_DISPUTE_ADJUSTMENT",
+                    Status = "SUCCESS",
+                    PaymentMethod = "VIETQR",
+                    TransactionCode = dto.TransactionCode ?? $"TXN-ADJ-{DateTime.UtcNow:HHmmss}",
+                    PaidAt = DateTime.UtcNow,
+                    Note = $"Hoàn tiền điều chỉnh sau khiếu nại phiếu {settlement.SettlementNumber}",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Payments.Add(payment);
+            }
+
+            settlement.UpdatedAt = DateTime.UtcNow;
+
+            if (settlement.RentalRequest != null)
+            {
+                settlement.RentalRequest.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING") ? "HOLDING" : "COMPLETED";
+                settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+            }
+
+            if (settlement.RentalContract != null)
+            {
+                settlement.RentalContract.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING") ? "HOLDING" : "COMPLETED";
+                settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
             return MapToDto(settlement);
@@ -439,6 +684,17 @@ namespace CarRental.API.Services
                 BalanceAmount = entity.BalanceAmount,
                 SettlementType = entity.SettlementType,
                 RefundAmount = entity.RefundAmount,
+                TrafficFineHoldAmount = entity.TrafficFineHoldAmount,
+                TrafficFineRefundDate = entity.TrafficFineRefundDate,
+                TrafficFineRefundStatus = (string.IsNullOrEmpty(entity.TrafficFineRefundStatus) || entity.TrafficFineRefundStatus == "NONE") && entity.TrafficFineHoldAmount > 0
+                    ? "HOLDING"
+                    : (entity.TrafficFineRefundStatus ?? "NONE"),
+                TrafficFineActualDeduction = entity.TrafficFineActualDeduction,
+                TrafficFineActualRefund = entity.TrafficFineActualRefund,
+                TrafficFineRefundedAt = entity.TrafficFineRefundedAt,
+                TrafficFineTransactionCode = entity.TrafficFineTransactionCode,
+                TrafficFineNotes = entity.TrafficFineNotes,
+                TrafficFineViolationProofUrl = entity.TrafficFineViolationProofUrl,
                 AdditionalAmountDue = entity.AdditionalAmountDue,
                 RefundStatus = entity.RefundStatus,
                 RefundMethod = entity.RefundMethod,

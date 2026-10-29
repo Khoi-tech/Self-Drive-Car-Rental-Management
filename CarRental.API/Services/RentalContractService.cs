@@ -41,10 +41,10 @@ namespace CarRental.API.Services
                 return MapToDto(existingContract, request);
             }
 
-            // If not existing, request must be APPROVED or CONFIRMED
-            if (request.Status != "APPROVED" && request.Status != "CONFIRMED")
+            // If not existing, request must be PENDING, APPROVED or CONFIRMED
+            if (request.Status != "PENDING" && request.Status != "APPROVED" && request.Status != "CONFIRMED")
             {
-                throw new InvalidOperationException($"Không thể tạo hợp đồng cho đơn thuê xe ở trạng thái '{request.Status}'. Yêu cầu phải được nhân viên phê duyệt trước.");
+                throw new InvalidOperationException($"Không thể tạo hợp đồng cho đơn thuê xe ở trạng thái '{request.Status}'.");
             }
 
             // Load active contract template
@@ -130,6 +130,13 @@ namespace CarRental.API.Services
             contract.CustomerSignedAt = DateTime.UtcNow;
             contract.Status = "SIGNED";
             contract.UpdatedAt = DateTime.UtcNow;
+
+            // Đồng bộ trạng thái đơn thuê sang SIGNED (Đã ký HĐ - Chờ đặt cọc)
+            if (contract.RentalRequest != null && (contract.RentalRequest.Status == "APPROVED" || contract.RentalRequest.Status == "PENDING"))
+            {
+                contract.RentalRequest.Status = "SIGNED";
+                contract.RentalRequest.UpdatedAt = DateTime.UtcNow;
+            }
 
             await _context.SaveChangesAsync();
 

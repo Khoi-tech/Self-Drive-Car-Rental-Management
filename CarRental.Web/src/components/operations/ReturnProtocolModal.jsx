@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import returnProtocolService from '../../services/returnProtocolService';
 import handoverService from '../../services/handoverService';
-import { formatDateTime } from '../../utils/formatters';
+import { formatDateTime, formatCurrency } from '../../utils/formatters';
+import VehicleDamageMap from './VehicleDamageMap';
 
 const DEFAULT_ACCESSORIES = [
   'Giấy đăng ký xe (Cavet)',
@@ -37,6 +38,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
 
   // Initial Handover baseline
   const [handoverData, setHandoverData] = useState(null);
+  const [existingProtocol, setExistingProtocol] = useState(null);
 
   // Form State
   const [endOdo, setEndOdo] = useState(0);
@@ -46,38 +48,72 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
   const [tireCondition, setTireCondition] = useState('4 lốp áp suất tiêu chuẩn, không cấn lề hay rách hông');
   const [newDamagesNotes, setNewDamagesNotes] = useState('');
   const [hasNewDamage, setHasNewDamage] = useState(false);
+  const [damagePoints, setDamagePoints] = useState([]);
   const [accessories, setAccessories] = useState(DEFAULT_ACCESSORIES);
   const [evidencePhotoUrls, setEvidencePhotoUrls] = useState('');
   const [staffNotes, setStaffNotes] = useState('');
   const [nextVehicleStatus, setNextVehicleStatus] = useState('READY'); // READY, CLEANING, MAINTENANCE, REPAIR
 
-  // Load handover baseline
+  // Load handover baseline & existing return protocol
   useEffect(() => {
     if (rentalRequest?.id && isOpen) {
-      const loadHandover = async () => {
+      const loadData = async () => {
         try {
           setFetchingHandover(true);
           setError(null);
+
+          // 1. Check if return protocol already exists for this request
+          try {
+            const existingRes = await returnProtocolService.getByRequestId(rentalRequest.id);
+            const existing = existingRes?.data || existingRes;
+            if (existing && existing.id) {
+              setExistingProtocol(existing);
+              if (existing.endOdo) setEndOdo(existing.endOdo);
+              if (existing.returnFuelLevel) setReturnFuelLevel(existing.returnFuelLevel);
+              if (existing.damagePointsJson) {
+                try {
+                  const pts = JSON.parse(existing.damagePointsJson);
+                  if (Array.isArray(pts) && pts.length > 0) setDamagePoints(pts);
+                } catch {}
+              }
+            }
+          } catch {
+            // Not created yet, normal flow
+          }
+
+          // 2. Fetch Handover baseline
           const res = await handoverService.getByRequestId(rentalRequest.id);
           const data = res?.data || res;
           if (data && data.odoAtHandover !== undefined) {
             setHandoverData(data);
-            setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150);
-            setReturnFuelLevel(data.fuelLevel || 100);
+            if (!endOdo) {
+              setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150);
+            }
+            if (returnFuelLevel === 100) {
+              setReturnFuelLevel(data.fuelLevel || 100);
+            }
+            if (data.damagePointsJson && damagePoints.length === 0) {
+              try {
+                const oldPts = JSON.parse(data.damagePointsJson).map(p => ({ ...p, type: 'OLD' }));
+                setDamagePoints(oldPts);
+              } catch {
+                setDamagePoints([]);
+              }
+            }
           } else {
             const fallbackOdo = rentalRequest.currentMileage || 10000;
-            setEndOdo(fallbackOdo + 200);
+            if (!endOdo) setEndOdo(fallbackOdo + 200);
           }
         } catch (err) {
           console.warn('Could not fetch handover baseline:', err);
           const fallbackOdo = rentalRequest.currentMileage || 10000;
-          setEndOdo(fallbackOdo + 200);
+          if (!endOdo) setEndOdo(fallbackOdo + 200);
         } finally {
           setFetchingHandover(false);
         }
       };
 
-      loadHandover();
+      loadData();
     }
   }, [rentalRequest, isOpen]);
 
@@ -108,28 +144,56 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
       setError(null);
 
       const missing = DEFAULT_ACCESSORIES.filter(a => !accessories.includes(a)).join('; ');
+      const newPointsList = damagePoints.filter(p => p.type === 'NEW');
+      const hasDamages = hasNewDamage || newPointsList.length > 0;
+      const combinedDamageNotes = [
+        newDamagesNotes?.trim(),
+        ...newPointsList.map(p => `[${p.view}] ${p.description} (Phạt: ${formatCurrency(p.fee || 0)})`)
+      ].filter(Boolean).join('; ');
 
       const payload = {
         rentalRequestId: rentalRequest.id,
-        contractId: rentalRequest.contractId,
+        contractId: rentalRequest.contractId || null,
         returnDate: new Date().toISOString(),
         endOdo: Number(endOdo),
         returnFuelLevel: Number(returnFuelLevel),
         exteriorCondition,
         interiorCondition,
         tireCondition,
-        newDamagesNotes: hasNewDamage ? newDamagesNotes : '',
+        newDamagesNotes: hasDamages ? combinedDamageNotes : '',
+        damagePointsJson: JSON.stringify(damagePoints),
         accessoriesChecklist: accessories.join('; '),
         missingAccessories: missing || null,
         evidencePhotoUrls,
         staffNotes,
         staffSignature: 'Đã ký xác nhận bởi nhân viên kiểm định',
         customerSignature: 'Khách hàng đã ký xác nhận trực tiếp tại quầy',
-        nextVehicleStatus: hasNewDamage ? (nextVehicleStatus === 'READY' ? 'REPAIR' : nextVehicleStatus) : nextVehicleStatus
+        nextVehicleStatus: hasDamages ? (nextVehicleStatus === 'READY' ? 'REPAIR' : nextVehicleStatus) : nextVehicleStatus
       };
 
-      const res = await returnProtocolService.create(payload);
-      const created = res?.data || res;
+      let created = existingProtocol;
+
+      // Nếu chưa có biên bản trả xe, tiến hành tạo mới
+      if (!existingProtocol) {
+        try {
+          const res = await returnProtocolService.create(payload);
+          created = res?.data || res;
+        } catch (createErr) {
+          // Nếu tạo thất bại (ví dụ đã tồn tại trong DB), tự động truy xuất biên bản đã tạo
+          try {
+            const fetchRes = await returnProtocolService.getByRequestId(rentalRequest.id);
+            const found = fetchRes?.data || fetchRes;
+            if (found && (found.id || found.protocolNumber)) {
+              created = found;
+              setExistingProtocol(found);
+            } else {
+              throw createErr;
+            }
+          } catch {
+            throw createErr;
+          }
+        }
+      }
 
       if (onSuccess) onSuccess(created);
 
@@ -139,8 +203,29 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
         onClose();
       }
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra khi lập biên bản hoàn trả xe.');
+      console.error('Error submitting return protocol:', err);
+      const status = err.response?.status;
+      let msg = err.response?.data?.message || err.response?.data?.Message;
+      if (!msg && err.response?.data?.errors) {
+        msg = Object.entries(err.response.data.errors)
+          .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
+          .join('; ');
+      }
+      if (!msg && err.response?.data?.title) {
+        msg = err.response.data.title;
+      }
+      if (!msg) {
+        if (status === 403) {
+          msg = 'Tài khoản đang đăng nhập không có quyền Nhân viên (Staff). Vui lòng đăng xuất và đăng nhập lại bằng tài khoản staff@velora.vn.';
+        } else if (status === 401) {
+          msg = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại bằng tài khoản staff@velora.vn.';
+        } else if (typeof err.response?.data === 'string' && err.response.data.length < 200) {
+          msg = err.response.data;
+        } else {
+          msg = err.message || 'Có lỗi xảy ra khi lập biên bản hoàn trả xe.';
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -176,6 +261,26 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
         {/* Modal Body: SPLIT-VIEW (2 Columns Side-by-Side) */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
           
+          {existingProtocol && (
+            <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-blue-700 shrink-0" />
+                <span>
+                  Đơn thuê này đã có <strong>Biên bản nghiệm thu ({existingProtocol.protocolNumber})</strong>. Bạn có thể cập nhật thông tin hoặc chuyển thẳng sang bước quyết toán cọc.
+                </span>
+              </div>
+              {onProceedToSettlement && (
+                <button
+                  type="button"
+                  onClick={() => onProceedToSettlement(existingProtocol)}
+                  className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-md text-xs transition shrink-0 ml-3 cursor-pointer shadow-xs"
+                >
+                  Sang Quyết Toán &rarr;
+                </button>
+              )}
+            </div>
+          )}
+
           {error && (
             <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 flex items-center gap-2">
               <AlertTriangle size={15} className="shrink-0" />
@@ -381,6 +486,15 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
 
             </div>
 
+          </div>
+
+          {/* Sơ đồ chấm điểm vết xước 2D đối chiếu */}
+          <div className="mt-4">
+            <VehicleDamageMap
+              points={damagePoints}
+              onChange={setDamagePoints}
+              mode="return"
+            />
           </div>
 
         </div>

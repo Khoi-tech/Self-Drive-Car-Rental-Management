@@ -1085,6 +1085,129 @@ const RentalRequestsPage = () => {
                       <li>Không chấp nhận ảnh chụp qua màn hình, ảnh scan đen trắng hoặc ảnh cắt ghép.</li>
                     </ul>
                   </div>
+
+                  {/* Additional Drivers Identification & Documents */}
+                  {selectedRequest.additionalDrivers && selectedRequest.additionalDrivers.length > 0 && (
+                    <div className="pt-4 border-t border-slate-200 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+                          <Users size={18} className="text-blue-900" />
+                          Hồ Sơ & Giấy Tờ Định Danh Người Lái Phụ ({selectedRequest.additionalDrivers.length})
+                        </h3>
+                      </div>
+
+                      {selectedRequest.additionalDrivers.map((ad, idx) => (
+                        <div key={ad.id || idx} className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-4">
+                          {/* Info header */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-white p-3 rounded-md border border-slate-200">
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Họ và tên lái phụ:</span>
+                              <span className="font-bold text-zinc-950 uppercase">{ad.fullName}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Số điện thoại:</span>
+                              <span className="font-semibold text-zinc-950 tabular-nums">{ad.phoneNumber}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Số CCCD / Hộ chiếu:</span>
+                              <span className="font-mono font-bold text-zinc-950">{ad.idCardNumber}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">GPLX & Hạng bằng:</span>
+                              <span className="font-mono font-bold text-blue-900">{ad.licenseNumber} ({ad.driverLicenseClass || 'B2'})</span>
+                            </div>
+                          </div>
+
+                          {/* 4 Photos of Additional Driver */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            {/* CCCD Trước */}
+                            <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1.5">
+                              <span className="text-[11px] font-semibold text-zinc-900 block truncate">1. CCCD Trước (Lái phụ)</span>
+                              <div
+                                onClick={() => ad.idCardFrontUrl && setZoomedImage({ url: ad.idCardFrontUrl, title: `CCCD Mặt trước - ${ad.fullName}` })}
+                                className="group relative h-36 bg-slate-100 rounded overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-900 transition"
+                              >
+                                {ad.idCardFrontUrl ? (
+                                  <>
+                                    <img src={ad.idCardFrontUrl} alt="CCCD Lái phụ Trước" className="w-full h-full object-cover transition group-hover:scale-105" />
+                                    <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-1 transition">
+                                      <ZoomIn size={16} />
+                                      <span className="text-[11px]">Phóng to</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400">Chưa có ảnh</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* CCCD Sau */}
+                            <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1.5">
+                              <span className="text-[11px] font-semibold text-zinc-900 block truncate">2. CCCD Sau (Lái phụ)</span>
+                              <div
+                                onClick={() => ad.idCardBackUrl && setZoomedImage({ url: ad.idCardBackUrl, title: `CCCD Mặt sau - ${ad.fullName}` })}
+                                className="group relative h-36 bg-slate-100 rounded overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-900 transition"
+                              >
+                                {ad.idCardBackUrl ? (
+                                  <>
+                                    <img src={ad.idCardBackUrl} alt="CCCD Lái phụ Sau" className="w-full h-full object-cover transition group-hover:scale-105" />
+                                    <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-1 transition">
+                                      <ZoomIn size={16} />
+                                      <span className="text-[11px]">Phóng to</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400">Chưa có ảnh</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* GPLX Trước */}
+                            <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1.5">
+                              <span className="text-[11px] font-semibold text-zinc-900 block truncate">3. GPLX Trước (Lái phụ)</span>
+                              <div
+                                onClick={() => ad.driverLicenseFrontUrl && setZoomedImage({ url: ad.driverLicenseFrontUrl, title: `GPLX Mặt trước - ${ad.fullName}` })}
+                                className="group relative h-36 bg-slate-100 rounded overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-900 transition"
+                              >
+                                {ad.driverLicenseFrontUrl ? (
+                                  <>
+                                    <img src={ad.driverLicenseFrontUrl} alt="GPLX Lái phụ Trước" className="w-full h-full object-cover transition group-hover:scale-105" />
+                                    <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-1 transition">
+                                      <ZoomIn size={16} />
+                                      <span className="text-[11px]">Phóng to</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400">Chưa có ảnh</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* GPLX Sau */}
+                            <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1.5">
+                              <span className="text-[11px] font-semibold text-zinc-900 block truncate">4. GPLX Sau (Lái phụ)</span>
+                              <div
+                                onClick={() => ad.driverLicenseBackUrl && setZoomedImage({ url: ad.driverLicenseBackUrl, title: `GPLX Mặt sau - ${ad.fullName}` })}
+                                className="group relative h-36 bg-slate-100 rounded overflow-hidden border border-slate-200 flex items-center justify-center cursor-pointer hover:border-blue-900 transition"
+                              >
+                                {ad.driverLicenseBackUrl ? (
+                                  <>
+                                    <img src={ad.driverLicenseBackUrl} alt="GPLX Lái phụ Sau" className="w-full h-full object-cover transition group-hover:scale-105" />
+                                    <div className="absolute inset-0 bg-[#0F172A]/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white gap-1 transition">
+                                      <ZoomIn size={16} />
+                                      <span className="text-[11px]">Phóng to</span>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400">Chưa có ảnh</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
               </div>

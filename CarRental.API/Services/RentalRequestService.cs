@@ -178,7 +178,13 @@ namespace CarRental.API.Services
                     FullName = d.FullName,
                     PhoneNumber = d.PhoneNumber,
                     IdCardNumber = d.IdCardNumber,
-                    LicenseNumber = d.LicenseNumber
+                    IdCardFrontUrl = d.IdCardFrontUrl,
+                    IdCardBackUrl = d.IdCardBackUrl,
+                    LicenseNumber = d.LicenseNumber,
+                    DriverLicenseFrontUrl = d.DriverLicenseFrontUrl,
+                    DriverLicenseBackUrl = d.DriverLicenseBackUrl,
+                    DriverLicenseClass = d.DriverLicenseClass,
+                    DriverLicenseExpiry = d.DriverLicenseExpiry
                 }).ToList();
             }
 
@@ -457,7 +463,13 @@ namespace CarRental.API.Services
                     FullName = ad.FullName,
                     PhoneNumber = ad.PhoneNumber,
                     IdCardNumber = ad.IdCardNumber,
-                    LicenseNumber = ad.LicenseNumber
+                    IdCardFrontUrl = ad.IdCardFrontUrl,
+                    IdCardBackUrl = ad.IdCardBackUrl,
+                    LicenseNumber = ad.LicenseNumber,
+                    DriverLicenseFrontUrl = ad.DriverLicenseFrontUrl,
+                    DriverLicenseBackUrl = ad.DriverLicenseBackUrl,
+                    DriverLicenseClass = ad.DriverLicenseClass,
+                    DriverLicenseExpiry = ad.DriverLicenseExpiry
                 }).ToList() ?? new List<AdditionalDriverDto>()
             };
         }

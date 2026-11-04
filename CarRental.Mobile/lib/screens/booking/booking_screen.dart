@@ -105,7 +105,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   int get _rentalDays {
     final diffHours = _endDateTime.difference(_startDateTime).inHours;
-    if (diffHours <= 0) return 1;
+    if (diffHours < 4) return 0;
     return (diffHours / 24.0).ceil();
   }
 
@@ -132,13 +132,15 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final initial = isStart ? _startDate : _endDate;
-    final first = isStart ? DateTime.now() : _startDate;
+    final first = isStart ? today : _startDate;
     final picked = await showDatePicker(
       context: context,
       initialDate: initial.isBefore(first) ? first : initial,
       firstDate: first,
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      lastDate: today.add(const Duration(days: 90)),
     );
     if (picked != null) {
       setState(() {
@@ -173,10 +175,32 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _submitBooking() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_startDateTime.isAfter(_endDateTime) || _startDateTime == _endDateTime) {
+    final now = DateTime.now();
+    if (_startDateTime.isBefore(now.subtract(const Duration(minutes: 15)))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Thời gian kết thúc phải sau thời gian bắt đầu!'),
+          content: Text('Thời gian nhận xe không thể ở trong quá khứ!'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    if (_endDateTime.isBefore(_startDateTime) || _endDateTime == _startDateTime) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thời gian trả xe phải sau thời gian nhận xe!'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    final diffHours = _endDateTime.difference(_startDateTime).inHours;
+    if (diffHours < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thời gian thuê xe tối thiểu là 4 giờ!'),
           backgroundColor: Color(0xFFEF4444),
         ),
       );
@@ -431,10 +455,10 @@ class _BookingScreenState extends State<BookingScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isSubmitting || _isLicenseIncompatible ? null : _submitBooking,
+                  onPressed: _isSubmitting || _isLicenseIncompatible || _rentalDays <= 0 ? null : _submitBooking,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: _isLicenseIncompatible ? Colors.grey : const Color(0xFF2563EB),
+                    backgroundColor: (_isLicenseIncompatible || _rentalDays <= 0) ? Colors.grey : const Color(0xFF2563EB),
                   ),
                   icon: _isSubmitting
                       ? const SizedBox(
@@ -550,8 +574,14 @@ class _BookingScreenState extends State<BookingScreen> {
               const Icon(Icons.timer_outlined, size: 16, color: Color(0xFF2563EB)),
               const SizedBox(width: 6),
               Text(
-                'Tổng thời gian thuê: $_rentalDays ngày',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF60A5FA)),
+                _rentalDays > 0
+                    ? 'Tổng thời gian thuê: $_rentalDays ngày'
+                    : 'Thời gian trả xe phải sau thời gian nhận xe (tối thiểu 4h)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: _rentalDays > 0 ? const Color(0xFF60A5FA) : const Color(0xFFEF4444),
+                ),
               ),
             ],
           ),

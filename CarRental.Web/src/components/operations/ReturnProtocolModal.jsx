@@ -31,6 +31,15 @@ const DEFAULT_ACCESSORIES = [
   'Camera hành trình'
 ];
 
+const parseFuelLevel = (val) => {
+  if (typeof val === 'number') return isNaN(val) ? 100 : val;
+  if (typeof val === 'string') {
+    const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    return isNaN(num) ? 100 : num;
+  }
+  return 100;
+};
+
 const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProceedToSettlement }) => {
   const [loading, setLoading] = useState(false);
   const [fetchingHandover, setFetchingHandover] = useState(false);
@@ -68,8 +77,10 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
             const existing = existingRes?.data || existingRes;
             if (existing && existing.id) {
               setExistingProtocol(existing);
-              if (existing.endOdo) setEndOdo(existing.endOdo);
-              if (existing.returnFuelLevel) setReturnFuelLevel(existing.returnFuelLevel);
+              if (existing.endOdo) setEndOdo(Number(existing.endOdo));
+              if (existing.returnFuelLevel !== undefined && existing.returnFuelLevel !== null) {
+                setReturnFuelLevel(parseFuelLevel(existing.returnFuelLevel));
+              }
               if (existing.damagePointsJson) {
                 try {
                   const pts = JSON.parse(existing.damagePointsJson);
@@ -87,10 +98,10 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
           if (data && data.odoAtHandover !== undefined) {
             setHandoverData(data);
             if (!endOdo) {
-              setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150);
+              setEndOdo(Number(data.odoAtHandover) + (rentalRequest.totalDays || 1) * 150);
             }
             if (returnFuelLevel === 100) {
-              setReturnFuelLevel(data.fuelLevel || 100);
+              setReturnFuelLevel(parseFuelLevel(data.fuelLevel || 100));
             }
             if (data.damagePointsJson && damagePoints.length === 0) {
               try {
@@ -119,8 +130,8 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
 
   if (!isOpen || !rentalRequest) return null;
 
-  const startOdo = handoverData?.odoAtHandover ?? rentalRequest.currentMileage ?? 10000;
-  const initialFuel = handoverData?.fuelLevel ?? 100;
+  const startOdo = Number(handoverData?.odoAtHandover ?? rentalRequest.currentMileage ?? 10000);
+  const initialFuel = parseFuelLevel(handoverData?.fuelLevel ?? 100);
   const maxKmAllowed = rentalRequest.maxKm || (rentalRequest.totalDays * (rentalRequest.dailyMileageLimit || 300));
   const distanceTraveled = Math.max(0, endOdo - startOdo);
   const excessKm = Math.max(0, distanceTraveled - maxKmAllowed);
@@ -155,8 +166,8 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
         rentalRequestId: rentalRequest.id,
         contractId: rentalRequest.contractId || null,
         returnDate: new Date().toISOString(),
-        endOdo: Number(endOdo),
-        returnFuelLevel: Number(returnFuelLevel),
+        endOdo: Number(endOdo) || startOdo,
+        returnFuelLevel: parseFuelLevel(returnFuelLevel),
         exteriorCondition,
         interiorCondition,
         tireCondition,
@@ -393,7 +404,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex justify-between items-center">
                   <label className="font-bold text-zinc-900 text-xs">Nhiên liệu / Pin lúc trả:</label>
-                  <span className="font-bold text-blue-900 tabular-nums">{returnFuelLevel}%</span>
+                  <span className="font-bold text-blue-900 tabular-nums">{parseFuelLevel(returnFuelLevel)}%</span>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[25, 50, 75, 100].map((level) => (
@@ -402,7 +413,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
                       type="button"
                       onClick={() => setReturnFuelLevel(level)}
                       className={`py-1.5 rounded border text-xs font-bold tabular-nums transition ${
-                        returnFuelLevel === level
+                        parseFuelLevel(returnFuelLevel) === level
                           ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
                       }`}
@@ -411,7 +422,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
                     </button>
                   ))}
                 </div>
-                {returnFuelLevel < initialFuel && (
+                {parseFuelLevel(returnFuelLevel) < initialFuel && (
                   <div className="text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded border border-amber-200">
                     Nhiên liệu thấp hơn lúc giao ({initialFuel}% → {returnFuelLevel}%). Sẽ tính phụ thu chênh lệch xăng khi quyết toán.
                   </div>

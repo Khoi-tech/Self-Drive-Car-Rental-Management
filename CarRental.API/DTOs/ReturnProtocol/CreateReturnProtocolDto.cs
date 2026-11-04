@@ -15,7 +15,7 @@ namespace CarRental.API.DTOs.ReturnProtocol
         [Required]
         public int EndOdo { get; set; }
 
-        public int ReturnFuelLevel { get; set; } = 100; // 25, 50, 75, 100
+        public int? ReturnFuelLevel { get; set; } = 100; // 25, 50, 75, 100
 
         public string? ExteriorCondition { get; set; }
 

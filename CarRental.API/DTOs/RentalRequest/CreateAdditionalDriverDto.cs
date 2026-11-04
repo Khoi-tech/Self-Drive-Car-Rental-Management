@@ -19,5 +19,18 @@ namespace CarRental.API.DTOs.RentalRequest
         [Required(ErrorMessage = "Số GPLX tài xế phụ là bắt buộc")]
         [StringLength(50)]
         public string LicenseNumber { get; set; } = null!;
+
+        public string? IdCardFrontUrl { get; set; }
+
+        public string? IdCardBackUrl { get; set; }
+
+        public string? DriverLicenseFrontUrl { get; set; }
+
+        public string? DriverLicenseBackUrl { get; set; }
+
+        [StringLength(50)]
+        public string? DriverLicenseClass { get; set; }
+
+        public DateTime? DriverLicenseExpiry { get; set; }
     }
 }

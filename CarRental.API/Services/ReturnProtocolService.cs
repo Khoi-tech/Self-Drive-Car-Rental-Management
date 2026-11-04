@@ -95,7 +95,8 @@ namespace CarRental.API.Services
                 excessKm = totalKm - maxKm.Value;
             }
 
-            int fuelDiff = Math.Max(0, initialFuelLevel - dto.ReturnFuelLevel);
+            int returnFuel = dto.ReturnFuelLevel ?? 100;
+            int fuelDiff = Math.Max(0, initialFuelLevel - returnFuel);
 
             string protocolNumber = $"BBHT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
 
@@ -116,7 +117,7 @@ namespace CarRental.API.Services
                 MaxKmAllowed = maxKm,
                 ExcessKm = excessKm,
                 InitialFuelLevel = initialFuelLevel,
-                ReturnFuelLevel = dto.ReturnFuelLevel,
+                ReturnFuelLevel = returnFuel,
                 FuelDifference = fuelDiff,
                 ExteriorCondition = dto.ExteriorCondition ?? "Ngoại thất bình thường",
                 InteriorCondition = dto.InteriorCondition ?? "Nội thất bình thường",

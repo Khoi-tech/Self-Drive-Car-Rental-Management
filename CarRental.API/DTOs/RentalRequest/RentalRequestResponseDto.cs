@@ -9,7 +9,13 @@ namespace CarRental.API.DTOs.RentalRequest
         public string FullName { get; set; } = null!;
         public string PhoneNumber { get; set; } = null!;
         public string IdCardNumber { get; set; } = null!;
+        public string? IdCardFrontUrl { get; set; }
+        public string? IdCardBackUrl { get; set; }
         public string LicenseNumber { get; set; } = null!;
+        public string? DriverLicenseFrontUrl { get; set; }
+        public string? DriverLicenseBackUrl { get; set; }
+        public string? DriverLicenseClass { get; set; }
+        public DateTime? DriverLicenseExpiry { get; set; }
     }
 
     public class RentalRequestResponseDto

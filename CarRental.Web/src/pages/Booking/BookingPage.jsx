@@ -73,12 +73,14 @@ const BookingPage = () => {
     fullName: '',
     phoneNumber: '',
     idCardNumber: '',
-    licenseNumber: ''
+    licenseNumber: '',
+    driverLicenseClass: 'B2',
+    driverLicenseExpiry: ''
   });
 
   const [agreed, setAgreed] = useState(false);
 
-  // File Upload State - 4 slots (CCCD trước/sau, GPLX trước/sau)
+  // File Upload State - Primary Driver (4 slots)
   const [idCardFrontFile, setIdCardFrontFile] = useState(null);
   const [idCardFrontPreview, setIdCardFrontPreview] = useState(null);
   const [idCardBackFile, setIdCardBackFile] = useState(null);
@@ -88,6 +90,17 @@ const BookingPage = () => {
   const [licenseFrontPreview, setLicenseFrontPreview] = useState(null);
   const [licenseBackFile, setLicenseBackFile] = useState(null);
   const [licenseBackPreview, setLicenseBackPreview] = useState(null);
+
+  // File Upload State - Additional Driver (4 slots)
+  const [addIdCardFrontFile, setAddIdCardFrontFile] = useState(null);
+  const [addIdCardFrontPreview, setAddIdCardFrontPreview] = useState(null);
+  const [addIdCardBackFile, setAddIdCardBackFile] = useState(null);
+  const [addIdCardBackPreview, setAddIdCardBackPreview] = useState(null);
+
+  const [addLicenseFrontFile, setAddLicenseFrontFile] = useState(null);
+  const [addLicenseFrontPreview, setAddLicenseFrontPreview] = useState(null);
+  const [addLicenseBackFile, setAddLicenseBackFile] = useState(null);
+  const [addLicenseBackPreview, setAddLicenseBackPreview] = useState(null);
 
   const handleFileChange = (e, setFile, setPreview) => {
     const file = e.target.files?.[0];
@@ -111,13 +124,40 @@ const BookingPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const vehRes = await vehicleService.getVehicleById(carId);
-        setVehicle(vehRes.data || vehRes);
+        setError(null);
 
         const start = new Date(startTimeStr);
         const end = new Date(endTimeStr);
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        const now = new Date();
+
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          navigate(`/cars/${carId}`);
+          return;
+        }
+
+        if (start < new Date(now.getTime() - 15 * 60 * 1000)) {
+          setError('Thời gian nhận xe không hợp lệ (ở trong quá khứ). Vui lòng quay lại chọn lại lịch trình.');
+          setLoading(false);
+          return;
+        }
+
+        if (end <= start) {
+          setError('Thời gian trả xe phải sau thời gian nhận xe.');
+          setLoading(false);
+          return;
+        }
+
+        const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        if (diffHours < 4) {
+          setError('Thời gian thuê xe tối thiểu là 4 giờ.');
+          setLoading(false);
+          return;
+        }
+
+        const diffDays = Math.max(1, Math.ceil(diffHours / 24));
+
+        const vehRes = await vehicleService.getVehicleById(carId);
+        setVehicle(vehRes.data || vehRes);
 
         const previewRes = await pricingService.previewPricing(carId, diffDays);
         setPreview(previewRes.data || previewRes);
@@ -178,6 +218,26 @@ const BookingPage = () => {
       return;
     }
 
+    const start = new Date(startTimeStr);
+    const end = new Date(endTimeStr);
+    const now = new Date();
+
+    if (start < new Date(now.getTime() - 15 * 60 * 1000)) {
+      setError('Thời gian nhận xe không thể ở trong quá khứ.');
+      return;
+    }
+
+    if (end <= start) {
+      setError('Thời gian trả xe phải sau thời gian nhận xe.');
+      return;
+    }
+
+    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 4) {
+      setError('Thời gian thuê xe tối thiểu là 4 giờ.');
+      return;
+    }
+
     const expiryDate = new Date(formData.driverLicenseExpiry);
     const returnDate = new Date(endTimeStr);
     if (expiryDate <= returnDate) {
@@ -192,7 +252,25 @@ const BookingPage = () => {
 
     if (hasAdditionalDriver) {
       if (!additionalDriver.fullName?.trim() || !additionalDriver.phoneNumber?.trim()) {
-        setError('Vui lòng nhập đầy đủ thông tin tài xế phụ.');
+        setError('Vui lòng nhập đầy đủ họ tên và số điện thoại của người lái phụ.');
+        return;
+      }
+      if (!additionalDriver.idCardNumber?.trim() || !additionalDriver.licenseNumber?.trim()) {
+        setError('Vui lòng nhập số CCCD và số GPLX của người lái phụ.');
+        return;
+      }
+      if (!additionalDriver.driverLicenseExpiry) {
+        setError('Vui lòng nhập Ngày hết hạn Giấy phép lái xe của người lái phụ.');
+        return;
+      }
+      const addExpiryDate = new Date(additionalDriver.driverLicenseExpiry);
+      const returnDate = new Date(endTimeStr);
+      if (addExpiryDate <= returnDate) {
+        setError(`GPLX của người lái phụ hết hạn vào ngày ${addExpiryDate.toLocaleDateString('vi-VN')}, trước hoặc đúng ngày trả xe. Không đủ điều kiện.`);
+        return;
+      }
+      if (additionalDriver.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL') {
+        setError(`GPLX của người lái phụ là hạng B1 số tự động, không được phép điều khiển dòng xe số sàn (${vehicle?.make} ${vehicle?.model}).`);
         return;
       }
     }
@@ -220,10 +298,10 @@ const BookingPage = () => {
         driverLicenseClass: formData.driverLicenseClass,
         driverLicenseExpiry: new Date(formData.driverLicenseExpiry).toISOString(),
         notes: formData.notes?.trim() || '',
-        idCardFrontUrl: idCardFrontPreview || 'https://example.com/id-front.jpg',
-        idCardBackUrl: idCardBackPreview || 'https://example.com/id-back.jpg',
-        driverLicenseFrontUrl: licenseFrontPreview || 'https://example.com/dl-front.jpg',
-        driverLicenseBackUrl: licenseBackPreview || 'https://example.com/dl-back.jpg',
+        idCardFrontUrl: idCardFrontPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+        idCardBackUrl: idCardBackPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+        driverLicenseFrontUrl: licenseFrontPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+        driverLicenseBackUrl: licenseBackPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
       };
 
       if (hasAdditionalDriver) {
@@ -231,7 +309,13 @@ const BookingPage = () => {
           fullName: additionalDriver.fullName.trim(),
           phoneNumber: additionalDriver.phoneNumber.trim(),
           idCardNumber: additionalDriver.idCardNumber.trim(),
-          licenseNumber: additionalDriver.licenseNumber.trim()
+          licenseNumber: additionalDriver.licenseNumber.trim(),
+          driverLicenseClass: additionalDriver.driverLicenseClass || 'B2',
+          driverLicenseExpiry: additionalDriver.driverLicenseExpiry ? new Date(additionalDriver.driverLicenseExpiry).toISOString() : null,
+          idCardFrontUrl: addIdCardFrontPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+          idCardBackUrl: addIdCardBackPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+          driverLicenseFrontUrl: addLicenseFrontPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+          driverLicenseBackUrl: addLicenseBackPreview || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
         }];
       }
 
@@ -613,50 +697,171 @@ const BookingPage = () => {
                 </div>
 
                 {hasAdditionalDriver && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Họ tên người lái phụ</label>
-                      <input
-                        type="text"
-                        name="fullName"
-                        value={additionalDriver.fullName}
-                        onChange={handleAdditionalDriverChange}
-                        placeholder="TRAN VAN B"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase"
-                      />
+                  <div className="space-y-5 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Họ tên người lái phụ <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="fullName"
+                          value={additionalDriver.fullName}
+                          onChange={handleAdditionalDriverChange}
+                          placeholder="TRAN VAN B"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Số điện thoại <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={additionalDriver.phoneNumber}
+                          onChange={handleAdditionalDriverChange}
+                          placeholder="0987654321"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Số CCCD / Hộ chiếu lái phụ <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="idCardNumber"
+                          value={additionalDriver.idCardNumber}
+                          onChange={handleAdditionalDriverChange}
+                          placeholder="079099xxxxxx"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Số Giấy phép lái xe lái phụ <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="licenseNumber"
+                          value={additionalDriver.licenseNumber}
+                          onChange={handleAdditionalDriverChange}
+                          placeholder="790123456789"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Hạng bằng lái người lái phụ <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="driverLicenseClass"
+                          value={additionalDriver.driverLicenseClass}
+                          onChange={handleAdditionalDriverChange}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        >
+                          <option value="B1_AUTO">B1 - Số tự động (Không lái được xe số sàn)</option>
+                          <option value="B1">B1 - Cơ khí (Lái được số tự động & số sàn)</option>
+                          <option value="B2">B2 - Thông dụng (Lái xe dưới 9 chỗ)</option>
+                          <option value="C">C - Xe tải & Du lịch</option>
+                          <option value="D">D - Xe khách từ 10 đến 30 chỗ</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Ngày hết hạn GPLX lái phụ <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          name="driverLicenseExpiry"
+                          value={additionalDriver.driverLicenseExpiry}
+                          onChange={handleAdditionalDriverChange}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số điện thoại</label>
-                      <input
-                        type="tel"
-                        name="phoneNumber"
-                        value={additionalDriver.phoneNumber}
-                        onChange={handleAdditionalDriverChange}
-                        placeholder="0987654321"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số CCCD lái phụ</label>
-                      <input
-                        type="text"
-                        name="idCardNumber"
-                        value={additionalDriver.idCardNumber}
-                        onChange={handleAdditionalDriverChange}
-                        placeholder="079099xxxxxx"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số GPLX lái phụ</label>
-                      <input
-                        type="text"
-                        name="licenseNumber"
-                        value={additionalDriver.licenseNumber}
-                        onChange={handleAdditionalDriverChange}
-                        placeholder="790123456789"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
-                      />
+
+                    {/* 4 slots ảnh định danh người lái phụ */}
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                          <Upload className="w-3.5 h-3.5 text-blue-900" />
+                          Ảnh giấy tờ định danh người lái phụ (CCCD & GPLX)
+                        </span>
+                        <span className="text-[11px] text-slate-500 italic">4 ảnh phục vụ thẩm định pháp lý</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Slot 1: CCCD Mặt Trước */}
+                        <div className="border border-dashed border-slate-300 rounded-md p-3.5 bg-slate-50 text-center hover:bg-white transition-colors">
+                          <div className="text-xs font-bold text-zinc-900 mb-0.5">CCCD Mặt trước (Lái phụ)</div>
+                          <div className="text-[10px] text-slate-500 mb-2.5">Rõ số, quốc huy & chân dung</div>
+                          {addIdCardFrontPreview ? (
+                            <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                              <img src={addIdCardFrontPreview} alt="CCCD Lái phụ Trước" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                              <Upload className="w-3.5 h-3.5 text-blue-900" />
+                              <span>Chọn ảnh tải lên</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setAddIdCardFrontFile, setAddIdCardFrontPreview)} />
+                            </label>
+                          )}
+                        </div>
+
+                        {/* Slot 2: CCCD Mặt Sau */}
+                        <div className="border border-dashed border-slate-300 rounded-md p-3.5 bg-slate-50 text-center hover:bg-white transition-colors">
+                          <div className="text-xs font-bold text-zinc-900 mb-0.5">CCCD Mặt sau (Lái phụ)</div>
+                          <div className="text-[10px] text-slate-500 mb-2.5">Rõ chip điện tử & nhận dạng</div>
+                          {addIdCardBackPreview ? (
+                            <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                              <img src={addIdCardBackPreview} alt="CCCD Lái phụ Sau" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                              <Upload className="w-3.5 h-3.5 text-blue-900" />
+                              <span>Chọn ảnh tải lên</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setAddIdCardBackFile, setAddIdCardBackPreview)} />
+                            </label>
+                          )}
+                        </div>
+
+                        {/* Slot 3: GPLX Mặt Trước */}
+                        <div className="border border-dashed border-slate-300 rounded-md p-3.5 bg-slate-50 text-center hover:bg-white transition-colors">
+                          <div className="text-xs font-bold text-zinc-900 mb-0.5">GPLX Mặt trước (Lái phụ)</div>
+                          <div className="text-[10px] text-slate-500 mb-2.5">Rõ hạng bằng và ngày hết hạn</div>
+                          {addLicenseFrontPreview ? (
+                            <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                              <img src={addLicenseFrontPreview} alt="GPLX Lái phụ Trước" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                              <Upload className="w-3.5 h-3.5 text-blue-900" />
+                              <span>Chọn ảnh tải lên</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setAddLicenseFrontFile, setAddLicenseFrontPreview)} />
+                            </label>
+                          )}
+                        </div>
+
+                        {/* Slot 4: GPLX Mặt Sau */}
+                        <div className="border border-dashed border-slate-300 rounded-md p-3.5 bg-slate-50 text-center hover:bg-white transition-colors">
+                          <div className="text-xs font-bold text-zinc-900 mb-0.5">GPLX Mặt sau (Lái phụ)</div>
+                          <div className="text-[10px] text-slate-500 mb-2.5">Mặt sau giấy phép lái xe</div>
+                          {addLicenseBackPreview ? (
+                            <div className="relative aspect-[3/2] rounded overflow-hidden mb-2 border border-slate-200">
+                              <img src={addLicenseBackPreview} alt="GPLX Lái phụ Sau" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-700 hover:border-slate-400">
+                              <Upload className="w-3.5 h-3.5 text-blue-900" />
+                              <span>Chọn ảnh tải lên</span>
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setAddLicenseBackFile, setAddLicenseBackPreview)} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -15,11 +15,17 @@ const LOCATIONS = [
   'Đà Nẵng (Sân bay Đà Nẵng)'
 ];
 
+const pad = (n) => String(n).padStart(2, '0');
+const toLocalIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
 const CarCatalogPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [dateError, setDateError] = useState('');
+
+  const minPickupTime = toLocalIso(new Date());
 
   // Search Params initialized from URL
   const [pickupLocation, setPickupLocation] = useState(searchParams.get('pickupLocation') || '');
@@ -67,11 +73,58 @@ const CarCatalogPage = () => {
   };
 
   useEffect(() => {
-    fetchVehicles();
-  }, [filters, pickupLocation]);
+    if (startTime && endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const now = new Date();
+      if (start >= new Date(now.getTime() - 15 * 60 * 1000) && end > start && (end - start) >= 4 * 3600000) {
+        fetchVehicles();
+      }
+    } else if (!startTime && !endTime) {
+      fetchVehicles();
+    }
+  }, [filters, pickupLocation, startTime, endTime]);
+
+  const handleStartTimeChange = (val) => {
+    setStartTime(val);
+    setDateError('');
+    if (val && endTime && new Date(endTime) <= new Date(val)) {
+      const nextDay = new Date(new Date(val).getTime() + 24 * 60 * 60 * 1000);
+      setEndTime(toLocalIso(nextDay));
+    }
+  };
+
+  const handleEndTimeChange = (val) => {
+    setEndTime(val);
+    setDateError('');
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setDateError('');
+
+    if (startTime) {
+      const now = new Date();
+      if (new Date(startTime) < new Date(now.getTime() - 15 * 60 * 1000)) {
+        setDateError('Thời gian nhận xe không thể ở trong quá khứ.');
+        return;
+      }
+    }
+
+    if (startTime && endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      if (end <= start) {
+        setDateError('Thời gian trả xe phải sau thời gian nhận xe.');
+        return;
+      }
+      const diffHours = (end - start) / (1000 * 60 * 60);
+      if (diffHours < 4) {
+        setDateError('Thời gian thuê xe tối thiểu là 4 giờ.');
+        return;
+      }
+    }
+
     fetchVehicles();
   };
 
@@ -165,7 +218,8 @@ const CarCatalogPage = () => {
               <input
                 type="datetime-local"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                min={minPickupTime}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
                 placeholder="Ngày nhận xe"
               />
@@ -176,7 +230,8 @@ const CarCatalogPage = () => {
               <input
                 type="datetime-local"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                min={startTime || minPickupTime}
+                onChange={(e) => handleEndTimeChange(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-md pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
                 placeholder="Ngày trả xe"
               />
@@ -190,6 +245,13 @@ const CarCatalogPage = () => {
               <span>Kiểm tra xe trống</span>
             </button>
           </form>
+
+          {dateError && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-600 font-semibold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+              {dateError}
+            </div>
+          )}
 
         </div>
       </div>

@@ -23,6 +23,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
     });
 
 // Swagger/OpenAPI setup with JWT Bearer Support
@@ -352,6 +353,14 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_expiry TIMESTAMPTZ;
             ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
             ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
+
+            -- Additional Driver Identification & Documents
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS id_card_front_url TEXT;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS id_card_back_url TEXT;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS driver_license_front_url TEXT;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS driver_license_back_url TEXT;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS driver_license_class VARCHAR(50);
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS driver_license_expiry TIMESTAMPTZ;
 
             -- Synchronize RentalRequest status to SIGNED for any orders whose contracts have already been signed
             UPDATE rental_requests r

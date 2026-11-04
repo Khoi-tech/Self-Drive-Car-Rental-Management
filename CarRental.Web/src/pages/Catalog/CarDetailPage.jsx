@@ -218,6 +218,79 @@ const CarDetailPage = () => {
     fetchData();
   }, [id]);
 
+  const pad = (n) => String(n).padStart(2, '0');
+  const toLocalIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const minPickupTime = toLocalIso(new Date());
+
+  const fallbackPreview = (days) => {
+    if (!vehicle) return null;
+    const base = vehicle.dailyRate || 0;
+    return {
+      basePrice: base,
+      rentalDays: days,
+      discountPercentage: 0,
+      holidaySurcharge: 0,
+      adjustedDailyPrice: base,
+      rentalPrice: base * days
+    };
+  };
+
+  const calculatePreview = async () => {
+    if (!startTime || !endTime) {
+      setBookingError('');
+      setPreview(null);
+      return;
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      setBookingError('');
+      setPreview(null);
+      return;
+    }
+
+    if (start < new Date(now.getTime() - 15 * 60 * 1000)) {
+      setBookingError('Thời gian nhận xe không thể ở trong quá khứ.');
+      setPreview(null);
+      return;
+    }
+
+    if (end <= start) {
+      setBookingError('Thời gian trả xe phải sau thời gian nhận xe.');
+      setPreview(null);
+      return;
+    }
+
+    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 4) {
+      setBookingError('Thời gian thuê xe tối thiểu là 4 giờ.');
+      setPreview(null);
+      return;
+    }
+
+    setBookingError('');
+    const diffDays = Math.max(1, Math.ceil(diffHours / 24));
+
+    // Optimistically update preview immediately for instant UI responsiveness
+    setPreview(fallbackPreview(diffDays));
+
+    setCalculating(true);
+    try {
+      const response = await pricingService.previewPricing(id, diffDays);
+      const data = response?.data || response;
+      if (data && (data.rentalPrice !== undefined || data.basePrice !== undefined)) {
+        setPreview(data);
+      }
+    } catch (err) {
+      console.warn('Pricing preview API fallback to standard rate calculation:', err);
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   useEffect(() => {
     if (startTime && endTime && vehicle) {
       calculatePreview();
@@ -226,26 +299,18 @@ const CarDetailPage = () => {
     }
   }, [startTime, endTime, vehicle]);
 
-  const calculatePreview = async () => {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0 || isNaN(diffDays)) {
-      setPreview(null);
-      return;
+  const handleStartTimeChange = (newVal) => {
+    setStartTime(newVal);
+    setBookingError('');
+    if (newVal && endTime && new Date(endTime) <= new Date(newVal)) {
+      const nextDay = new Date(new Date(newVal).getTime() + 24 * 60 * 60 * 1000);
+      setEndTime(toLocalIso(nextDay));
     }
+  };
 
-    setCalculating(true);
-    try {
-      const response = await pricingService.previewPricing(id, diffDays);
-      setPreview(response.data || response);
-    } catch (err) {
-      console.error('Failed to preview price', err);
-    } finally {
-      setCalculating(false);
-    }
+  const handleEndTimeChange = (newVal) => {
+    setEndTime(newVal);
+    setBookingError('');
   };
 
   const handleBooking = () => {
@@ -253,6 +318,27 @@ const CarDetailPage = () => {
       setBookingError('Vui lòng chọn đầy đủ ngày nhận và ngày trả xe để tiếp tục.');
       return;
     }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (start < new Date(now.getTime() - 15 * 60 * 1000)) {
+      setBookingError('Thời gian nhận xe không thể ở trong quá khứ.');
+      return;
+    }
+
+    if (end <= start) {
+      setBookingError('Thời gian trả xe phải sau thời gian nhận xe.');
+      return;
+    }
+
+    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 4) {
+      setBookingError('Thời gian thuê xe tối thiểu là 4 giờ.');
+      return;
+    }
+
     setBookingError('');
     const location = searchParams.get('pickupLocation') || vehicle?.pickupLocation || 'Tại Cửa Hàng VELORA';
     navigate(`/booking/${id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(location)}`);
@@ -653,7 +739,8 @@ const CarDetailPage = () => {
                   <input
                     type="datetime-local"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    min={minPickupTime}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
@@ -666,7 +753,8 @@ const CarDetailPage = () => {
                   <input
                     type="datetime-local"
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
+                    min={startTime || minPickupTime}
+                    onChange={(e) => handleEndTimeChange(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                   />
                 </div>
@@ -731,7 +819,12 @@ const CarDetailPage = () => {
               <button
                 type="button"
                 onClick={handleBooking}
-                className="w-full bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer"
+                disabled={calculating || !!bookingError || !preview}
+                className={`w-full font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 tracking-wider uppercase ${
+                  calculating || !!bookingError || !preview
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-900 hover:bg-blue-900 text-white cursor-pointer'
+                }`}
               >
                 <span>Tiếp tục đặt xe & Thẩm định hồ sơ</span>
                 <ArrowRight className="w-4 h-4" />

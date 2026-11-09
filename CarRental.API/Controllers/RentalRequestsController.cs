@@ -153,5 +153,41 @@ namespace CarRental.API.Controllers
                 return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
             }
         }
+
+        [HttpPut("{id:guid}/documents")]
+        public async Task<IActionResult> UpdateDocuments(Guid id, [FromBody] UpdateRentalDocumentsDto dto)
+        {
+            try
+            {
+                var result = await _rentalRequestService.UpdateDocumentsAsync(id, dto);
+                return Ok(new { Message = "Bổ sung hồ sơ định danh thành công.", Data = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
+            }
+        }
+
+        [HttpPut("{id:guid}/confirm-security-deposit")]
+        public async Task<IActionResult> ConfirmSecurityDeposit(Guid id, [FromQuery] bool isPaid = true)
+        {
+            try
+            {
+                var result = await _rentalRequestService.ConfirmSecurityDepositAsync(id, isPaid);
+                return Ok(new { Message = isPaid ? "Xác nhận thu tiền cọc thế chân thành công." : "Đặt lại trạng thái chưa thu cọc thế chân.", Data = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Đã xảy ra lỗi hệ thống", Details = ex.Message });
+            }
+        }
     }
 }

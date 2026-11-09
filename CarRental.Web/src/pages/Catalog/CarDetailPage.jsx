@@ -21,7 +21,8 @@ import {
   Gauge, 
   FileCheck,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -248,14 +249,22 @@ const CarDetailPage = () => {
     }
   };
 
-  const handleBooking = () => {
+  const handleBooking = (type = 'FAST_HOLD') => {
+    if (vehicle?.status === 'RENTED') {
+      setBookingError('Xe này hiện đang có chuyến thuê lưu hành với khách hàng và chưa được hoàn trả về bãi. Vui lòng chọn xe khác hoặc liên hệ hotline.');
+      return;
+    }
+    if (vehicle?.status === 'MAINTENANCE' || vehicle?.status === 'REPAIR') {
+      setBookingError('Xe này hiện đang trong kỳ bảo dưỡng / sửa chữa kỹ thuật và chưa sẵn sàng để đặt thuê.');
+      return;
+    }
     if (!startTime || !endTime) {
       setBookingError('Vui lòng chọn đầy đủ ngày nhận và ngày trả xe để tiếp tục.');
       return;
     }
     setBookingError('');
     const location = searchParams.get('pickupLocation') || vehicle?.pickupLocation || 'Tại Cửa Hàng VELORA';
-    navigate(`/booking/${id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(location)}`);
+    navigate(`/booking/${id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(location)}&type=${type}`);
   };
 
   const gallery = getVehicleGallery(vehicle);
@@ -366,9 +375,15 @@ const CarDetailPage = () => {
 
                 {/* Top Badges */}
                 <div className="absolute top-4 left-4 flex items-center gap-2">
-                  <span className={isReady ? 'badge-ready shadow-xs' : 'badge-rented shadow-xs'}>
-                    {isReady ? 'Sẵn sàng bàn giao' : 'Đang cho thuê'}
-                  </span>
+                  {vehicle.status === 'READY' ? (
+                    <span className="badge-ready shadow-xs">Sẵn sàng bàn giao</span>
+                  ) : vehicle.status === 'RENTED' ? (
+                    <span className="badge-rented shadow-xs">Đang cho thuê</span>
+                  ) : (
+                    <span className="bg-slate-200 text-slate-700 border border-slate-300 text-[11px] font-bold px-2.5 py-0.5 rounded shadow-xs">
+                      Không khả dụng
+                    </span>
+                  )}
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-white/95 text-slate-800 backdrop-blur-sm border border-white/20 shadow-xs">
                     {activeImage.tag}
                   </span>
@@ -728,14 +743,54 @@ const CarDetailPage = () => {
               )}
 
               {/* Action Button */}
-              <button
-                type="button"
-                onClick={handleBooking}
-                className="w-full bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer"
-              >
-                <span>Tiếp tục đặt xe & Thẩm định hồ sơ</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {vehicle?.status === 'RENTED' ? (
+                <div className="space-y-2">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-blue-700 shrink-0" />
+                    <span>Xe hiện đang được khách hàng thuê và sử dụng.</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-blue-100 text-blue-800 border border-blue-200 font-bold text-xs py-3.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider"
+                  >
+                    Đang cho thuê (Tạm khóa đặt)
+                  </button>
+                </div>
+              ) : vehicle?.status !== 'READY' ? (
+                <div className="space-y-2">
+                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
+                    <span>Xe hiện không thể được đặt thuê vì bất kỳ lý do nào.</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-slate-200 text-slate-500 font-bold text-xs py-3.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider"
+                  >
+                    Không khả dụng
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleBooking('FAST_HOLD')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer hover:shadow-md"
+                  >
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>⚡ Cọc Giữ Xe Siêu Tốc 500K</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBooking('STANDARD')}
+                    className="w-full bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs py-2.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer"
+                  >
+                    <span>Đặt thuê tiêu chuẩn (Thẩm định trước)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               {/* Guarantees */}
               <div className="pt-3 border-t border-slate-100 space-y-2 text-[11px] text-slate-500">

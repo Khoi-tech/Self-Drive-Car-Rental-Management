@@ -13,6 +13,7 @@ import {
   Bell,
   Search,
   UserCircle,
+  Users,
   ClipboardList,
   ShieldCheck,
   FileCheck,
@@ -50,6 +51,7 @@ const AdminLayout = () => {
       groupTitle: 'VẬN HÀNH ĐƠN THUÊ',
       items: [
         { name: 'Duyệt hồ sơ & Đặt xe', path: '/admin/rental-requests', icon: <ClipboardList size={17} /> },
+        { name: 'Quản lý khách hàng', path: '/admin/customers', icon: <Users size={17} /> },
         { name: 'Biên bản Bàn giao', path: '/admin/handovers', icon: <FileCheck size={17} /> },
         { name: 'Biên bản Hoàn trả', path: '/admin/returns', icon: <RotateCcw size={17} /> },
         { name: 'Gia hạn thuê xe', path: '/admin/extensions', icon: <Clock size={17} /> },

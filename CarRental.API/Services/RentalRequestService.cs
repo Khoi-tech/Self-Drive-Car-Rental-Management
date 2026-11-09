@@ -33,13 +33,35 @@ namespace CarRental.API.Services
 
             // Block vehicles that are physically unavailable AND the booking starts now/soon
             var nonBookableStatuses = new[] { VehicleStatus.MAINTENANCE, VehicleStatus.REPAIR, VehicleStatus.INACTIVE };
-            if (nonBookableStatuses.Contains(car.Status) && dto.StartTime <= DateTime.UtcNow.AddHours(24))
+            if (nonBookableStatuses.Contains(car.Status))
             {
-                throw new InvalidOperationException("Xe hiện đang bảo dưỡng / sửa chữa và chưa sẵn sàng để thuê.");
+                throw new InvalidOperationException("Xe hiện đang trong kỳ bảo dưỡng / sửa chữa / kiểm định và chưa sẵn sàng để thuê.");
             }
 
             var startUtc = dto.StartTime.Kind == DateTimeKind.Utc ? dto.StartTime : dto.StartTime.ToUniversalTime();
             var endUtc = dto.EndTime.Kind == DateTimeKind.Utc ? dto.EndTime : dto.EndTime.ToUniversalTime();
+
+            // Block vehicles that are currently rented out to another customer
+            if (car.Status == VehicleStatus.RENTED)
+            {
+                var activeRental = await _context.RentalRequests
+                    .Where(r => r.CarId == dto.CarId && (r.Status == "ACTIVE" || r.Status == "CONFIRMED"))
+                    .OrderByDescending(r => r.EndTime)
+                    .FirstOrDefaultAsync();
+
+                if (activeRental != null)
+                {
+                    var earliestAvailable = activeRental.EndTime.AddHours(3);
+                    if (startUtc < earliestAvailable)
+                    {
+                        throw new InvalidOperationException($"Xe hiện đang trong hành trình lưu hành với khách hàng (dự kiến hoàn trả lúc {activeRental.EndTime:dd/MM/yyyy HH:mm}). Vui lòng chọn thời gian nhận xe sau {earliestAvailable:dd/MM/yyyy HH:mm} hoặc chọn dòng xe khác.");
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Xe hiện đang ở trạng thái cho thuê và chưa được nghiệm thu trả xe về bãi. Không thể tạo đơn mới cho xe này.");
+                }
+            }
 
             if (startUtc < DateTime.UtcNow.AddMinutes(-15))
             {
@@ -107,7 +129,10 @@ namespace CarRental.API.Services
             }
 
             // Luxury Car Rental History Requirement (DailyRate >= 1,500,000 VND)
-            if (car.DailyRate >= 1500000m)
+            // FAST_HOLD bypasses this check because Fast Hold is a reservation holding deposit!
+            bool isFastHold = string.Equals(dto.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase);
+
+            if (!isFastHold && car.DailyRate >= 1500000m)
             {
                 var hasDispute = await _context.RentalRequests.AnyAsync(r => 
                     (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
@@ -122,7 +147,7 @@ namespace CarRental.API.Services
                     && r.Status == "COMPLETED");
                 if (!hasCompletedRental)
                 {
-                    throw new InvalidOperationException($"Dòng xe cao cấp ({car.Make} {car.Model}) yêu cầu khách hàng phải có tối thiểu 1 chuyến đi hoàn tất tốt trên hệ thống VELORA để xác minh độ tín nhiệm.");
+                    throw new InvalidOperationException($"Dòng xe cao cấp ({car.Make} {car.Model}) yêu cầu khách hàng phải có tối thiểu 1 chuyến đi hoàn tất tốt trên hệ thống VELORA để xác minh độ tín nhiệm. Bạn có thể sử dụng tính năng 'Cọc giữ xe siêu tốc 500k' để giữ chỗ xe trước!");
                 }
             }
 
@@ -137,6 +162,8 @@ namespace CarRental.API.Services
                 throw new InvalidOperationException("Không thể tính giá dự kiến.");
             }
 
+            var holdDeposit = isFastHold ? (dto.HoldDepositAmount.HasValue && dto.HoldDepositAmount.Value > 0 ? dto.HoldDepositAmount.Value : 500000m) : 0m;
+
             var rentalRequest = new RentalRequest
             {
                 Id = Guid.NewGuid(),
@@ -149,8 +176,8 @@ namespace CarRental.API.Services
                 CustomerName = dto.CustomerName,
                 CustomerPhone = dto.CustomerPhone,
                 CustomerEmail = dto.CustomerEmail,
-                CustomerIdCard = dto.CustomerIdCard,
-                DriverLicenseNumber = dto.DriverLicenseNumber,
+                CustomerIdCard = !string.IsNullOrWhiteSpace(dto.CustomerIdCard) ? dto.CustomerIdCard : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
+                DriverLicenseNumber = !string.IsNullOrWhiteSpace(dto.DriverLicenseNumber) ? dto.DriverLicenseNumber : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
                 DriverLicenseClass = dto.DriverLicenseClass,
                 DriverLicenseExpiry = dto.DriverLicenseExpiry,
                 IdCardFrontUrl = dto.IdCardFrontUrl,
@@ -165,6 +192,10 @@ namespace CarRental.API.Services
                 HolidaySurchargePercent = preview.HolidaySurcharge,
                 EstimatedTotalFee = preview.RentalPrice,
                 DepositAmount = car.DepositAmount,
+                BookingType = isFastHold ? "FAST_HOLD" : "STANDARD",
+                HoldDepositAmount = holdDeposit,
+                IsSecurityDepositPaid = false,
+                HoldExpiresAt = isFastHold ? DateTime.UtcNow.AddHours(4) : null,
                 
                 Status = "PENDING",
                 CreatedAt = DateTime.UtcNow
@@ -415,6 +446,69 @@ namespace CarRental.API.Services
             };
         }
 
+        public async Task<RentalRequestResponseDto> UpdateDocumentsAsync(Guid id, UpdateRentalDocumentsDto dto)
+        {
+            var request = await _context.RentalRequests
+                .Include(r => r.Vehicle)
+                .Include(r => r.AdditionalDrivers)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy đơn thuê xe.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.CustomerIdCard))
+                request.CustomerIdCard = dto.CustomerIdCard.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.DriverLicenseNumber))
+                request.DriverLicenseNumber = dto.DriverLicenseNumber.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.DriverLicenseClass))
+                request.DriverLicenseClass = dto.DriverLicenseClass.Trim();
+
+            if (dto.DriverLicenseExpiry.HasValue)
+                request.DriverLicenseExpiry = dto.DriverLicenseExpiry.Value;
+
+            if (!string.IsNullOrWhiteSpace(dto.IdCardFrontUrl))
+                request.IdCardFrontUrl = dto.IdCardFrontUrl.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.IdCardBackUrl))
+                request.IdCardBackUrl = dto.IdCardBackUrl.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.DriverLicenseFrontUrl))
+                request.DriverLicenseFrontUrl = dto.DriverLicenseFrontUrl.Trim();
+
+            if (!string.IsNullOrWhiteSpace(dto.DriverLicenseBackUrl))
+                request.DriverLicenseBackUrl = dto.DriverLicenseBackUrl.Trim();
+
+            request.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(request);
+        }
+
+        public async Task<RentalRequestResponseDto> ConfirmSecurityDepositAsync(Guid id, bool isPaid = true)
+        {
+            var request = await _context.RentalRequests
+                .Include(r => r.Vehicle)
+                .Include(r => r.AdditionalDrivers)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (request == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy đơn thuê xe.");
+            }
+
+            request.IsSecurityDepositPaid = isPaid;
+            request.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(request);
+        }
+
         private RentalRequestResponseDto MapToResponseDto(RentalRequest request)
         {
             return new RentalRequestResponseDto
@@ -443,6 +537,10 @@ namespace CarRental.API.Services
                 HolidaySurchargePercent = request.HolidaySurchargePercent,
                 EstimatedTotalFee = request.EstimatedTotalFee,
                 DepositAmount = request.DepositAmount,
+                BookingType = request.BookingType ?? "STANDARD",
+                HoldDepositAmount = request.HoldDepositAmount,
+                IsSecurityDepositPaid = request.IsSecurityDepositPaid,
+                HoldExpiresAt = request.HoldExpiresAt ?? (request.BookingType == "FAST_HOLD" ? request.CreatedAt.AddHours(4) : null),
                 Status = request.Status,
                 RejectReason = request.RejectReason,
                 CarMake = request.Vehicle?.Make,

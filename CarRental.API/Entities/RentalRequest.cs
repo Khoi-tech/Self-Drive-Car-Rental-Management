@@ -83,6 +83,19 @@ namespace CarRental.API.Entities
         [Column("deposit_amount", TypeName = "decimal(18,2)")]
         public decimal DepositAmount { get; set; }
 
+        [Column("booking_type")]
+        [MaxLength(50)]
+        public string BookingType { get; set; } = "STANDARD"; // FAST_HOLD, STANDARD
+
+        [Column("hold_deposit_amount", TypeName = "decimal(18,2)")]
+        public decimal HoldDepositAmount { get; set; } = 0;
+
+        [Column("is_security_deposit_paid")]
+        public bool IsSecurityDepositPaid { get; set; } = false;
+
+        [Column("hold_expires_at")]
+        public DateTime? HoldExpiresAt { get; set; }
+
         [Column("status")]
         public string Status { get; set; } = "PENDING";
 

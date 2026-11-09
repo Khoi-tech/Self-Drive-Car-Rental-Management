@@ -12,6 +12,7 @@ import PricingDetailPage from '../pages/Pricing/PricingDetailPage';
 import PoliciesPage from '../pages/Policies/PoliciesPage';
 import CompensationPoliciesPage from '../pages/Compensation/CompensationPoliciesPage';
 import ContractTemplatesPage from '../pages/Contracts/ContractTemplatesPage';
+import CustomersManagementPage from '../pages/Customers/CustomersManagementPage';
 
 import CarCatalogPage from '../pages/Catalog/CarCatalogPage';
 import CarDetailPage from '../pages/Catalog/CarDetailPage';
@@ -91,6 +92,7 @@ const AppRoutes = () => {
         <Route path="policies" element={<PoliciesPage />} />
         <Route path="compensation" element={<CompensationPoliciesPage />} />
         <Route path="contracts" element={<ContractTemplatesPage />} />
+        <Route path="customers" element={<CustomersManagementPage />} />
         <Route path="settings" element={<PlaceholderPage title="Cài đặt" />} />
       </Route>
 

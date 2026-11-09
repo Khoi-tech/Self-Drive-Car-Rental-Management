@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using CarRental.API.Common.JsonConverters;
 
 namespace CarRental.API.DTOs.ReturnProtocol
 {
@@ -13,8 +15,10 @@ namespace CarRental.API.DTOs.ReturnProtocol
         public DateTime ReturnDate { get; set; } = DateTime.UtcNow;
 
         [Required]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int EndOdo { get; set; }
 
+        [JsonConverter(typeof(FlexibleFuelLevelConverter))]
         public int ReturnFuelLevel { get; set; } = 100; // 25, 50, 75, 100
 
         public string? ExteriorCondition { get; set; }

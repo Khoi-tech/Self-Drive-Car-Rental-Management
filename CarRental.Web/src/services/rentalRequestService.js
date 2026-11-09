@@ -73,6 +73,26 @@ const rentalRequestService = {
       console.error('Error cancelling rental request:', error);
       throw error;
     }
+  },
+
+  updateDocuments: async (id, data) => {
+    try {
+      const response = await api.put(`/rental-requests/${id}/documents`, data);
+      return response;
+    } catch (error) {
+      console.error('Error updating rental request documents:', error);
+      throw error;
+    }
+  },
+
+  confirmSecurityDeposit: async (id) => {
+    try {
+      const response = await api.put(`/rental-requests/${id}/confirm-security-deposit`);
+      return response;
+    } catch (error) {
+      console.error('Error confirming security deposit:', error);
+      throw error;
+    }
   }
 };
 

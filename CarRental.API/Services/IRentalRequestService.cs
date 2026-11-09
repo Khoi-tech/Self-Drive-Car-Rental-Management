@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using CarRental.API.DTOs.RentalRequest;
 
@@ -13,5 +14,7 @@ namespace CarRental.API.Services
         Task<RentalRequestResponseDto> ApproveRequestAsync(Guid id);
         Task<RentalRequestResponseDto> RejectRequestAsync(Guid id, string reason);
         Task<CancelRentalResultDto> CancelRequestAsync(Guid id);
+        Task<RentalRequestResponseDto> UpdateDocumentsAsync(Guid id, UpdateRentalDocumentsDto dto);
+        Task<RentalRequestResponseDto> ConfirmSecurityDepositAsync(Guid id, bool isPaid = true);
     }
 }

@@ -21,7 +21,9 @@ import {
   Phone,
   Mail,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Zap,
+  Check
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -43,6 +45,11 @@ const BookingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successResponse, setSuccessResponse] = useState(null);
+
+  // Booking Type: 'FAST_HOLD' (Default / Recommended) vs 'STANDARD'
+  const [bookingType, setBookingType] = useState(
+    searchParams.get('type') === 'STANDARD' ? 'STANDARD' : 'FAST_HOLD'
+  );
 
   // Form State
   const [formData, setFormData] = useState({
@@ -146,7 +153,7 @@ const BookingPage = () => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
 
-    // Validation
+    // Common validations
     if (!formData.customerName?.trim()) {
       setError('Vui lòng nhập Họ và tên người thuê.');
       return;
@@ -159,35 +166,49 @@ const BookingPage = () => {
       setError('Vui lòng nhập Email người thuê.');
       return;
     }
-    if (!formData.customerIdCard?.trim()) {
-      setError('Vui lòng nhập Số CCCD/CMND người thuê.');
-      return;
-    }
-    if (!formData.driverLicenseNumber?.trim()) {
-      setError('Vui lòng nhập Số Giấy phép lái xe người thuê.');
-      return;
-    }
 
-    if (!formData.driverLicenseClass) {
-      setError('Vui lòng chọn Hạng Giấy phép lái xe.');
-      return;
-    }
+    const isFastHold = bookingType === 'FAST_HOLD';
 
-    if (!formData.driverLicenseExpiry) {
-      setError('Vui lòng nhập Ngày hết hạn Giấy phép lái xe.');
-      return;
-    }
+    // Strict validation ONLY for Standard booking
+    if (!isFastHold) {
+      if (!formData.customerIdCard?.trim()) {
+        setError('Vui lòng nhập Số CCCD/CMND người thuê.');
+        return;
+      }
+      if (!formData.driverLicenseNumber?.trim()) {
+        setError('Vui lòng nhập Số Giấy phép lái xe người thuê.');
+        return;
+      }
+      if (!formData.driverLicenseClass) {
+        setError('Vui lòng chọn Hạng Giấy phép lái xe.');
+        return;
+      }
+      if (!formData.driverLicenseExpiry) {
+        setError('Vui lòng nhập Ngày hết hạn Giấy phép lái xe.');
+        return;
+      }
 
-    const expiryDate = new Date(formData.driverLicenseExpiry);
-    const returnDate = new Date(endTimeStr);
-    if (expiryDate <= returnDate) {
-      setError(`GPLX của bạn hết hạn vào ngày ${expiryDate.toLocaleDateString('vi-VN')}, trước hoặc đúng ngày trả xe (${returnDate.toLocaleDateString('vi-VN')}). Không đủ điều kiện thuê xe.`);
-      return;
-    }
+      const expiryDate = new Date(formData.driverLicenseExpiry);
+      const returnDate = new Date(endTimeStr);
+      if (expiryDate <= returnDate) {
+        setError(`GPLX của bạn hết hạn vào ngày ${expiryDate.toLocaleDateString('vi-VN')}, trước hoặc đúng ngày trả xe (${returnDate.toLocaleDateString('vi-VN')}). Không đủ điều kiện thuê xe.`);
+        return;
+      }
 
-    if (formData.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL') {
-      setError(`GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn (${vehicle?.make} ${vehicle?.model}).`);
-      return;
+      if (formData.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL') {
+        setError(`GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn (${vehicle?.make} ${vehicle?.model}).`);
+        return;
+      }
+    } else {
+      // Fast Hold check: if user provided license expiry, check it
+      if (formData.driverLicenseExpiry) {
+        const expiryDate = new Date(formData.driverLicenseExpiry);
+        const returnDate = new Date(endTimeStr);
+        if (expiryDate <= returnDate) {
+          setError(`GPLX của bạn hết hạn vào ngày ${expiryDate.toLocaleDateString('vi-VN')}, trước ngày trả xe.`);
+          return;
+        }
+      }
     }
 
     if (hasAdditionalDriver) {
@@ -215,15 +236,19 @@ const BookingPage = () => {
         customerName: formData.customerName.trim(),
         customerPhone: formData.customerPhone.trim(),
         customerEmail: formData.customerEmail.trim(),
-        customerIdCard: formData.customerIdCard.trim(),
-        driverLicenseNumber: formData.driverLicenseNumber.trim(),
-        driverLicenseClass: formData.driverLicenseClass,
-        driverLicenseExpiry: new Date(formData.driverLicenseExpiry).toISOString(),
+        customerIdCard: formData.customerIdCard?.trim() || (isFastHold ? 'CHƯA_CẬP_NHẬT' : ''),
+        driverLicenseNumber: formData.driverLicenseNumber?.trim() || (isFastHold ? 'CHƯA_CẬP_NHẬT' : ''),
+        driverLicenseClass: formData.driverLicenseClass || 'B2',
+        driverLicenseExpiry: formData.driverLicenseExpiry 
+          ? new Date(formData.driverLicenseExpiry).toISOString() 
+          : new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
         notes: formData.notes?.trim() || '',
-        idCardFrontUrl: idCardFrontPreview || 'https://example.com/id-front.jpg',
-        idCardBackUrl: idCardBackPreview || 'https://example.com/id-back.jpg',
-        driverLicenseFrontUrl: licenseFrontPreview || 'https://example.com/dl-front.jpg',
-        driverLicenseBackUrl: licenseBackPreview || 'https://example.com/dl-back.jpg',
+        idCardFrontUrl: idCardFrontPreview || '',
+        idCardBackUrl: idCardBackPreview || '',
+        driverLicenseFrontUrl: licenseFrontPreview || '',
+        driverLicenseBackUrl: licenseBackPreview || '',
+        bookingType: isFastHold ? 'FAST_HOLD' : 'STANDARD',
+        holdDepositAmount: isFastHold ? 500000 : 0
       };
 
       if (hasAdditionalDriver) {
@@ -237,9 +262,8 @@ const BookingPage = () => {
 
       const res = await rentalRequestService.createRequest(requestPayload);
       const createdData = res.data || res;
-      setSuccessResponse(createdData);
 
-      // Persist in localStorage so ProfilePage can immediately resolve bookings even if different from login email
+      // Persist in localStorage so ProfilePage can immediately resolve bookings
       if (requestPayload.customerEmail) {
         localStorage.setItem('velora_last_booking_email', requestPayload.customerEmail);
       }
@@ -249,6 +273,14 @@ const BookingPage = () => {
       if (createdData?.id) {
         localStorage.setItem('velora_last_booking_id', createdData.id);
       }
+
+      // If FAST_HOLD: Immediately navigate to VietQR deposit payment page for 500k!
+      if (isFastHold && createdData?.id) {
+        navigate(`/payment/deposit/${createdData.id}`);
+        return;
+      }
+
+      setSuccessResponse(createdData);
     } catch (err) {
       console.error('Submit error:', err);
       let errMsg = 'Có lỗi xảy ra khi gửi yêu cầu thuê xe';
@@ -270,7 +302,7 @@ const BookingPage = () => {
     );
   }
 
-  // SUCCESS CONFIRMATION VIEW
+  // STANDARD SUCCESS CONFIRMATION VIEW
   if (successResponse) {
     return (
       <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
@@ -329,6 +361,8 @@ const BookingPage = () => {
     );
   }
 
+  const isFastHold = bookingType === 'FAST_HOLD';
+
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
@@ -353,6 +387,64 @@ const BookingPage = () => {
           
           {/* CỘT TRÁI: FORM ĐẶT XE (7 Cols) */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+
+            {/* METHOD SWITCHER: FAST HOLD VS STANDARD */}
+            <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  <span>Hình thức đặt xe</span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">Chọn phương thức phù hợp</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Fast Hold Card */}
+                <button
+                  type="button"
+                  onClick={() => setBookingType('FAST_HOLD')}
+                  className={`p-4 rounded-xl border text-left transition-all relative cursor-pointer ${
+                    isFastHold
+                      ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-extrabold text-xs text-amber-950 flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      ⚡ Cọc Giữ Xe Siêu Tốc 500K
+                    </span>
+                    <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">
+                      Khuyên dùng
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Khóa giữ xe trong 4 giờ chỉ với 500.000đ. Chỉ cần Họ tên & SĐT. Giấy tờ CCCD & GPLX bổ sung sau trong Hồ sơ cá nhân.
+                  </p>
+                </button>
+
+                {/* Standard Card */}
+                <button
+                  type="button"
+                  onClick={() => setBookingType('STANDARD')}
+                  className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                    !isFastHold
+                      ? 'bg-blue-50/70 border-blue-900 ring-2 ring-blue-900/20 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-extrabold text-xs text-blue-950 flex items-center gap-1.5">
+                      <Shield className="w-4 h-4 text-blue-900" />
+                      🛡️ Đặt Thuê Tiêu Chuẩn
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Tải đầy đủ ảnh CCCD & GPLX 4 mặt. Đội ngũ kiểm duyệt hồ sơ thẩm định trước khi ký hợp đồng và thanh toán cọc thế chân xe.
+                  </p>
+                </button>
+              </div>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               
@@ -364,6 +456,18 @@ const BookingPage = () => {
                     1. Thông tin người thuê xe (Khách hàng chính)
                   </h2>
                 </div>
+
+                {isFastHold && (
+                  <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg text-amber-900 text-xs flex items-start gap-2.5">
+                    <Zap className="w-4 h-4 text-amber-600 shrink-0 fill-amber-600 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <strong>⚡ Chế độ Cọc giữ xe siêu tốc 500K đang bật:</strong>
+                      <p className="text-[11px] text-amber-800 mt-0.5">
+                        Quý khách chỉ cần điền <strong>Họ tên, Số điện thoại & Email</strong>. Các trường CCCD, GPLX và ảnh chụp có thể để trống và bổ sung sau trong mục <em>Hồ sơ cá nhân</em> trước khi nhận xe.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -413,37 +517,37 @@ const BookingPage = () => {
 
                   <div>
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số CCCD / CMND gắn chip <span className="text-red-500">*</span>
+                      Số CCCD / CMND gắn chip {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
                     </label>
                     <input
                       type="text"
                       name="customerIdCard"
                       value={formData.customerIdCard}
                       onChange={handleInputChange}
-                      placeholder="079099xxxxxx"
-                      required
+                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "079099xxxxxx"}
+                      required={!isFastHold}
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số Giấy phép lái xe <span className="text-red-500">*</span>
+                      Số Giấy phép lái xe {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
                     </label>
                     <input
                       type="text"
                       name="driverLicenseNumber"
                       value={formData.driverLicenseNumber}
                       onChange={handleInputChange}
-                      placeholder="790123456789"
-                      required
+                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "790123456789"}
+                      required={!isFastHold}
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Hạng Giấy phép lái xe <span className="text-red-500">*</span>
+                      Hạng Giấy phép lái xe {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Tùy chọn)</span>}
                     </label>
                     <select
                       name="driverLicenseClass"
@@ -461,14 +565,14 @@ const BookingPage = () => {
 
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Ngày hết hạn GPLX <span className="text-red-500">*</span>
+                      Ngày hết hạn GPLX {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
                     </label>
                     <input
                       type="date"
                       name="driverLicenseExpiry"
                       value={formData.driverLicenseExpiry}
                       onChange={handleInputChange}
-                      required
+                      required={!isFastHold}
                       min={new Date().toISOString().split('T')[0]}
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
@@ -477,7 +581,7 @@ const BookingPage = () => {
                     </p>
                   </div>
 
-                  {/* Realtime Warnings for Eligibility */}
+                  {/* Realtime Warnings for Compatibility */}
                   {formData.driverLicenseClass === 'B1_AUTO' && vehicle?.transmission === 'MANUAL' && (
                     <div className="sm:col-span-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -500,7 +604,7 @@ const BookingPage = () => {
                     </div>
                   )}
 
-                  {vehicle?.dailyRate >= 1500000 && (
+                  {!isFastHold && vehicle?.dailyRate >= 1500000 && (
                     <div className="sm:col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-xs flex items-start gap-2">
                       <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <div>
@@ -514,12 +618,25 @@ const BookingPage = () => {
 
               {/* Box 2: Tải ảnh hồ sơ định danh (4 slots) */}
               <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                  <ShieldCheck className="w-4 h-4 text-blue-900" />
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
-                    2. Tải ảnh giấy tờ định danh (CCCD & GPLX)
-                  </h2>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-blue-900" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                      2. Tải ảnh giấy tờ định danh (CCCD & GPLX)
+                    </h2>
+                  </div>
+                  {isFastHold && (
+                    <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Tùy chọn bổ sung sau
+                    </span>
+                  )}
                 </div>
+
+                {isFastHold && (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-slate-600 text-xs leading-relaxed">
+                    💡 <em>Quý khách có thể tải ảnh giấy tờ ngay nếu có sẵn, hoặc bỏ qua để hoàn tất thanh toán cọc giữ xe 500k trước và bổ sung sau trong mục <strong>Hồ sơ cá nhân</strong>.</em>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Slot 1: CCCD Mặt Trước */}
@@ -693,9 +810,9 @@ const BookingPage = () => {
                 </div>
 
                 {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs flex items-center gap-2">
+                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{error}</span>
+                    <span className="font-semibold">{error}</span>
                   </div>
                 )}
               </div>
@@ -770,40 +887,78 @@ const BookingPage = () => {
                   )}
 
                   <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100">
-                    <span>Tiền cọc xe (Hoàn trả 100%)</span>
+                    <span>Tiền cọc thế chân xe (Hoàn trả 100%)</span>
                     <span className="tabular-nums font-semibold text-zinc-950">
                       {formatCurrencyVND(vehicle?.depositAmount || 15000000)}
                     </span>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline">
+                  <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
                     <span className="font-bold text-zinc-950">Tổng tiền thuê</span>
-                    <span className="text-xl font-extrabold text-blue-900 tabular-nums">
+                    <span className="text-lg font-extrabold text-blue-900 tabular-nums">
                       {formatCurrencyVND(preview.rentalPrice)}
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* Submit CTA */}
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
-              >
-                {submitting ? (
-                  <span>Đang khởi tạo hồ sơ...</span>
-                ) : (
-                  <>
-                    <span>Gửi yêu cầu thuê xe</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {/* Fast Hold vs Standard Deposit Callout */}
+              {isFastHold ? (
+                <div className="space-y-3 pt-3 border-t border-slate-200">
+                  <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
+                        Cọc giữ xe siêu tốc (Napas 247):
+                      </span>
+                      <span className="text-base font-black text-amber-800 tabular-nums">500.000 đ</span>
+                    </div>
+                    <p className="text-[10px] text-amber-700 leading-relaxed">
+                      * Khóa xe giữ chỗ trong 4 giờ. Cọc thế chân và tiền thuê sẽ thanh toán sau khi hoàn tất hồ sơ và nhận xe.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-400 text-white font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer hover:shadow-md"
+                  >
+                    {submitting ? (
+                      <span>Đang khởi tạo giao dịch 500k...</span>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 fill-white" />
+                        <span>⚡ Tiến hành cọc giữ xe 500.000đ</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  >
+                    {submitting ? (
+                      <span>Đang gửi hồ sơ thẩm định...</span>
+                    ) : (
+                      <>
+                        <span>Gửi yêu cầu thuê xe & Thẩm định</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               <div className="text-[11px] text-slate-500 text-center leading-relaxed">
-                Hồ sơ sẽ được thẩm định trực tuyến trong 10-15 phút. Bạn sẽ nhận được thông báo ký hợp đồng điện tử qua hệ thống.
+                {isFastHold 
+                  ? 'Thanh toán trực tiếp qua cổng VietQR Napas 24/7. Nhận mã đơn và chuyển khoản tức thì.'
+                  : 'Hồ sơ sẽ được thẩm định trực tuyến trong 10-15 phút. Bạn sẽ nhận được thông báo ký hợp đồng điện tử qua hệ thống.'}
               </div>
 
             </div>

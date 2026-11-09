@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, ShieldCheck, Car, Calendar, Phone } from 'lucide-react';
+import { User, LogOut, ShieldCheck, Car, Calendar, Phone, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = ({ isVisible = true }) => {
@@ -98,6 +98,16 @@ const Navbar = ({ isVisible = true }) => {
                     <span>Portal Quản trị</span>
                   </Link>
                 )}
+
+                {/* Quick Notification Bell */}
+                <Link
+                  to="/profile?tab=notifications"
+                  className="relative p-2 rounded-md hover:bg-slate-100 text-slate-600 hover:text-blue-900 transition-colors"
+                  title="Trung tâm thông báo"
+                >
+                  <Bell className="w-4 h-4" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                </Link>
 
                 <div className="flex items-center border border-slate-200 rounded-md bg-slate-50 p-0.5">
                   <Link

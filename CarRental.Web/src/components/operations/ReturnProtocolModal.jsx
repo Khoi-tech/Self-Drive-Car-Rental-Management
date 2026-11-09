@@ -31,6 +31,14 @@ const DEFAULT_ACCESSORIES = [
   'Camera hành trình'
 ];
 
+const parseFuelLevel = (val) => {
+  if (val === null || val === undefined) return 100;
+  if (typeof val === 'number') return isNaN(val) ? 100 : val;
+  const digits = String(val).replace(/[^0-9]/g, '');
+  const parsed = parseInt(digits, 10);
+  return isNaN(parsed) ? 100 : parsed;
+};
+
 const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProceedToSettlement }) => {
   const [loading, setLoading] = useState(false);
   const [fetchingHandover, setFetchingHandover] = useState(false);
@@ -69,7 +77,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
             if (existing && existing.id) {
               setExistingProtocol(existing);
               if (existing.endOdo) setEndOdo(existing.endOdo);
-              if (existing.returnFuelLevel) setReturnFuelLevel(existing.returnFuelLevel);
+              if (existing.returnFuelLevel !== undefined && existing.returnFuelLevel !== null) setReturnFuelLevel(parseFuelLevel(existing.returnFuelLevel));
               if (existing.damagePointsJson) {
                 try {
                   const pts = JSON.parse(existing.damagePointsJson);
@@ -90,7 +98,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
               setEndOdo(data.odoAtHandover + (rentalRequest.totalDays || 1) * 150);
             }
             if (returnFuelLevel === 100) {
-              setReturnFuelLevel(data.fuelLevel || 100);
+              setReturnFuelLevel(parseFuelLevel(data.fuelLevel));
             }
             if (data.damagePointsJson && damagePoints.length === 0) {
               try {
@@ -120,7 +128,7 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
   if (!isOpen || !rentalRequest) return null;
 
   const startOdo = handoverData?.odoAtHandover ?? rentalRequest.currentMileage ?? 10000;
-  const initialFuel = handoverData?.fuelLevel ?? 100;
+  const initialFuel = parseFuelLevel(handoverData?.fuelLevel);
   const maxKmAllowed = rentalRequest.maxKm || (rentalRequest.totalDays * (rentalRequest.dailyMileageLimit || 300));
   const distanceTraveled = Math.max(0, endOdo - startOdo);
   const excessKm = Math.max(0, distanceTraveled - maxKmAllowed);
@@ -155,8 +163,8 @@ const ReturnProtocolModal = ({ isOpen, onClose, rentalRequest, onSuccess, onProc
         rentalRequestId: rentalRequest.id,
         contractId: rentalRequest.contractId || null,
         returnDate: new Date().toISOString(),
-        endOdo: Number(endOdo),
-        returnFuelLevel: Number(returnFuelLevel),
+        endOdo: Number(endOdo) || 0,
+        returnFuelLevel: parseFuelLevel(returnFuelLevel),
         exteriorCondition,
         interiorCondition,
         tireCondition,

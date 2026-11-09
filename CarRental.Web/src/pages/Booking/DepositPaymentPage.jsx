@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { 
   CheckCircle2, 
   Clock, 
@@ -15,7 +15,9 @@ import {
   ExternalLink,
   Sparkles,
   Zap,
-  ArrowLeft
+  ArrowLeft,
+  UploadCloud,
+  FileCheck
 } from 'lucide-react';
 import paymentService from '../../services/paymentService';
 import rentalRequestService from '../../services/rentalRequestService';
@@ -25,6 +27,9 @@ import { formatCurrency, formatDateTime } from '../../utils/formatters';
 const DepositPaymentPage = () => {
   const { requestId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const paymentTypeParam = searchParams.get('type');
+  const isCollateral = paymentTypeParam === 'COLLATERAL';
 
   const [paymentData, setPaymentData] = useState(null);
   const [requestDetails, setRequestDetails] = useState(null);
@@ -52,13 +57,21 @@ const DepositPaymentPage = () => {
         // 2. Initialize or get deposit payment
         const payRes = await paymentService.createDepositPayment({
           rentalRequestId: requestId,
-          paymentMethod: 'VIETQR'
+          paymentMethod: 'VIETQR',
+          paymentCategory: isCollateral ? 'COLLATERAL' : (reqObj?.bookingType === 'FAST_HOLD' ? 'HOLD_DEPOSIT' : 'DEPOSIT'),
+          note: isCollateral ? 'COLLATERAL' : ''
         });
         const payObj = payRes?.data || payRes;
         setPaymentData(payObj);
 
-        if (payObj?.status === 'SUCCESS' || reqObj?.status === 'CONFIRMED') {
-          setIsSuccess(true);
+        if (isCollateral) {
+          if (payObj?.status === 'SUCCESS' || reqObj?.isSecurityDepositPaid === true) {
+            setIsSuccess(true);
+          }
+        } else {
+          if (payObj?.status === 'SUCCESS' || (reqObj?.bookingType === 'FAST_HOLD' && reqObj?.status === 'CONFIRMED' && reqObj?.holdDepositAmount > 0)) {
+            setIsSuccess(true);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -71,7 +84,7 @@ const DepositPaymentPage = () => {
     if (requestId) {
       initPayment();
     }
-  }, [requestId]);
+  }, [requestId, isCollateral]);
 
   const handleCopy = (text, fieldName) => {
     navigator.clipboard.writeText(text);
@@ -87,6 +100,16 @@ const DepositPaymentPage = () => {
       const res = await paymentService.confirmPayment(paymentData.transactionCode);
       const confirmedPayment = res?.data?.data || res?.data || res;
       setPaymentData(confirmedPayment);
+
+      // If this was a collateral payment, ensure security deposit is confirmed
+      if (isCollateral) {
+        try {
+          await rentalRequestService.confirmSecurityDeposit(requestId);
+        } catch (e) {
+          console.warn('Sync confirm security deposit:', e);
+        }
+      }
+
       setIsSuccess(true);
     } catch (err) {
       console.error('Error confirming deposit payment:', err);
@@ -102,7 +125,7 @@ const DepositPaymentPage = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-3 border-slate-300 border-t-blue-900 rounded-full animate-spin"></div>
-          <span className="text-xs font-semibold text-slate-500">Đang khởi tạo cổng thanh toán VietQR...</span>
+          <span className="text-xs font-semibold text-slate-500">Đang khởi tạo cổng thanh toán VietQR Napas 24/7...</span>
         </div>
       </div>
     );
@@ -129,6 +152,8 @@ const DepositPaymentPage = () => {
     );
   }
 
+  const isFastHold = requestDetails?.bookingType === 'FAST_HOLD' || paymentData?.amount === 500000;
+
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
       <Navbar isVisible={true} />
@@ -139,7 +164,7 @@ const DepositPaymentPage = () => {
         <div className="mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-900 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-900 transition cursor-pointer"
           >
             <ArrowLeft size={14} /> Quay lại
           </button>
@@ -147,24 +172,64 @@ const DepositPaymentPage = () => {
 
         {/* Stepper Header */}
         <div className="mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-              <CheckCircle2 size={16} />
-              <span>1. Gửi đơn thuê</span>
+          {isCollateral ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>1. Cọc giữ xe 500K</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>2. Bổ sung CCCD/GPLX</span>
+              </div>
+              <div className={`flex items-center gap-2 font-bold ${isSuccess ? 'text-emerald-700' : 'text-blue-900'}`}>
+                <div className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[10px] ${isSuccess ? 'bg-emerald-600' : 'bg-blue-900'}`}>3</div>
+                <span>3. Cọc thế chân</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 font-semibold">
+                <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</div>
+                <span>4. Nhận xe & Lăn bánh</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-              <CheckCircle2 size={16} />
-              <span>2. Thẩm định hồ sơ</span>
+          ) : isFastHold ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>1. Chọn xe & Lịch</span>
+              </div>
+              <div className={`flex items-center gap-2 font-bold ${isSuccess ? 'text-emerald-700' : 'text-amber-600'}`}>
+                <div className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[10px] ${isSuccess ? 'bg-emerald-600' : 'bg-amber-500'}`}>2</div>
+                <span>2. Cọc giữ xe 500K</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 font-semibold">
+                <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</div>
+                <span>3. Bổ sung CCCD & Cọc thế chân</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400 font-semibold">
+                <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</div>
+                <span>4. Nhận xe & Lăn bánh</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-              <CheckCircle2 size={16} />
-              <span>3. Ký hợp đồng</span>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>1. Gửi đơn thuê</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>2. Thẩm định hồ sơ</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                <CheckCircle2 size={16} />
+                <span>3. Ký hợp đồng</span>
+              </div>
+              <div className={`flex items-center gap-2 font-bold ${isSuccess ? 'text-emerald-700' : 'text-blue-900'}`}>
+                <div className="w-4 h-4 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px]">4</div>
+                <span>4. Đặt cọc VietQR</span>
+              </div>
             </div>
-            <div className={`flex items-center gap-2 font-bold ${isSuccess ? 'text-emerald-700' : 'text-blue-900'}`}>
-              <div className="w-4 h-4 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px]">4</div>
-              <span>4. Đặt cọc VietQR</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* SUCCESS STATE */}
@@ -176,13 +241,23 @@ const DepositPaymentPage = () => {
 
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                Giao Dịch Đã Xác Nhận Thành Công
+                {isCollateral
+                  ? '🛡️ Đã Hoàn Tất Thanh Toán Cọc Thế Chân Xe'
+                  : isFastHold
+                  ? '⚡ Cọc Giữ Xe 500K Đã Xác Nhận Thành Công'
+                  : 'Giao Dịch Đã Xác Nhận Thành Công'}
               </span>
               <h2 className="text-2xl font-extrabold text-zinc-950 mt-3 mb-2">
-                Hoàn Tất Đặt Cọc Giữ Xe!
+                {isCollateral
+                  ? 'Đủ Điều Kiện Nhận Bàn Giao Xe!'
+                  : isFastHold
+                  ? 'Quý khách đã giữ xe thành công!'
+                  : 'Hoàn Tất Đặt Cọc Giữ Xe!'}
               </h2>
               <p className="text-slate-600 text-xs max-w-md mx-auto">
-                Hệ thống VELORA đã ghi nhận tiền cọc cho xe <strong className="text-zinc-950">{requestDetails?.carMake} {requestDetails?.carModel} ({requestDetails?.carLicensePlate})</strong>. Đơn thuê đã chính thức chuyển sang trạng thái <strong>CONFIRMED</strong>.
+                {isCollateral
+                  ? `Hệ thống VELORA đã ghi nhận đủ tiền cọc thế chân cho xe ${requestDetails?.carMake} ${requestDetails?.carModel}. Bạn có thể tiến hành kiểm tra xe và xác nhận nhận xe ngay.`
+                  : `Hệ thống VELORA đã ghi nhận tiền cọc cho xe ${requestDetails?.carMake} ${requestDetails?.carModel} (${requestDetails?.carLicensePlate}). Phương tiện đã được tạm khóa giữ chỗ cho bạn.`}
               </p>
             </div>
 
@@ -193,7 +268,7 @@ const DepositPaymentPage = () => {
                 <span className="font-mono text-zinc-950 font-bold">{paymentData.transactionCode}</span>
               </div>
               <div className="flex justify-between pb-2 border-b border-slate-200">
-                <span className="text-slate-500">Số tiền cọc:</span>
+                <span className="text-slate-500">Số tiền thanh toán:</span>
                 <span className="font-extrabold text-blue-900 tabular-nums">{formatCurrency(paymentData.amount)}</span>
               </div>
               <div className="flex justify-between pb-2 border-b border-slate-200">
@@ -202,27 +277,71 @@ const DepositPaymentPage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Trạng thái:</span>
-                <span className="badge-rented">CONFIRMED (Đã giữ chỗ)</span>
+                <span className="badge-rented">
+                  {isCollateral ? 'READY_FOR_HANDOVER (Đủ cọc)' : 'CONFIRMED (Đã giữ chỗ)'}
+                </span>
               </div>
             </div>
 
+            {/* Next Steps Prompt for Fast Hold */}
+            {isFastHold && !isCollateral && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-left text-xs text-amber-900 space-y-1.5 max-w-md mx-auto">
+                <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                  <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
+                  <span>Bước tiếp theo: Bổ sung CCCD & Nộp cọc thế chân trong 4 giờ</span>
+                </div>
+                <p className="text-slate-600 leading-relaxed">
+                  Đơn thuê có thời hạn giữ chỗ 4 tiếng. Quý khách vui lòng bổ sung ảnh CCCD & GPLX và hoàn tất nộp tiền cọc thế chân xe trong Hồ sơ cá nhân để hoàn tất thủ tục bàn giao xe.
+                </p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link
-                to={`/contracts/sign/${requestId}`}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center justify-center gap-2"
-              >
-                <FileText size={14} />
-                <span>Xem hợp đồng đã ký</span>
-              </Link>
-
-              <Link
-                to="/profile"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-slate-900 hover:bg-blue-900 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider"
-              >
-                <span>Xem đơn trong hồ sơ cá nhân</span>
-                <ArrowRight size={14} />
-              </Link>
+              {isCollateral ? (
+                <Link
+                  to="/profile?tab=rentals"
+                  className="w-full sm:w-auto px-6 py-3 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider shadow-sm cursor-pointer"
+                >
+                  <FileCheck size={16} />
+                  <span>Tiến hành kiểm tra & Nhận xe</span>
+                  <ArrowRight size={14} />
+                </Link>
+              ) : isFastHold ? (
+                <>
+                  <Link
+                    to={`/profile?tab=rentals&openFastHold=true&requestId=${requestId}`}
+                    className="w-full sm:w-auto px-6 py-3 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider shadow-sm cursor-pointer"
+                  >
+                    <UploadCloud size={16} />
+                    <span>⚡ Bổ sung CCCD & GPLX ngay</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                  <Link
+                    to="/profile?tab=rentals"
+                    className="w-full sm:w-auto px-5 py-3 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center justify-center"
+                  >
+                    Xem đơn trong Hồ sơ cá nhân
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to={`/contracts/sign/${requestId}`}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition flex items-center justify-center gap-2"
+                  >
+                    <FileText size={14} />
+                    <span>Xem hợp đồng đã ký</span>
+                  </Link>
+                  <Link
+                    to="/profile"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-slate-900 hover:bg-blue-900 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider"
+                  >
+                    <span>Xem đơn trong hồ sơ cá nhân</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -235,11 +354,29 @@ const DepositPaymentPage = () => {
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div>
                   <h2 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-                    <QrCode className="text-blue-900" size={20} />
-                    Cổng Thanh Toán VietQR Chuẩn Ngân Hàng
+                    {isCollateral ? (
+                      <>
+                        <ShieldCheck className="text-blue-900" size={20} />
+                        Thanh Toán Tiền Cọc Thế Chân Xe
+                      </>
+                    ) : isFastHold ? (
+                      <>
+                        <Zap className="text-amber-500 fill-amber-500" size={20} />
+                        Thanh Toán Cọc Giữ Xe Siêu Tốc 500K
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="text-blue-900" size={20} />
+                        Cổng Thanh Toán VietQR Chuẩn Ngân Hàng
+                      </>
+                    )}
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Mở ứng dụng ngân hàng bất kỳ để quét mã chuyển tiền tức thì
+                    {isCollateral
+                      ? 'Đã khấu trừ 500.000đ cọc giữ chỗ trước đó. Quý khách thanh toán nốt phần cọc thế chân để đủ điều kiện nhận xe.'
+                      : isFastHold
+                      ? 'Quét mã VietQR chuyển đúng 500.000đ để khóa giữ xe 4 giờ ngay lập tức'
+                      : 'Mở ứng dụng ngân hàng bất kỳ để quét mã chuyển tiền tức thì'}
                   </p>
                 </div>
 
@@ -281,7 +418,7 @@ const DepositPaymentPage = () => {
                     <button
                       type="button"
                       onClick={() => handleCopy(paymentData.accountNumber, 'acc')}
-                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
                       title="Sao chép"
                     >
                       <Copy size={12} />
@@ -296,13 +433,15 @@ const DepositPaymentPage = () => {
                 </div>
 
                 <div className="flex justify-between items-center py-1 border-b border-slate-200/80">
-                  <span className="text-slate-500">Số tiền đặt cọc:</span>
+                  <span className="text-slate-500">
+                    {isFastHold ? 'Số tiền cọc giữ xe:' : 'Số tiền đặt cọc:'}
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-blue-900 text-sm tabular-nums">{formatCurrency(paymentData.amount)}</span>
+                    <span className="font-extrabold text-blue-900 text-base tabular-nums">{formatCurrency(paymentData.amount)}</span>
                     <button
                       type="button"
                       onClick={() => handleCopy(paymentData.amount.toString(), 'amt')}
-                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
                       title="Sao chép"
                     >
                       <Copy size={12} />
@@ -320,7 +459,7 @@ const DepositPaymentPage = () => {
                     <button
                       type="button"
                       onClick={() => handleCopy(paymentData.transferContent, 'memo')}
-                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition"
+                      className="p-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
                       title="Sao chép"
                     >
                       <Copy size={12} />
@@ -336,7 +475,7 @@ const DepositPaymentPage = () => {
                   type="button"
                   onClick={handleConfirmSandbox}
                   disabled={confirming}
-                  className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
                 >
                   {confirming ? (
                     <span>Đang kiểm tra giao dịch liên ngân hàng...</span>
@@ -383,13 +522,42 @@ const DepositPaymentPage = () => {
 
                 <div className="pt-3 border-t border-slate-200 space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Tiền thuê xe:</span>
-                    <span className="tabular-nums font-semibold text-zinc-950">{formatCurrency(requestDetails?.totalEstimatedFee)}</span>
+                    <span className="text-slate-500">Tiền thuê xe dự kiến:</span>
+                    <span className="tabular-nums font-semibold text-zinc-950">{formatCurrency(requestDetails?.totalEstimatedFee || requestDetails?.estimatedTotalFee)}</span>
                   </div>
-                  <div className="flex justify-between text-blue-900 font-bold">
-                    <span>Khoản cọc cần thanh toán:</span>
-                    <span className="tabular-nums text-base">{formatCurrency(paymentData.amount)}</span>
-                  </div>
+                  
+                  {isCollateral ? (
+                    <>
+                      <div className="flex justify-between text-slate-500">
+                        <span>Định mức cọc thế chân:</span>
+                        <span className="tabular-nums font-semibold text-zinc-950">{formatCurrency(requestDetails?.depositAmount || 20000000)}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 font-semibold">
+                        <span>Đã khấu trừ cọc 500k giữ xe:</span>
+                        <span>- 500.000 đ</span>
+                      </div>
+                      <div className="flex justify-between text-blue-900 font-extrabold pt-1 border-t border-slate-100">
+                        <span>Cọc thế chân thanh toán ngay:</span>
+                        <span className="tabular-nums text-base">{formatCurrency(paymentData.amount)}</span>
+                      </div>
+                    </>
+                  ) : isFastHold ? (
+                    <>
+                      <div className="flex justify-between text-slate-500">
+                        <span>Cọc thế chân xe (Nộp trong 4h):</span>
+                        <span className="tabular-nums font-semibold text-zinc-950">{formatCurrency(requestDetails?.depositAmount || 20000000)}</span>
+                      </div>
+                      <div className="flex justify-between text-amber-700 font-extrabold pt-1 border-t border-slate-100">
+                        <span>Khoản cọc giữ xe thanh toán ngay:</span>
+                        <span className="tabular-nums text-base">{formatCurrency(500000)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-blue-900 font-bold">
+                      <span>Khoản cọc cần thanh toán:</span>
+                      <span className="tabular-nums text-base">{formatCurrency(paymentData.amount)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -397,10 +565,12 @@ const DepositPaymentPage = () => {
               <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-md text-[11px] text-blue-950 leading-relaxed space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-blue-900" />
-                  <span>Cam kết hoàn cọc minh bạch:</span>
+                  <span>Cam kết minh bạch VELORA:</span>
                 </div>
                 <p className="text-slate-600">
-                  Tiền cọc của bạn được giữ an toàn trên tài khoản thanh toán chuyên dụng. Khi hoàn trả phương tiện, hệ thống tự động sinh lệnh VietQR hoàn tiền ngược lại vào tài khoản ngân hàng của bạn chỉ trong 30 giây.
+                  {isFastHold
+                    ? 'Khoản cọc 500.000đ giữ xe được khấu trừ thẳng vào tiền thuê xe khi ký hợp đồng chính thức, hoặc được hoàn cọc theo chính sách minh bạch.'
+                    : 'Tiền cọc của bạn được giữ an toàn trên tài khoản thanh toán chuyên dụng và tự động sinh lệnh hoàn tiền VietQR sau khi nghiệm thu xe.'}
                 </p>
               </div>
 

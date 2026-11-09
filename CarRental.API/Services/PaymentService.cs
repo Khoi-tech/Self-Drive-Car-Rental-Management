@@ -31,15 +31,37 @@ namespace CarRental.API.Services
             var contract = await _context.RentalContracts
                 .FirstOrDefaultAsync(c => c.RequestId == dto.RentalRequestId);
 
-            // Check if there is an existing pending payment for this request
+            bool isCollateral = string.Equals(dto.PaymentCategory, "COLLATERAL", StringComparison.OrdinalIgnoreCase) ||
+                                dto.Note?.Contains("COLLATERAL", StringComparison.OrdinalIgnoreCase) == true;
+
+            string targetType = isCollateral ? "COLLATERAL" : "DEPOSIT";
+
+            // Check if there is an existing pending payment for this request and target type
             var existingPayment = await _context.Payments
-                .Where(p => p.RentalRequestId == dto.RentalRequestId && p.Status == "PENDING")
+                .Where(p => p.RentalRequestId == dto.RentalRequestId && p.Type == targetType && p.Status == "PENDING")
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
 
             if (existingPayment != null)
             {
                 return MapToDto(existingPayment, request);
+            }
+
+            // Determine deposit amount based on BookingType and PaymentCategory
+            decimal chargeAmount = request.DepositAmount;
+            string paymentNote = $"Thanh toan tien coc xe {request.Vehicle?.Make} {request.Vehicle?.Model}";
+
+            if (isCollateral)
+            {
+                // Remaining security deposit after subtracting 500k Fast Hold deposit
+                chargeAmount = Math.Max(0, request.DepositAmount - request.HoldDepositAmount);
+                if (chargeAmount <= 0) chargeAmount = Math.Max(0, (request.Vehicle?.DepositAmount ?? 20000000m) - 500000m);
+                paymentNote = $"Coc the chan xe {request.Vehicle?.Make} {request.Vehicle?.Model} (Da tru 500k giu cho)";
+            }
+            else if (string.Equals(request.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase) || request.HoldDepositAmount > 0)
+            {
+                chargeAmount = request.HoldDepositAmount > 0 ? request.HoldDepositAmount : 500000m;
+                paymentNote = $"Coc giu xe Fast Hold 500k {request.Vehicle?.Make} {request.Vehicle?.Model}";
             }
 
             // Create a new payment transaction
@@ -49,12 +71,12 @@ namespace CarRental.API.Services
                 Id = Guid.NewGuid(),
                 RentalRequestId = request.Id,
                 ContractId = contract?.Id ?? dto.ContractId,
-                Amount = request.DepositAmount,
-                Type = "DEPOSIT",
+                Amount = chargeAmount,
+                Type = targetType,
                 Status = "PENDING",
                 PaymentMethod = dto.PaymentMethod ?? "VIETQR",
                 TransactionCode = txnCode,
-                Note = $"Thanh toan tien coc xe {request.Vehicle?.Make} {request.Vehicle?.Model}",
+                Note = paymentNote,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -103,10 +125,28 @@ namespace CarRental.API.Services
                 }
             }
 
-            // 3. Update RentalRequest status to CONFIRMED
+            // 3. Update RentalRequest status to CONFIRMED and handle Security Deposit flags
             if (payment.RentalRequest != null)
             {
-                payment.RentalRequest.Status = "CONFIRMED";
+                if (payment.Type == "COLLATERAL")
+                {
+                    payment.RentalRequest.IsSecurityDepositPaid = true;
+                    payment.RentalRequest.Status = "CONFIRMED";
+                }
+                else if (string.Equals(payment.RentalRequest.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase) || payment.Amount == 500000m)
+                {
+                    payment.RentalRequest.HoldDepositAmount = 500000m;
+                    payment.RentalRequest.HoldExpiresAt = (payment.PaidAt ?? DateTime.UtcNow).AddHours(4);
+                    // Fast Hold 500k deposit paid; full security deposit remains to be paid within 4 hours
+                    payment.RentalRequest.IsSecurityDepositPaid = false;
+                    payment.RentalRequest.Status = "CONFIRMED";
+                }
+                else
+                {
+                    payment.RentalRequest.IsSecurityDepositPaid = true;
+                    payment.RentalRequest.Status = "CONFIRMED";
+                }
+
                 payment.RentalRequest.UpdatedAt = DateTime.UtcNow;
 
                 // 4. Update Vehicle status to BOOKED

@@ -23,6 +23,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.AllowReadingFromString;
     });
 
 // Swagger/OpenAPI setup with JWT Bearer Support
@@ -346,6 +347,15 @@ using (var scope = app.Services.CreateScope())
             UPDATE rental_settlements 
             SET traffic_fine_refund_status = 'HOLDING' 
             WHERE traffic_fine_hold_amount > 0 AND (traffic_fine_refund_status IS NULL OR traffic_fine_refund_status = 'NONE');
+
+            -- Clean up car brand whitespaces and Fast Hold columns
+            UPDATE cars SET brand = TRIM(brand);
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS booking_type VARCHAR(50) DEFAULT 'STANDARD';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_deposit_amount NUMERIC DEFAULT 0;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS is_security_deposit_paid BOOLEAN DEFAULT FALSE;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at TIMESTAMPTZ;
+            UPDATE rental_requests SET estimated_total_fee = 10500000, daily_rate = 3500000, deposit_amount = 20000000 WHERE id = '577f4870-b958-47d5-ae0e-72e23af6f5d6';
+            UPDATE rental_requests SET deposit_amount = 20000000 WHERE booking_type = 'FAST_HOLD' AND (deposit_amount < 500000 OR deposit_amount IS NULL);
 
             -- PHASE 2: Advanced Rental Eligibility & 2D Vehicle Damage Mapping
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_class VARCHAR(50);
@@ -720,8 +730,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

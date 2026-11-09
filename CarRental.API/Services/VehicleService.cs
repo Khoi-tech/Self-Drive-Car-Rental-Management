@@ -132,7 +132,18 @@ namespace CarRental.API.Services
             var vehiclesQuery = _context.Vehicles
                 .Include(v => v.PricingPolicies)
                 .Include(v => v.RentalCondition)
-                .Where(v => v.IsActive && v.Status == VehicleStatus.READY);
+                .Where(v => v.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(query.Keyword))
+            {
+                var kw = query.Keyword.Trim().ToLower();
+                vehiclesQuery = vehiclesQuery.Where(v =>
+                    (v.Make != null && v.Make.ToLower().Contains(kw)) ||
+                    (v.Model != null && v.Model.ToLower().Contains(kw)) ||
+                    (v.LicensePlate != null && v.LicensePlate.ToLower().Contains(kw)) ||
+                    (v.PickupLocation != null && v.PickupLocation.ToLower().Contains(kw))
+                );
+            }
 
             if (!string.IsNullOrWhiteSpace(query.PickupLocation))
             {
@@ -189,13 +200,40 @@ namespace CarRental.API.Services
 
             if (!string.IsNullOrWhiteSpace(query.Brand))
             {
-                var brandLower = query.Brand.ToLower();
+                var brandLower = query.Brand.Trim().ToLower();
                 vehiclesQuery = vehiclesQuery.Where(v => v.Make != null && v.Make.ToLower().Contains(brandLower));
             }
 
-            if (query.Seats.HasValue)
+            if (!string.IsNullOrWhiteSpace(query.SeatsRange))
             {
-                vehiclesQuery = vehiclesQuery.Where(v => v.Seats == query.Seats.Value);
+                var sr = query.SeatsRange.Trim();
+                if (sr == "4-5" || sr == "5")
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats >= 4 && v.Seats <= 5);
+                }
+                else if (sr == "7")
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats >= 7);
+                }
+                else if (sr == "2")
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats <= 2);
+                }
+            }
+            else if (query.Seats.HasValue)
+            {
+                if (query.Seats.Value == 5)
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats >= 4 && v.Seats <= 5);
+                }
+                else if (query.Seats.Value >= 7)
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats >= 7);
+                }
+                else
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Seats == query.Seats.Value);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(query.Transmission))
@@ -214,29 +252,52 @@ namespace CarRental.API.Services
                 }
             }
 
-            if (query.MinPrice.HasValue)
+            if (query.MinPrice.HasValue && query.MinPrice.Value > 0)
             {
                 vehiclesQuery = vehiclesQuery.Where(v => v.DailyRate >= query.MinPrice.Value);
             }
 
-            if (query.MaxPrice.HasValue)
+            if (query.MaxPrice.HasValue && query.MaxPrice.Value > 0)
             {
                 vehiclesQuery = vehiclesQuery.Where(v => v.DailyRate <= query.MaxPrice.Value);
             }
 
-            // Kiểm tra trùng lịch
+            if (!string.IsNullOrWhiteSpace(query.Status) && query.Status != "ALL")
+            {
+                if (query.Status.Equals("AVAILABLE_ONLY", StringComparison.OrdinalIgnoreCase) || query.Status.Equals("READY", StringComparison.OrdinalIgnoreCase))
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Status == VehicleStatus.READY);
+                }
+                else if (Enum.TryParse<VehicleStatus>(query.Status, true, out var filterStatus))
+                {
+                    vehiclesQuery = vehiclesQuery.Where(v => v.Status == filterStatus);
+                }
+            }
+
+            // Kiểm tra trùng lịch kèm buffer 3 giờ
+            var overlappingCarIds = new HashSet<Guid>();
+            var overlappingDetails = new Dictionary<Guid, (DateTime Start, DateTime End)>();
+
             if (query.StartTime.HasValue && query.EndTime.HasValue)
             {
-                var overlappingCarIds = await _context.RentalRequests
-                    .Where(r => r.Status != "REJECTED" && r.Status != "CANCELED" && 
-                                r.StartTime < query.EndTime.Value && r.EndTime > query.StartTime.Value)
-                    .Select(r => r.CarId)
-                    .Distinct()
+                var bufferHours = 3;
+                var startUtc = query.StartTime.Value.Kind == DateTimeKind.Utc ? query.StartTime.Value : query.StartTime.Value.ToUniversalTime();
+                var endUtc = query.EndTime.Value.Kind == DateTimeKind.Utc ? query.EndTime.Value : query.EndTime.Value.ToUniversalTime();
+                var endWithBufferUtc = endUtc.AddHours(bufferHours);
+
+                var overlapList = await _context.RentalRequests
+                    .Where(r => r.Status != "REJECTED" && r.Status != "CANCELLED" && r.Status != "CANCELED" && r.Status != "COMPLETED" && 
+                                r.StartTime < endWithBufferUtc && r.EndTime.AddHours(bufferHours) > startUtc)
+                    .Select(r => new { r.CarId, r.StartTime, r.EndTime })
                     .ToListAsync();
-                
-                if (overlappingCarIds.Any())
+
+                foreach (var o in overlapList)
                 {
-                    vehiclesQuery = vehiclesQuery.Where(v => !overlappingCarIds.Contains(v.Id));
+                    overlappingCarIds.Add(o.CarId);
+                    if (!overlappingDetails.ContainsKey(o.CarId))
+                    {
+                        overlappingDetails[o.CarId] = (o.StartTime, o.EndTime);
+                    }
                 }
             }
 
@@ -252,11 +313,30 @@ namespace CarRental.API.Services
 
             foreach (var vehicle in vehicles)
             {
+                bool isOverlapping = overlappingCarIds.Contains(vehicle.Id);
+                bool isAvailable = vehicle.Status == VehicleStatus.READY && !isOverlapping;
+                string? availabilityNote = null;
+
+                if (vehicle.Status == VehicleStatus.RENTED)
+                {
+                    availabilityNote = "Xe hiện đang được khách hàng thuê và sử dụng.";
+                }
+                else if (!isAvailable)
+                {
+                    availabilityNote = "Xe hiện không thể được đặt thuê vì bất kỳ lý do nào.";
+                }
+                else
+                {
+                    availabilityNote = "Sẵn sàng bàn giao";
+                }
+
                 var response = new CarRental.API.DTOs.Search.AvailableVehicleResponseDto
                 {
                     Vehicle = MapToResponseDto(vehicle),
                     TotalDays = totalDays,
-                    DepositAmount = vehicle.DepositAmount
+                    DepositAmount = vehicle.DepositAmount,
+                    IsAvailable = isAvailable,
+                    AvailabilityNote = availabilityNote
                 };
 
                 if (totalDays > 0)
@@ -286,6 +366,11 @@ namespace CarRental.API.Services
                 results.Add(response);
             }
 
+            if (!string.IsNullOrWhiteSpace(query.Status) && (query.Status.Equals("READY", StringComparison.OrdinalIgnoreCase) || query.Status.Equals("AVAILABLE_ONLY", StringComparison.OrdinalIgnoreCase)))
+            {
+                results = results.Where(r => r.IsAvailable).ToList();
+            }
+
             if (!string.IsNullOrWhiteSpace(query.SortBy))
             {
                 switch (query.SortBy.ToLower())
@@ -296,8 +381,15 @@ namespace CarRental.API.Services
                     case "price_desc":
                         results = results.OrderByDescending(r => r.EstimatedTotalFee > 0 ? r.EstimatedTotalFee : r.Vehicle.DailyRate).ToList();
                         break;
+                    case "newest":
+                        results = results.OrderByDescending(r => r.Vehicle.CreatedAt).ToList();
+                        break;
+                    case "year_desc":
                     case "new_year":
                         results = results.OrderByDescending(r => r.Vehicle.ManufactureYear).ToList();
+                        break;
+                    case "name_asc":
+                        results = results.OrderBy(r => r.Vehicle.Make).ThenBy(r => r.Vehicle.Model).ToList();
                         break;
                 }
             }

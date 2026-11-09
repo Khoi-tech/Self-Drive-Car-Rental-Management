@@ -11,5 +11,7 @@ namespace CarRental.API.DTOs.Search
         public decimal AppliedDiscountPercent { get; set; }
         public decimal AppliedHolidaySurchargePercent { get; set; }
         public decimal DepositAmount { get; set; }
+        public bool IsAvailable { get; set; } = true;
+        public string? AvailabilityNote { get; set; }
     }
 }

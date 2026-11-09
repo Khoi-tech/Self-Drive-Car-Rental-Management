@@ -21,7 +21,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  FileCheck
+  FileCheck,
+  Zap
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
 import settlementService from '../../services/settlementService';
@@ -177,6 +178,24 @@ const RentalRequestsPage = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi phê duyệt hồ sơ.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Handle Confirm Security Deposit for Fast Hold orders
+  const handleConfirmSecurityDeposit = async (id, isPaid = true) => {
+    try {
+      setActionLoading(true);
+      await rentalRequestService.confirmSecurityDeposit(id);
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, isSecurityDepositPaid: isPaid, updatedAt: new Date().toISOString() } : r));
+      if (selectedRequest && selectedRequest.id === id) {
+        setSelectedRequest(prev => ({ ...prev, isSecurityDepositPaid: isPaid, updatedAt: new Date().toISOString() }));
+      }
+      setSuccessMsg(isPaid ? 'Đã xác nhận thu đủ tiền cọc thế chân cho đơn thuê!' : 'Đã chuyển trạng thái cọc thế chân sang CHƯA THU.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái cọc thế chân.');
     } finally {
       setActionLoading(false);
     }
@@ -483,14 +502,22 @@ const RentalRequestsPage = () => {
 
                   const hasPhotos = req.idCardFrontUrl || req.idCardBackUrl || req.driverLicenseFrontUrl || req.driverLicenseBackUrl;
                   const settle = settlementsMap[req.id];
+                  const isFastHold = req.bookingType === 'FAST_HOLD' || req.holdDepositAmount > 0;
 
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/80 transition group">
                       {/* Code & Created */}
                       <td className="px-4 py-3.5 font-mono text-xs">
-                        <span className="font-semibold text-zinc-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {req.id.substring(0, 8).toUpperCase()}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-zinc-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {req.id.substring(0, 8).toUpperCase()}
+                          </span>
+                          {isFastHold && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs">
+                              <Zap size={10} className="fill-white" /> 500K
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-slate-400 mt-1 tabular-nums">
                           {formatDateTime(req.createdAt)}
                         </div>
@@ -553,18 +580,41 @@ const RentalRequestsPage = () => {
                         <div className="font-bold text-zinc-950 tabular-nums">
                           {formatCurrency(req.estimatedTotalFee)}
                         </div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                          Cọc: <span className="font-mono tabular-nums text-slate-700 font-medium">{formatCurrency(req.depositAmount)}</span>
+                        <div className="text-[11px] text-slate-500 mt-1 space-y-0.5">
+                          {isFastHold ? (
+                            <>
+                              <div className="text-amber-800 font-bold flex items-center justify-end gap-1">
+                                <Zap size={11} className="fill-amber-600 text-amber-600" />
+                                <span>Cọc giữ 4h: 500.000đ (Đã thu)</span>
+                              </div>
+                              {req.isSecurityDepositPaid ? (
+                                <div className="text-emerald-700 font-bold">
+                                  ✓ Đã thu cọc: {formatCurrency(Math.max(0, (req.depositAmount > 500000 ? req.depositAmount : 20000000) - 500000))}
+                                </div>
+                              ) : (
+                                <div className="text-rose-700 font-bold">
+                                  ⏳ Cọc thế chân: {formatCurrency(Math.max(0, (req.depositAmount > 500000 ? req.depositAmount : 20000000) - 500000))}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>Cọc xe: <span className="font-mono tabular-nums text-slate-700 font-medium">{formatCurrency(req.depositAmount)}</span></>
+                          )}
                         </div>
                       </td>
 
                       {/* Photos Preview */}
                       <td className="px-4 py-3.5 text-center">
-                        {hasPhotos ? (
+                        {hasPhotos && req.customerIdCard !== 'CHƯA_CẬP_NHẬT' ? (
                           <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
                             <ShieldCheck size={12} className="text-emerald-600" />
-                            <span>Đủ 4 ảnh</span>
+                            <span>{isFastHold ? 'Đã nộp CCCD/GPLX' : 'Đủ 4 ảnh'}</span>
                           </div>
+                        ) : isFastHold ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200">
+                            <Clock size={12} className="text-amber-600" />
+                            <span>Chờ KH nộp giấy tờ</span>
+                          </span>
                         ) : (
                           <span className="text-xs text-slate-400 italic">Thiếu ảnh</span>
                         )}
@@ -576,6 +626,16 @@ const RentalRequestsPage = () => {
                           <StatusIcon size={12} />
                           {statusInfo.label}
                         </span>
+
+                        {/* Fast Hold waiting collateral tag */}
+                        {isFastHold && !req.isSecurityDepositPaid && (req.status === 'CONFIRMED' || req.status === 'PENDING') && (
+                          <div className="mt-1 flex justify-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <Clock size={10} className="text-amber-600" />
+                              <span>Giữ xe 4h • Chờ cọc</span>
+                            </span>
+                          </div>
+                        )}
 
                         {/* Traffic Fine Escrow Tag if COMPLETED */}
                         {req.status === 'COMPLETED' && settle?.trafficFineHoldAmount > 0 && (
@@ -791,151 +851,291 @@ const RentalRequestsPage = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40">
-              
-              {/* Rejected Alert Box if status is REJECTED */}
-              {selectedRequest.status === 'REJECTED' && (
-                <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
-                  <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
-                  <div>
-                    <h4 className="text-sm font-semibold text-rose-900">Hồ sơ đã bị từ chối phê duyệt</h4>
-                    <p className="text-xs text-rose-700 mt-1">
-                      <span className="font-semibold">Lý do:</span> {selectedRequest.rejectReason || 'Không có lý do chi tiết'}
-                    </p>
-                  </div>
-                </div>
-              )}
+            {(() => {
+              const isFastHoldModal = selectedRequest.bookingType === 'FAST_HOLD' || selectedRequest.holdDepositAmount > 0;
+              const selectedCarDeposit = selectedRequest.depositAmount > 500000 ? selectedRequest.depositAmount : 20000000;
+              const selectedRemainingDeposit = Math.max(0, selectedCarDeposit - 500000);
 
-              {/* 2-Column Info Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Left Column: Customer & Rental Summary */}
-                <div className="lg:col-span-5 space-y-4">
-                  {/* Customer Information Card */}
-                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
-                    <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <User size={14} /> Thông tin khách hàng
-                    </h3>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Họ và tên:</span>
-                        <span className="font-semibold text-zinc-900">{selectedRequest.customerName}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Số điện thoại:</span>
-                        <span className="font-medium text-zinc-900">{selectedRequest.customerPhone}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Email:</span>
-                        <span className="text-zinc-900 break-all">{selectedRequest.customerEmail}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Số CCCD / CMND:</span>
-                        <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200">
-                          {selectedRequest.customerIdCard || 'Chưa cung cấp'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between border-b border-zinc-200 pb-1.5">
-                        <span className="text-zinc-500">Số GPLX (B2):</span>
-                        <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200">
-                          {selectedRequest.driverLicenseNumber || 'Chưa cung cấp'}
-                        </span>
-                      </div>
-                      {selectedRequest.notes && (
-                        <div className="pt-1 text-xs">
-                          <span className="text-zinc-500">Ghi chú từ khách:</span>
-                          <p className="mt-1 p-2 bg-white rounded border border-zinc-200 text-zinc-700 italic">
-                            "{selectedRequest.notes}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Vehicle & Rent Schedule */}
-                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Car size={14} /> Thông tin xe & Lịch thuê
-                    </h3>
-
-                    <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-md border border-slate-200">
-                      {selectedRequest.carImageUrl ? (
-                        <img 
-                          src={getPrimaryImageUrl(selectedRequest.carImageUrl)} 
-                          alt={selectedRequest.carModel} 
-                          onError={handleImageError}
-                          className="w-16 h-12 object-cover rounded border border-slate-200"
-                        />
-                      ) : (
-                        <div className="w-16 h-12 bg-slate-100 rounded flex items-center justify-center text-slate-400">
-                          <Car size={20} />
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-bold text-zinc-950">{selectedRequest.carMake} {selectedRequest.carModel}</div>
-                        <div className="mt-1">
-                          <span className="license-plate text-[10px] px-2 py-0.5">
-                            {selectedRequest.carLicensePlate || 'CHƯA GÁN'}
+              return (
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40">
+                  
+                  {/* Fast Hold Alert Callout */}
+                  {isFastHoldModal && (
+                    <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                      <Zap className="text-amber-600 flex-shrink-0 mt-0.5 fill-amber-600" size={20} />
+                      <div className="space-y-1 w-full">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-amber-950">Đơn Cọc Giữ Xe Siêu Tốc (Fast Hold 500.000đ)</h4>
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-500 text-white rounded-full">
+                              Thời hạn 4 giờ
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                            ĐÃ THU CỌC GIỮ XE: 500.000 đ
                           </span>
                         </div>
+                        <p className="text-xs text-amber-900 leading-relaxed">
+                          Khách hàng chọn gói cọc nhanh 500.000đ để giữ chỗ xe trong 4 giờ. Trong thời gian này, khách hàng cần nộp CCCD/GPLX và thanh toán nốt tiền cọc thế chân <strong>{formatCurrency(selectedRemainingDeposit)}</strong>.
+                          {selectedRequest.customerIdCard === 'CHƯA_CẬP_NHẬT' || !selectedRequest.customerIdCard ? (
+                            <span className="text-red-700 font-semibold block mt-1">
+                              ⚠️ Trạng thái hồ sơ: Khách hàng CHƯA nộp ảnh CCCD & GPLX. Admin có thể gọi điện thoại ({selectedRequest.customerPhone}) hoặc gửi email nhắc khách bổ sung trong Hồ sơ cá nhân.
+                            </span>
+                          ) : (
+                            <span className="text-emerald-700 font-semibold block mt-1">
+                              ✓ Trạng thái hồ sơ: Khách hàng ĐÃ nộp bổ sung đầy đủ CCCD & GPLX.
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
+                  )}
 
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                        <span className="text-slate-500">Thời gian nhận xe:</span>
-                        <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.startTime)}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                        <span className="text-slate-500">Thời gian trả xe:</span>
-                        <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.endTime)}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                        <span className="text-slate-500">Tổng số ngày:</span>
-                        <span className="font-bold text-zinc-950 tabular-nums">{selectedRequest.totalDays} ngày</span>
-                      </div>
-                      <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                        <span className="text-slate-500">Điểm nhận/trả xe:</span>
-                        <span className="text-zinc-950 text-right truncate max-w-[200px]">{selectedRequest.pickupLocation}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Financial Breakdown */}
-                  <div className="bg-[#0F172A] text-white rounded-lg p-4 space-y-3 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <DollarSign size={14} className="text-amber-400" /> Chi phí & Tiền cọc
-                    </h3>
-
-                    <div className="space-y-1.5 text-xs text-slate-300">
-                      <div className="flex justify-between">
-                        <span>Đơn giá ngày:</span>
-                        <span className="tabular-nums">{formatCurrency(selectedRequest.dailyRate)}</span>
-                      </div>
-                      {selectedRequest.discountPercent > 0 && (
-                        <div className="flex justify-between text-emerald-400">
-                          <span>Chiết khấu ({selectedRequest.discountPercent}%):</span>
-                          <span>- Giảm trừ</span>
+                  {/* Handover Restriction Warning for Fast Hold */}
+                  {isFastHoldModal && !selectedRequest.isSecurityDepositPaid && (
+                    <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-lg flex items-start gap-2.5 text-xs text-rose-950">
+                      <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={18} />
+                      <div className="space-y-0.5">
+                        <div className="font-bold text-rose-900">
+                          🚫 CHƯA ĐỦ ĐIỀU KIỆN GIAO XE: KHÁCH HÀNG CHƯA NỘP TIỀN CỌC THẾ CHÂN
                         </div>
-                      )}
-                      {selectedRequest.holidaySurchargePercent > 0 && (
-                        <div className="flex justify-between text-amber-400">
-                          <span>Phụ phí lễ tết ({selectedRequest.holidaySurchargePercent}%):</span>
-                          <span>+ Phụ thu</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-bold text-white">
-                        <span>Dự tính tổng tiền thuê:</span>
-                        <span className="text-emerald-400 tabular-nums">{formatCurrency(selectedRequest.estimatedTotalFee)}</span>
-                      </div>
-                      <div className="flex justify-between text-xs font-semibold text-amber-300 pt-1">
-                        <span>Tiền đặt cọc xe (Deposit):</span>
-                        <span className="tabular-nums font-mono">{formatCurrency(selectedRequest.depositAmount)}</span>
+                        <p className="text-rose-800 leading-relaxed">
+                          Khách hàng mới chỉ thanh toán <strong>500.000đ cọc giữ chỗ</strong>. Trong vòng 4 tiếng, khách hàng phải thanh toán nốt khoản cọc thế chân <strong>{formatCurrency(selectedRemainingDeposit)}</strong> (qua VietQR hoặc nộp tiền mặt/cà thẻ tại quầy). Nhân viên VELORA <strong>tuyệt đối không được giao xe</strong> khi chưa hoàn tất thu tiền cọc thế chân!
+                        </p>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
+                  
+                  {/* Rejected Alert Box if status is REJECTED */}
+                  {selectedRequest.status === 'REJECTED' && (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
+                      <AlertTriangle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
+                      <div>
+                        <h4 className="text-sm font-semibold text-rose-900">Hồ sơ đã bị từ chối phê duyệt</h4>
+                        <p className="text-xs text-rose-700 mt-1">
+                          <span className="font-semibold">Lý do:</span> {selectedRequest.rejectReason || 'Không có lý do chi tiết'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2-Column Info Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    {/* Left Column: Customer & Rental Summary */}
+                    <div className="lg:col-span-5 space-y-4">
+                      {/* Customer Information Card */}
+                      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <User size={14} /> Thông tin khách hàng
+                        </h3>
+                        
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between border-b border-zinc-200 pb-1.5">
+                            <span className="text-zinc-500">Họ và tên:</span>
+                            <span className="font-semibold text-zinc-900">{selectedRequest.customerName}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-zinc-200 pb-1.5">
+                            <span className="text-zinc-500">Số điện thoại:</span>
+                            <span className="font-medium text-zinc-900">{selectedRequest.customerPhone}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-zinc-200 pb-1.5">
+                            <span className="text-zinc-500">Email:</span>
+                            <span className="text-zinc-900 break-all">{selectedRequest.customerEmail}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-zinc-200 pb-1.5">
+                            <span className="text-zinc-500">Số CCCD / CMND:</span>
+                            <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                              {selectedRequest.customerIdCard || 'Chưa cung cấp'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-b border-zinc-200 pb-1.5">
+                            <span className="text-zinc-500">Số GPLX (B2):</span>
+                            <span className="font-mono font-bold text-zinc-900 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                              {selectedRequest.driverLicenseNumber || 'Chưa cung cấp'}
+                            </span>
+                          </div>
+                          {selectedRequest.notes && (
+                            <div className="pt-1 text-xs">
+                              <span className="text-zinc-500">Ghi chú từ khách:</span>
+                              <p className="mt-1 p-2 bg-white rounded border border-zinc-200 text-zinc-700 italic">
+                                "{selectedRequest.notes}"
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Vehicle & Rent Schedule */}
+                      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-sm">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <Car size={14} /> Thông tin xe & Lịch thuê
+                        </h3>
+
+                        <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-md border border-slate-200">
+                          {selectedRequest.carImageUrl ? (
+                            <img 
+                              src={getPrimaryImageUrl(selectedRequest.carImageUrl)} 
+                              alt={selectedRequest.carModel} 
+                              onError={handleImageError}
+                              className="w-16 h-12 object-cover rounded border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-16 h-12 bg-slate-100 rounded flex items-center justify-center text-slate-400">
+                              <Car size={20} />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold text-zinc-950">{selectedRequest.carMake} {selectedRequest.carModel}</div>
+                            <div className="mt-1">
+                              <span className="license-plate text-[10px] px-2 py-0.5">
+                                {selectedRequest.carLicensePlate || 'CHƯA GÁN'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                            <span className="text-slate-500">Thời gian nhận xe:</span>
+                            <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.startTime)}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                            <span className="text-slate-500">Thời gian trả xe:</span>
+                            <span className="font-medium text-zinc-950 tabular-nums">{formatDateTime(selectedRequest.endTime)}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                            <span className="text-slate-500">Tổng số ngày:</span>
+                            <span className="font-bold text-zinc-950 tabular-nums">{selectedRequest.totalDays} ngày</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                            <span className="text-slate-500">Điểm nhận/trả xe:</span>
+                            <span className="text-zinc-950 text-right truncate max-w-[200px]">{selectedRequest.pickupLocation}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Financial Breakdown with 3 Tiers for Fast Hold */}
+                      <div className="bg-[#0F172A] text-white rounded-lg p-4 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <DollarSign size={14} className="text-amber-400" /> Quản lý tài chính 3 khoản
+                          </h3>
+                          {isFastHoldModal && (
+                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              ⚡ Gói Cọc Giữ Xe 500K
+                            </span>
+                          )}
+                        </div>
+
+                        {isFastHoldModal ? (
+                          <div className="space-y-2.5 text-xs">
+                            {/* Khoản 1: Cọc giữ xe siêu tốc 500k */}
+                            <div className="p-2.5 rounded bg-white/5 border border-amber-500/30 space-y-1">
+                              <div className="flex justify-between items-center font-bold text-amber-400">
+                                <span className="flex items-center gap-1">
+                                  <Zap size={12} className="fill-amber-400" /> 1. Cọc giữ xe siêu tốc:
+                                </span>
+                                <span className="tabular-nums">500.000 đ</span>
+                              </div>
+                              <div className="flex justify-between text-[11px] text-slate-400">
+                                <span>Trạng thái:</span>
+                                <span className="text-emerald-400 font-semibold">✓ Đã thu tiền qua Napas 24/7</span>
+                              </div>
+                              <div className="flex justify-between text-[11px] text-slate-400">
+                                <span>Thời hạn giữ xe:</span>
+                                <span className="font-mono text-amber-300">4 tiếng (Chờ nộp cọc thế chân)</span>
+                              </div>
+                            </div>
+
+                            {/* Khoản 2: Cọc thế chân tài sản (Collateral) */}
+                            <div className="p-2.5 rounded bg-white/5 border border-blue-500/30 space-y-1.5">
+                              <div className="flex justify-between items-center font-bold text-blue-300">
+                                <span className="flex items-center gap-1">
+                                  <ShieldCheck size={12} className="text-blue-400" /> 2. Tiền cọc thế chân xe:
+                                </span>
+                                <span className="tabular-nums font-mono">{formatCurrency(selectedRemainingDeposit)}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400 space-y-0.5">
+                                <div className="flex justify-between">
+                                  <span>Định mức chuẩn của xe:</span>
+                                  <span className="tabular-nums">{formatCurrency(selectedCarDeposit)}</span>
+                                </div>
+                                <div className="flex justify-between text-emerald-400">
+                                  <span>Khấu trừ cọc giữ xe 500k:</span>
+                                  <span>- 500.000 đ</span>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center pt-1 border-t border-white/10 text-[11px]">
+                                <span className="text-slate-400">Trạng thái:</span>
+                                {selectedRequest.isSecurityDepositPaid ? (
+                                  <span className="text-emerald-400 font-bold">✓ ĐÃ THU ĐỦ TIỀN CỌC</span>
+                                ) : (
+                                  <span className="text-rose-400 font-bold animate-pulse">⚠️ CHƯA THU (Hạn 4 giờ)</span>
+                                )}
+                              </div>
+
+                              {/* Thao tác thu cọc nhanh cho Admin */}
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmSecurityDeposit(selectedRequest.id, !selectedRequest.isSecurityDepositPaid)}
+                                className={`mt-1.5 w-full py-1.5 px-3 rounded text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
+                                  selectedRequest.isSecurityDepositPaid
+                                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white'
+                                }`}
+                              >
+                                <CheckCircle2 size={13} />
+                                <span>
+                                  {selectedRequest.isSecurityDepositPaid
+                                    ? 'Hủy xác nhận (Đặt lại: Chưa thu cọc)'
+                                    : `Xác nhận đã nhận cọc thế chân (${formatCurrency(selectedRemainingDeposit)})`}
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* Khoản 3: Tiền thuê xe & Dịch vụ */}
+                            <div className="p-2.5 rounded bg-white/5 border border-slate-700 space-y-1">
+                              <div className="flex justify-between font-bold text-white">
+                                <span>3. Tiền thuê xe ({selectedRequest.totalDays} ngày):</span>
+                                <span className="text-emerald-400 tabular-nums">{formatCurrency(selectedRequest.estimatedTotalFee)}</span>
+                              </div>
+                              <div className="flex justify-between text-[11px] text-slate-400">
+                                <span>Hình thức thanh toán:</span>
+                                <span>Thanh toán khi bàn giao xe</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5 text-xs text-slate-300">
+                            <div className="flex justify-between">
+                              <span>Đơn giá ngày:</span>
+                              <span className="tabular-nums">{formatCurrency(selectedRequest.dailyRate)}</span>
+                            </div>
+                            {selectedRequest.discountPercent > 0 && (
+                              <div className="flex justify-between text-emerald-400">
+                                <span>Chiết khấu ({selectedRequest.discountPercent}%):</span>
+                                <span>- Giảm trừ</span>
+                              </div>
+                            )}
+                            {selectedRequest.holidaySurchargePercent > 0 && (
+                              <div className="flex justify-between text-amber-400">
+                                <span>Phụ phí lễ tết ({selectedRequest.holidaySurchargePercent}%):</span>
+                                <span>+ Phụ thu</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between pt-2 border-t border-slate-800 text-sm font-bold text-white">
+                              <span>Dự tính tổng tiền thuê:</span>
+                              <span className="text-emerald-400 tabular-nums">{formatCurrency(selectedRequest.estimatedTotalFee)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-semibold text-amber-300 pt-1">
+                              <span>Tiền đặt cọc xe (Deposit):</span>
+                              <span className="tabular-nums font-mono">{formatCurrency(selectedRequest.depositAmount)}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
                 {/* Right Column: 4-Photo Inspection Grid */}
                 <div className="lg:col-span-7 space-y-4">
@@ -1090,6 +1290,8 @@ const RentalRequestsPage = () => {
               </div>
 
             </div>
+          );
+        })()}
 
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">

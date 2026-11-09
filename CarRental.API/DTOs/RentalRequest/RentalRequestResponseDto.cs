@@ -42,6 +42,12 @@ namespace CarRental.API.DTOs.RentalRequest
         public decimal HolidaySurchargePercent { get; set; }
         public decimal EstimatedTotalFee { get; set; }
         public decimal DepositAmount { get; set; }
+        public string? BookingType { get; set; } = "STANDARD";
+        public decimal HoldDepositAmount { get; set; } = 0;
+        public bool IsSecurityDepositPaid { get; set; } = false;
+        public DateTime? HoldExpiresAt { get; set; }
+        public decimal RemainingSecurityDeposit => Math.Max(0, (DepositAmount > 500000 ? DepositAmount : 20000000m) - (HoldDepositAmount > 0 ? HoldDepositAmount : 500000m));
+        public bool IsHoldExpired => BookingType == "FAST_HOLD" && !IsSecurityDepositPaid && HoldExpiresAt.HasValue && DateTime.UtcNow > HoldExpiresAt.Value;
         public string Status { get; set; } = null!;
         public string? RejectReason { get; set; }
 

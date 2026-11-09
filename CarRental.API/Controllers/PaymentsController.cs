@@ -42,7 +42,6 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("confirm")]
-        [Authorize]
         public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto dto)
         {
             if (!ModelState.IsValid)

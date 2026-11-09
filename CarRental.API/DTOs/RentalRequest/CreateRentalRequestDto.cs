@@ -33,18 +33,17 @@ namespace CarRental.API.DTOs.RentalRequest
         [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string CustomerEmail { get; set; } = null!;
 
-        [Required(ErrorMessage = "Số CCCD/CMND là bắt buộc")]
-        [StringLength(50)]
-        public string CustomerIdCard { get; set; } = null!;
+        public string? CustomerIdCard { get; set; }
 
-        [Required(ErrorMessage = "Số GPLX là bắt buộc")]
-        [StringLength(50)]
-        public string DriverLicenseNumber { get; set; } = null!;
+        public string? DriverLicenseNumber { get; set; }
 
         [StringLength(50)]
         public string? DriverLicenseClass { get; set; } // B1_AUTO, B1, B2, C, D
 
         public DateTime? DriverLicenseExpiry { get; set; }
+
+        public string? BookingType { get; set; } = "STANDARD"; // FAST_HOLD, STANDARD
+        public decimal? HoldDepositAmount { get; set; } = 0;
 
         public string? IdCardFrontUrl { get; set; }
         public string? IdCardBackUrl { get; set; }

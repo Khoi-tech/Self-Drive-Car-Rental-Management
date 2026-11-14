@@ -9,6 +9,8 @@ namespace CarRental.API.DTOs.Auth
         public string FullName { get; set; } = null!;
         public string? PhoneNumber { get; set; }
         public string Role { get; set; } = null!;
+        public bool IsActive { get; set; } = true;
+        public string? LockReason { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -127,6 +128,20 @@ namespace CarRental.API.Controllers
         private static readonly Dictionary<string, (string KycStatus, string? Reason)> _kycOverrides = new();
         private static readonly Dictionary<string, List<ViolationLogDto>> _customViolations = new();
 
+        private static string MaskPhone(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw) || raw.Length < 7)
+                return string.IsNullOrWhiteSpace(raw) ? "Chưa cập nhật" : raw;
+            return $"{raw[..4]} *** {raw[^3..]}";
+        }
+
+        private static string MaskDoc(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw) || raw.Length < 8)
+                return string.IsNullOrWhiteSpace(raw) ? "Chưa cập nhật" : raw;
+            return $"{raw[..4]} **** {raw[^4..]}";
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetCustomers(
             [FromQuery] string? search,
@@ -136,17 +151,126 @@ namespace CarRental.API.Controllers
         {
             // Seed customer base with Vietnamese authentic profiles
             var customerList = GetSeedCustomers();
+            var seedEmails = customerList
+                .Select(c => c.Email.Trim().ToLowerInvariant())
+                .ToHashSet();
 
-            // Apply in-memory overrides (e.g. from lock or KYC actions in UI)
+            // Load real customer accounts from PostgreSQL app_users (exclude Mockaroo synthetic rows: 4 digits + underscore)
+            var allCustomerUsers = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Role == "CUSTOMER")
+                .ToListAsync();
+
+            var realDbUsers = allCustomerUsers
+                .Where(u => !Regex.IsMatch(u.Email, @"^\d{4}_"))
+                .ToList();
+
+            var dbUsersByEmail = realDbUsers
+                .GroupBy(u => u.Email.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var allRequests = await _context.RentalRequests
+                .AsNoTracking()
+                .Include(r => r.Vehicle)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var requestsByEmail = allRequests
+                .Where(r => !string.IsNullOrWhiteSpace(r.CustomerEmail))
+                .GroupBy(r => r.CustomerEmail.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 1. Sync seed customers with DB account lock status (DB truth takes priority over in-memory cache)
             foreach (var c in customerList)
             {
-                if (_statusOverrides.TryGetValue(c.Id, out var stat))
+                var normEmail = c.Email.Trim().ToLowerInvariant();
+                if (dbUsersByEmail.TryGetValue(normEmail, out var dbUser))
+                {
+                    c.AccountStatus = dbUser.IsActive ? "ACTIVE" : "SUSPENDED";
+                    if (!dbUser.IsActive && !string.IsNullOrWhiteSpace(dbUser.LockReason))
+                        c.InternalStaffNotes = $"Lý do tạm khóa: {dbUser.LockReason}";
+                }
+                else if (_statusOverrides.TryGetValue(c.Id, out var stat))
                 {
                     c.AccountStatus = stat.Status;
                     if (!string.IsNullOrEmpty(stat.Reason))
                         c.InternalStaffNotes = $"Lý do điều chỉnh: {stat.Reason}";
                 }
+            }
 
+            // 2. Append real database customers not already in the curated seed list (e.g. customer@velora.vn & newly registered users)
+            foreach (var dbUser in realDbUsers)
+            {
+                var normEmail = dbUser.Email.Trim().ToLowerInvariant();
+                if (seedEmails.Contains(normEmail)) continue;
+
+                requestsByEmail.TryGetValue(normEmail, out var userReqs);
+                userReqs ??= new List<RentalRequest>();
+                var latestReq = userReqs.FirstOrDefault();
+
+                var rawPhone = !string.IsNullOrWhiteSpace(dbUser.PhoneNumber)
+                    ? dbUser.PhoneNumber
+                    : (latestReq?.CustomerPhone ?? "Chưa cập nhật");
+                var rawIdCard = latestReq?.CustomerIdCard ?? "Chưa cập nhật";
+                var rawLicense = latestReq?.DriverLicenseNumber ?? "Chưa cập nhật";
+
+                var dto = new CustomerAdminSummaryDto
+                {
+                    Id = dbUser.Id.ToString(),
+                    FullName = dbUser.FullName,
+                    Email = dbUser.Email,
+                    RawPhone = rawPhone,
+                    MaskedPhone = MaskPhone(rawPhone),
+                    RawIdCard = rawIdCard,
+                    MaskedIdCard = MaskDoc(rawIdCard),
+                    RawLicenseNumber = rawLicense,
+                    MaskedLicenseNumber = MaskDoc(rawLicense),
+                    LicenseClass = !string.IsNullOrWhiteSpace(latestReq?.DriverLicenseClass) ? latestReq.DriverLicenseClass! : "B2",
+                    LicenseExpiryDate = latestReq?.DriverLicenseExpiry?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật",
+                    IsLicenseNearExpiry = latestReq?.DriverLicenseExpiry != null && latestReq.DriverLicenseExpiry.Value <= DateTime.UtcNow.AddDays(30),
+                    MembershipTier = userReqs.Count >= 10 ? "Platinum" : (userReqs.Count >= 4 ? "Gold" : "Silver"),
+                    TrustScore = dbUser.IsActive ? 100 : 75,
+                    KycStatus = !string.IsNullOrWhiteSpace(latestReq?.IdCardFrontUrl) ? "VERIFIED" : "PENDING",
+                    AccountStatus = dbUser.IsActive ? "ACTIVE" : "SUSPENDED",
+                    TotalBookings = userReqs.Count,
+                    CompletedBookings = userReqs.Count(r => r.Status == "COMPLETED"),
+                    ActiveBookings = userReqs.Count(r => r.Status == "ACTIVE" || r.Status == "CONFIRMED" || r.Status == "SIGNED" || r.Status == "HOLDING"),
+                    CancelledBookings = userReqs.Count(r => r.Status == "CANCELLED" || r.Status == "REJECTED"),
+                    TotalSpent = userReqs.Where(r => r.Status == "COMPLETED" || r.Status == "ACTIVE").Sum(r => r.EstimatedTotalFee),
+                    EscrowDepositAmount = userReqs.Where(r => r.Status == "ACTIVE" || r.Status == "CONFIRMED" || r.Status == "SIGNED").Sum(r => r.DepositAmount),
+                    CreatedAt = dbUser.CreatedAt,
+                    LastBookingDate = latestReq?.CreatedAt,
+                    InternalStaffNotes = !dbUser.IsActive && !string.IsNullOrWhiteSpace(dbUser.LockReason)
+                        ? $"Lý do tạm khóa: {dbUser.LockReason}"
+                        : "Tài khoản khách hàng đăng ký trên hệ thống VELORA.",
+                    RecentBookings = userReqs.Take(5).Select(r => new CustomerBookingItemDto
+                    {
+                        BookingId = r.Id.ToString()[..8].ToUpperInvariant(),
+                        CarName = r.Vehicle != null ? $"{r.Vehicle.Make} {r.Vehicle.Model}" : "Xe VELORA",
+                        LicensePlate = r.Vehicle?.LicensePlate ?? "N/A",
+                        Dates = $"{r.StartTime:dd/MM/yyyy} - {r.EndTime:dd/MM/yyyy}",
+                        TotalFee = r.EstimatedTotalFee,
+                        DepositAmount = r.DepositAmount,
+                        Status = r.Status,
+                        StatusLabel = r.Status switch
+                        {
+                            "ACTIVE" => "Đang lưu hành",
+                            "COMPLETED" => "Hoàn tất",
+                            "CONFIRMED" => "Đã xác nhận",
+                            "SIGNED" => "Đã ký HĐ",
+                            "PENDING" => "Chờ duyệt",
+                            "HOLDING" => "Giữ chỗ 500K",
+                            _ => r.Status
+                        }
+                    }).ToList()
+                };
+
+                customerList.Add(dto);
+            }
+
+            // Apply in-memory KYC / Violation overrides for demo controls
+            foreach (var c in customerList)
+            {
                 if (_kycOverrides.TryGetValue(c.Id, out var kyc))
                 {
                     c.KycStatus = kyc.KycStatus;
@@ -197,15 +321,45 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}/toggle-status")]
-        public IActionResult ToggleCustomerStatus(string id, [FromBody] ToggleCustomerStatusDto dto)
+        public async Task<IActionResult> ToggleCustomerStatus(string id, [FromBody] ToggleCustomerStatusDto dto)
         {
             _statusOverrides[id] = (dto.Status, dto.Reason);
+
+            bool isSuspending = string.Equals(dto.Status, "SUSPENDED", StringComparison.OrdinalIgnoreCase);
+
+            Entities.User? targetUser = null;
+            if (Guid.TryParse(id, out var userGuid))
+            {
+                targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+            }
+            else
+            {
+                var seedCustomer = GetSeedCustomers().FirstOrDefault(c =>
+                    string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (seedCustomer != null)
+                {
+                    var normalizedEmail = seedCustomer.Email.Trim().ToLowerInvariant();
+                    targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+                }
+            }
+
+            if (targetUser != null)
+            {
+                targetUser.IsActive = !isSuspending;
+                targetUser.LockReason = isSuspending
+                    ? (string.IsNullOrWhiteSpace(dto.Reason) ? "Vi phạm quy định vận hành VELORA" : dto.Reason.Trim())
+                    : null;
+                targetUser.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(new
             {
                 Success = true,
                 Message = $"Đã cập nhật trạng thái tài khoản thành công sang {dto.Status}.",
                 Status = dto.Status,
-                Reason = dto.Reason
+                Reason = dto.Reason,
+                PersistedToDatabase = targetUser != null
             });
         }
 

@@ -6,23 +6,22 @@ import {
   Fuel, 
   Settings, 
   MapPin, 
-  Shield, 
   Clock, 
   CreditCard, 
   ChevronLeft, 
-  ChevronRight,
-  Maximize2,
-  X,
-  Camera,
+  ChevronRight, 
+  Maximize2, 
+  X, 
+  Camera, 
   AlertCircle, 
-  Info, 
   Tag, 
   Check, 
   Gauge, 
-  FileCheck,
-  ShieldCheck,
-  ArrowRight,
-  Zap
+  ShieldCheck, 
+  ArrowRight, 
+  Zap, 
+  Lock, 
+  Sparkles 
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -30,6 +29,8 @@ import pricingService from '../../services/pricingService';
 import rentalConditionService from '../../services/rentalConditionService';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { parseVehicleImages, getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
+import { useAuth } from '../../context/AuthContext';
+import { getNowLocalInputStr, validateRentalDates } from '../../utils/dateTimeHelpers';
 
 // Helper to construct a curated multi-photo gallery for a vehicle
 const getVehicleGallery = (vehicle) => {
@@ -157,6 +158,8 @@ const getVehicleGallery = (vehicle) => {
 };
 
 const CarDetailPage = () => {
+  const { user } = useAuth();
+  const isAccountSuspended = user?.isActive === false;
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -173,9 +176,34 @@ const CarDetailPage = () => {
   // Widget State
   const [startTime, setStartTime] = useState(searchParams.get('startTime') || '');
   const [endTime, setEndTime] = useState(searchParams.get('endTime') || '');
+  const [minNowStr, setMinNowStr] = useState(() => getNowLocalInputStr());
   const [preview, setPreview] = useState(null);
   const [calculating, setCalculating] = useState(false);
   const [bookingError, setBookingError] = useState('');
+
+  const dateValidation = validateRentalDates(startTime, endTime);
+  const hasInvalidDates = Boolean(dateValidation.error);
+
+  useEffect(() => {
+    const timer = setInterval(() => setMinNowStr(getNowLocalInputStr()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const resetToValidDefaultDates = () => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+
+    const returnDay = new Date(tomorrow);
+    returnDay.setDate(returnDay.getDate() + 2);
+    returnDay.setHours(18, 0, 0, 0);
+
+    setMinNowStr(getNowLocalInputStr(now));
+    setStartTime(getNowLocalInputStr(tomorrow));
+    setEndTime(getNowLocalInputStr(returnDay));
+    setBookingError('');
+  };
 
   // Default dates if missing
   useEffect(() => {
@@ -189,11 +217,8 @@ const CarDetailPage = () => {
       returnDay.setDate(returnDay.getDate() + 2);
       returnDay.setHours(18, 0, 0, 0);
 
-      const pad = (n) => String(n).padStart(2, '0');
-      const toIsoLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-      if (!startTime) setStartTime(toIsoLocal(tomorrow));
-      if (!endTime) setEndTime(toIsoLocal(returnDay));
+      if (!startTime) setStartTime(getNowLocalInputStr(tomorrow));
+      if (!endTime) setEndTime(getNowLocalInputStr(returnDay));
     }
   }, []);
 
@@ -219,18 +244,15 @@ const CarDetailPage = () => {
     fetchData();
   }, [id]);
 
-  useEffect(() => {
-    if (startTime && endTime && vehicle) {
-      calculatePreview();
-    } else {
-      setPreview(null);
-    }
-  }, [startTime, endTime, vehicle]);
-
   const calculatePreview = async () => {
+    if (!validateRentalDates(startTime, endTime).valid) {
+      setPreview(null);
+      return;
+    }
+
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const diffTime = Math.abs(end - start);
+    const diffTime = end - start;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays <= 0 || isNaN(diffDays)) {
@@ -249,7 +271,21 @@ const CarDetailPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (startTime && endTime && vehicle) {
+      calculatePreview();
+    } else {
+      setPreview(null);
+    }
+  }, [startTime, endTime, vehicle]);
+
   const handleBooking = (type = 'FAST_HOLD') => {
+    if (isAccountSuspended) {
+      setBookingError(
+        `Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới${user?.lockReason ? ` (${user.lockReason})` : ''}. Vui lòng kiểm tra trạng thái tại Hồ sơ cá nhân.`
+      );
+      return;
+    }
     if (vehicle?.status === 'RENTED') {
       setBookingError('Xe này hiện đang có chuyến thuê lưu hành với khách hàng và chưa được hoàn trả về bãi. Vui lòng chọn xe khác hoặc liên hệ hotline.');
       return;
@@ -260,6 +296,10 @@ const CarDetailPage = () => {
     }
     if (!startTime || !endTime) {
       setBookingError('Vui lòng chọn đầy đủ ngày nhận và ngày trả xe để tiếp tục.');
+      return;
+    }
+    if (!dateValidation.valid) {
+      setBookingError(dateValidation.error);
       return;
     }
     setBookingError('');
@@ -330,7 +370,6 @@ const CarDetailPage = () => {
     );
   }
 
-  const isReady = vehicle.status === 'READY';
   const fuelLabel = vehicle.fuelType === 'ELECTRIC' ? 'Thuần Điện' : vehicle.fuelType === 'DIESEL' ? 'Động cơ Dầu' : 'Động cơ Xăng';
   const transLabel = vehicle.transmission === 'AUTO' ? 'Tự động' : 'Số sàn';
 
@@ -615,26 +654,54 @@ const CarDetailPage = () => {
               </div>
             </section>
 
-            {/* Chiết khấu thuê dài ngày */}
-            {policies && policies.length > 0 && (
-              <section className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs">
+            {/* Chiết khấu thuê dài ngày & Ưu đãi thanh toán online */}
+            <section className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+              <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950 mb-3">
-                  Chính sách chiết khấu thuê dài ngày
+                  Chương trình ưu đãi & Chiết khấu
                 </h2>
-                <div className="flex flex-wrap gap-3">
-                  {policies.map((p) => (
-                    <div 
-                      key={p.id} 
-                      className="px-3.5 py-2 bg-emerald-50 border border-emerald-200 rounded-md flex items-center gap-2 text-xs"
-                    >
-                      <Tag className="w-4 h-4 text-emerald-700" />
-                      <span className="text-emerald-900 font-semibold">Thuê từ {p.minDays} ngày:</span>
-                      <strong className="text-emerald-800 font-bold tabular-nums">Giảm {p.discountPercentage}%</strong>
+
+                {/* Banner Ưu đãi thanh toán Online VietQR */}
+                <div className="p-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-blue-50/90 border border-blue-200 rounded-xl space-y-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-xs">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-black text-blue-950 uppercase tracking-wide">
+                        Ưu đãi thanh toán online trước (VietQR)
+                      </span>
                     </div>
-                  ))}
+                    <span className="bg-blue-600 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-xs">
+                      Tiết kiệm 5%
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    Khách hàng thanh toán online cọc thế chân trước nhận ngay: <strong>Chiết khấu trực tiếp 5%</strong> tiền thuê xe + <strong>Tặng +50 km/ngày</strong> hạn mức di chuyển + <strong>Miễn phí 100%</strong> phí rửa xe & vệ sinh khi hoàn trả + <strong>Ưu tiên nhận xe nhanh</strong> trong 5 phút.
+                  </p>
                 </div>
-              </section>
-            )}
+
+                {policies && policies.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <span className="text-xs font-bold text-slate-700 block">
+                      Chiết khấu theo số ngày thuê (Cộng dồn theo thời gian):
+                    </span>
+                    <div className="flex flex-wrap gap-2.5">
+                      {policies.map((p) => (
+                        <div 
+                          key={p.id} 
+                          className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md flex items-center gap-2 text-xs"
+                        >
+                          <Tag className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span className="text-emerald-900 font-semibold">Thuê từ {p.minDays} ngày:</span>
+                          <strong className="text-emerald-800 font-bold tabular-nums">Giảm {p.discountPercentage}%</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
 
           </div>
 
@@ -668,8 +735,18 @@ const CarDetailPage = () => {
                   <input
                     type="datetime-local"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    min={minNowStr}
+                    onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                    onChange={(e) => {
+                      setMinNowStr(getNowLocalInputStr());
+                      setStartTime(e.target.value);
+                      if (bookingError) setBookingError('');
+                    }}
+                    className={`w-full border rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                      dateValidation.startError
+                        ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                        : 'bg-slate-50 border-slate-200 focus:border-blue-900 focus:bg-white'
+                    }`}
                   />
                 </div>
 
@@ -681,10 +758,36 @@ const CarDetailPage = () => {
                   <input
                     type="datetime-local"
                     value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                    min={startTime && startTime > minNowStr ? startTime : minNowStr}
+                    onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                    onChange={(e) => {
+                      setMinNowStr(getNowLocalInputStr());
+                      setEndTime(e.target.value);
+                      if (bookingError) setBookingError('');
+                    }}
+                    className={`w-full border rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                      dateValidation.endError
+                        ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                        : 'bg-slate-50 border-slate-200 focus:border-blue-900 focus:bg-white'
+                    }`}
                   />
                 </div>
+
+                {hasInvalidDates && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs space-y-2">
+                    <div className="flex items-start gap-2 font-semibold">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                      <span>{dateValidation.error}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetToValidDefaultDates}
+                      className="text-[11px] font-bold text-red-800 bg-white hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                    >
+                      Đặt lại ngày giờ hợp lệ
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Automated Pricing Calculation Breakdown */}
@@ -743,7 +846,39 @@ const CarDetailPage = () => {
               )}
 
               {/* Action Button */}
-              {vehicle?.status === 'RENTED' ? (
+              {isAccountSuspended ? (
+                <div className="space-y-3">
+                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs space-y-1.5">
+                    <div className="font-extrabold flex items-center gap-1.5 text-red-900">
+                      <Lock className="w-4 h-4 text-red-600 shrink-0" />
+                      <span>Tài khoản đang TẠM KHÓA đặt xe mới</span>
+                    </div>
+                    {user?.lockReason && (
+                      <p className="text-[11px] text-red-700 leading-relaxed">
+                        <strong>Lý do:</strong> {user.lockReason}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-red-600 leading-relaxed">
+                      Hợp đồng đang thuê (nếu có) vẫn tiếp tục bình thường. Vui lòng thanh toán đối soát hoặc liên hệ Hotline <strong>1900 8888</strong> để mở khóa.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-red-100 text-red-700 border border-red-200 font-extrabold text-xs py-3.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider flex items-center justify-center gap-2"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Đã khóa chức năng đặt xe mới</span>
+                  </button>
+                  <Link
+                    to="/profile?tab=RENTALS"
+                    className="w-full py-2.5 px-4 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <span>Xem hồ sơ & hợp đồng hiện tại</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              ) : vehicle?.status === 'RENTED' ? (
                 <div className="space-y-2">
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-blue-700 shrink-0" />
@@ -769,6 +904,24 @@ const CarDetailPage = () => {
                     className="w-full bg-slate-200 text-slate-500 font-bold text-xs py-3.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider"
                   >
                     Không khả dụng
+                  </button>
+                </div>
+              ) : hasInvalidDates ? (
+                <div className="space-y-2.5">
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-red-100 text-red-700 border border-red-200 font-extrabold text-xs py-3.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider flex items-center justify-center gap-2"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Đã khóa (Ngày giờ không hợp lệ)</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full bg-slate-200 text-slate-500 font-bold text-xs py-2.5 px-4 rounded-md shadow-xs cursor-not-allowed uppercase tracking-wider flex items-center justify-center gap-2"
+                  >
+                    <span>Đặt thuê tiêu chuẩn (Đang khóa)</span>
                   </button>
                 </div>
               ) : (

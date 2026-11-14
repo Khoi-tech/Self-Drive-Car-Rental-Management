@@ -1,29 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  Calendar, 
   Users, 
-  Fuel, 
-  Settings, 
-  MapPin, 
   Shield, 
-  Clock, 
   CreditCard, 
   ChevronLeft, 
   AlertCircle, 
-  Info, 
   CheckCircle2, 
   Upload, 
-  ChevronDown, 
-  ChevronUp, 
-  FileText,
   User,
-  Phone,
-  Mail,
   ShieldCheck,
   ArrowRight,
   Zap,
-  Check
+  Check,
+  Lock,
+  Sparkles
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -32,9 +23,11 @@ import rentalRequestService from '../../services/rentalRequestService';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import { useAuth } from '../../context/AuthContext';
+import { validateRentalDates } from '../../utils/dateTimeHelpers';
 
 const BookingPage = () => {
   const { user } = useAuth();
+  const isAccountSuspended = user?.isActive === false;
   const { carId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -50,6 +43,9 @@ const BookingPage = () => {
   const [bookingType, setBookingType] = useState(
     searchParams.get('type') === 'STANDARD' ? 'STANDARD' : 'FAST_HOLD'
   );
+
+  // Deposit Method for Standard flow: 'CASH' (Tiền mặt khi nhận xe) vs 'VIETQR' (Chuyển khoản online)
+  const [depositMethod, setDepositMethod] = useState('CASH');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -86,14 +82,14 @@ const BookingPage = () => {
   const [agreed, setAgreed] = useState(false);
 
   // File Upload State - 4 slots (CCCD trước/sau, GPLX trước/sau)
-  const [idCardFrontFile, setIdCardFrontFile] = useState(null);
+  const [, setIdCardFrontFile] = useState(null);
   const [idCardFrontPreview, setIdCardFrontPreview] = useState(null);
-  const [idCardBackFile, setIdCardBackFile] = useState(null);
+  const [, setIdCardBackFile] = useState(null);
   const [idCardBackPreview, setIdCardBackPreview] = useState(null);
 
-  const [licenseFrontFile, setLicenseFrontFile] = useState(null);
+  const [, setLicenseFrontFile] = useState(null);
   const [licenseFrontPreview, setLicenseFrontPreview] = useState(null);
-  const [licenseBackFile, setLicenseBackFile] = useState(null);
+  const [, setLicenseBackFile] = useState(null);
   const [licenseBackPreview, setLicenseBackPreview] = useState(null);
 
   const handleFileChange = (e, setFile, setPreview) => {
@@ -109,6 +105,9 @@ const BookingPage = () => {
   const pickupLocation = searchParams.get('pickupLocation') || 'VP VELORA (Trụ sở Tân Bình)';
   const dropoffLocation = searchParams.get('dropoffLocation') || pickupLocation;
 
+  const dateValidation = validateRentalDates(startTimeStr, endTimeStr);
+  const isInvalidBookingDates = Boolean(dateValidation.error);
+
   useEffect(() => {
     if (!startTimeStr || !endTimeStr) {
       navigate(`/cars/${carId}`);
@@ -121,13 +120,18 @@ const BookingPage = () => {
         const vehRes = await vehicleService.getVehicleById(carId);
         setVehicle(vehRes.data || vehRes);
 
-        const start = new Date(startTimeStr);
-        const end = new Date(endTimeStr);
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        if (validateRentalDates(startTimeStr, endTimeStr).valid) {
+          const start = new Date(startTimeStr);
+          const end = new Date(endTimeStr);
+          const diffTime = end - start;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
-        const previewRes = await pricingService.previewPricing(carId, diffDays);
-        setPreview(previewRes.data || previewRes);
+          const previewRes = await pricingService.previewPricing(carId, diffDays);
+          setPreview(previewRes.data || previewRes);
+        } else {
+          setPreview(null);
+          setError(validateRentalDates(startTimeStr, endTimeStr).error);
+        }
       } catch (err) {
         setError(err.response?.data?.message || 'Không thể tải thông tin thuê xe');
       } finally {
@@ -152,6 +156,18 @@ const BookingPage = () => {
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
+
+    if (isAccountSuspended) {
+      setError(
+        `Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới${user?.lockReason ? `: ${user.lockReason}` : '.'} Vui lòng liên hệ Hotline 1900 8888 để được hỗ trợ.`
+      );
+      return;
+    }
+
+    if (isInvalidBookingDates) {
+      setError(dateValidation.error || 'Thời gian thuê xe không hợp lệ.');
+      return;
+    }
 
     // Common validations
     if (!formData.customerName?.trim()) {
@@ -248,6 +264,7 @@ const BookingPage = () => {
         driverLicenseFrontUrl: licenseFrontPreview || '',
         driverLicenseBackUrl: licenseBackPreview || '',
         bookingType: isFastHold ? 'FAST_HOLD' : 'STANDARD',
+        depositMethod: isFastHold ? 'VIETQR' : depositMethod,
         holdDepositAmount: isFastHold ? 500000 : 0
       };
 
@@ -339,6 +356,19 @@ const BookingPage = () => {
                 <span className="text-slate-500">Tiền đặt cọc xe:</span>
                 <span className="font-bold text-blue-900 tabular-nums">{formatCurrencyVND(vehicle?.depositAmount || 15000000)}</span>
               </div>
+              <div className="flex justify-between pt-1 border-t border-slate-200">
+                <span className="text-slate-500">Hình thức đặt cọc:</span>
+                <span className="font-bold text-emerald-700">
+                  {successResponse.depositMethod === 'CASH' || depositMethod === 'CASH'
+                    ? '💵 Cọc tiền mặt khi nhận xe (Chưa cần trả trước)'
+                    : '💳 Chuyển khoản VietQR'}
+                </span>
+              </div>
+              {(successResponse.depositMethod === 'CASH' || depositMethod === 'CASH') && (
+                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-xs">
+                  💡 <strong>Không lo bị giữ tiền trước:</strong> Bạn đã chọn phương thức nộp cọc tiền mặt trực tiếp. Sau khi hồ sơ được duyệt và ký hợp đồng số, bạn chỉ cần bàn giao khoản cọc bằng tiền mặt khi kiểm tra và nhận xe tại điểm bàn giao.
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
@@ -381,6 +411,61 @@ const BookingPage = () => {
           <span>/</span>
           <span className="text-zinc-900 font-bold">Đặt xe & Thẩm định hồ sơ</span>
         </div>
+
+        {isAccountSuspended && (
+          <div className="mb-6 p-4 sm:p-5 rounded-xl bg-red-50 border border-red-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-lg bg-red-100 text-red-700 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-red-900">
+                  Tài khoản đang ở trạng thái TẠM KHÓA đặt xe mới
+                </h3>
+                {user?.lockReason && (
+                  <p className="text-xs font-semibold text-red-800">
+                    Lý do tạm khóa: {user.lockReason}
+                  </p>
+                )}
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Tính năng tạo đơn thuê mới và thanh toán cọc giữ xe đã bị vô hiệu hóa tạm thời. Các hợp đồng đang lưu hành (nếu có) vẫn tiếp tục bình thường.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/profile?tab=RENTALS"
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-white border border-red-200 text-red-800 hover:bg-red-100/60 font-bold text-xs transition-colors"
+            >
+              <span>Về hồ sơ cá nhân</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
+        {isInvalidBookingDates && (
+          <div className="mb-6 p-4 sm:p-5 rounded-xl bg-red-50 border border-red-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-lg bg-red-100 text-red-700 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-red-900">
+                  Thời gian nhận / trả xe không hợp lệ
+                </h3>
+                <p className="text-xs font-semibold text-red-800">
+                  {dateValidation.error} Hệ thống đã khóa chức năng tạo đơn cho lịch trình này.
+                </p>
+              </div>
+            </div>
+            <Link
+              to={`/cars/${carId}`}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors"
+            >
+              <span>Chọn lại ngày giờ hợp lệ</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
 
         {/* 2-Column Checkout Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -444,6 +529,103 @@ const BookingPage = () => {
                   </p>
                 </button>
               </div>
+
+              {/* TÙY CHỌN PHƯƠNG THỨC CỌC THẾ CHÂN CHO LUỒNG TIÊU CHUẨN */}
+              {!isFastHold && (
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-emerald-600" />
+                      Phương thức đặt cọc thế chân xe:
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Cash at Handover */}
+                    <button
+                      type="button"
+                      onClick={() => setDepositMethod('CASH')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        depositMethod === 'CASH'
+                          ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-500/20 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                          💵 Cọc tiền mặt khi nhận xe
+                        </span>
+                        <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
+                          Khuyên dùng
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        <strong className="text-emerald-800">0đ thanh toán hôm nay!</strong> Bạn chỉ cần ký hợp đồng trước; khoản cọc thế chân sẽ được bàn giao trực tiếp bằng tiền mặt khi bạn nhận xe.
+                      </p>
+                    </button>
+
+                    {/* Option 2: VietQR Online */}
+                    <button
+                      type="button"
+                      onClick={() => setDepositMethod('VIETQR')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                        depositMethod === 'VIETQR'
+                          ? 'bg-blue-50/90 border-blue-900 ring-2 ring-blue-900/20 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                          💳 Chuyển khoản VietQR (Napas 24/7)
+                        </span>
+                        <span className="text-[9px] bg-gradient-to-r from-blue-700 to-indigo-700 text-white px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1 shadow-xs">
+                          <Sparkles className="w-2.5 h-2.5" />
+                          Giảm 5% tiền thuê
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Thanh toán online trước nhận ngay <strong>chiết khấu 5%</strong> + tặng thêm <strong>50 km/ngày</strong> và <strong>miễn phí rửa xe 100%</strong> khi hoàn trả.
+                      </p>
+                    </button>
+                  </div>
+
+                  {depositMethod === 'CASH' && (
+                    <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-start gap-2.5">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <strong>Tiện ích đặt xe trước ngày đi:</strong> Quý khách không lo bị giữ một khoản tiền lớn trong tài khoản. Chỉ cần nộp tiền mặt khi tận tay kiểm tra xe và ký biên bản giao nhận ODO/nhiên liệu.
+                      </div>
+                    </div>
+                  )}
+
+                  {depositMethod === 'VIETQR' && (
+                    <div className="p-3.5 bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-blue-200 rounded-lg text-xs text-blue-950 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-blue-900">
+                        <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>Đặc quyền ưu đãi độc quyền khi thanh toán online trước qua VietQR:</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-700">
+                        <div className="flex items-center gap-1.5 bg-white/80 p-2 rounded border border-blue-100">
+                          <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>Giảm trực tiếp 5%</strong> tổng tiền thuê</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white/80 p-2 rounded border border-blue-100">
+                          <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>Tặng +50 km/ngày</strong> hạn mức di chuyển</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white/80 p-2 rounded border border-blue-100">
+                          <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>Miễn phí 100%</strong> rửa xe & dọn nội thất</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-white/80 p-2 rounded border border-blue-100">
+                          <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span><strong>Luồng xanh VIP:</strong> Nhận xe 5 phút tại bãi</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -577,7 +759,7 @@ const BookingPage = () => {
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                     <p className="text-[10px] text-slate-500 mt-1">
-                      * Theo quy định pháp luật, ngày hết hạn GPLX phải sau thời điểm trả xe ({new Date(endTimeStr || Date.now()).toLocaleDateString('vi-VN')}).
+                      * Theo quy định pháp luật, ngày hết hạn GPLX phải sau thời điểm trả xe ({endTimeStr ? new Date(endTimeStr).toLocaleDateString('vi-VN') : 'khi kết thúc thuê'}).
                     </p>
                   </div>
 
@@ -868,39 +1050,64 @@ const BookingPage = () => {
               </div>
 
               {/* Financial Breakdown */}
-              {preview && (
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Tiền thuê ({preview.rentalDays} ngày)</span>
-                    <span className="tabular-nums font-semibold text-zinc-950">
-                      {formatCurrencyVND((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays)}
-                    </span>
-                  </div>
+              {preview && (() => {
+                const isOnlinePrepay = !isFastHold && depositMethod === 'VIETQR';
+                const onlineDiscountAmount = isOnlinePrepay ? Math.round((preview.rentalPrice || 0) * 0.05) : 0;
+                const finalRentalPrice = Math.max(0, (preview.rentalPrice || 0) - onlineDiscountAmount);
 
-                  {preview.discountPercentage > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-semibold">
-                      <span>Chiết khấu ({preview.discountPercentage}%)</span>
-                      <span className="tabular-nums">
-                        -{formatCurrencyVND(((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays) - preview.rentalPrice)}
+                return (
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Tiền thuê ({preview.rentalDays} ngày)</span>
+                      <span className="tabular-nums font-semibold text-zinc-950">
+                        {formatCurrencyVND((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays)}
                       </span>
                     </div>
-                  )}
 
-                  <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100">
-                    <span>Tiền cọc thế chân xe (Hoàn trả 100%)</span>
-                    <span className="tabular-nums font-semibold text-zinc-950">
-                      {formatCurrencyVND(vehicle?.depositAmount || 15000000)}
-                    </span>
-                  </div>
+                    {preview.discountPercentage > 0 && (
+                      <div className="flex justify-between text-emerald-700 font-semibold">
+                        <span>Chiết khấu thời gian ({preview.discountPercentage}%)</span>
+                        <span className="tabular-nums">
+                          -{formatCurrencyVND(((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays) - preview.rentalPrice)}
+                        </span>
+                      </div>
+                    )}
 
-                  <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
-                    <span className="font-bold text-zinc-950">Tổng tiền thuê</span>
-                    <span className="text-lg font-extrabold text-blue-900 tabular-nums">
-                      {formatCurrencyVND(preview.rentalPrice)}
-                    </span>
+                    {isOnlinePrepay && (
+                      <div className="flex justify-between text-blue-800 font-bold bg-blue-50/80 p-2 rounded-lg border border-blue-200">
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          Ưu đãi thanh toán VietQR (5%)
+                        </span>
+                        <span className="tabular-nums text-blue-900">
+                          -{formatCurrencyVND(onlineDiscountAmount)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-slate-600 pt-2 border-t border-slate-100">
+                      <span>Tiền cọc thế chân xe (Hoàn trả 100%)</span>
+                      <span className="tabular-nums font-semibold text-zinc-950">
+                        {formatCurrencyVND(vehicle?.depositAmount || 15000000)}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
+                      <span className="font-bold text-zinc-950">Tổng tiền thuê</span>
+                      <div className="text-right">
+                        {isOnlinePrepay && (
+                          <div className="text-[11px] text-slate-600 line-through tabular-nums">
+                            {formatCurrencyVND(preview.rentalPrice)}
+                          </div>
+                        )}
+                        <span className="text-lg font-extrabold text-blue-900 tabular-nums">
+                          {formatCurrencyVND(finalRentalPrice)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Fast Hold vs Standard Deposit Callout */}
               {isFastHold ? (
@@ -921,10 +1128,24 @@ const BookingPage = () => {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting}
-                    className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-slate-400 text-white font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer hover:shadow-md"
+                    disabled={submitting || isAccountSuspended || isInvalidBookingDates}
+                    className={`w-full font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider ${
+                      isAccountSuspended || isInvalidBookingDates
+                        ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
+                        : 'bg-amber-500 hover:bg-amber-600 disabled:bg-slate-400 text-white cursor-pointer hover:shadow-md'
+                    }`}
                   >
-                    {submitting ? (
+                    {isAccountSuspended ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Đã khóa chức năng đặt xe mới</span>
+                      </>
+                    ) : isInvalidBookingDates ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Đã khóa (Ngày giờ không hợp lệ)</span>
+                      </>
+                    ) : submitting ? (
                       <span>Đang khởi tạo giao dịch 500k...</span>
                     ) : (
                       <>
@@ -937,17 +1158,75 @@ const BookingPage = () => {
                 </div>
               ) : (
                 <div className="pt-3 border-t border-slate-200 space-y-3">
+                  {depositMethod === 'CASH' ? (
+                    <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-emerald-700" />
+                          Hình thức cọc:
+                        </span>
+                        <span className="text-xs font-black text-emerald-800 uppercase">Tiền mặt khi nhận xe</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1.5 border-t border-emerald-200">
+                        <span className="text-xs text-emerald-900 font-semibold">Thanh toán ngay lúc này:</span>
+                        <span className="text-base font-black text-emerald-700 tabular-nums">0 đ</span>
+                      </div>
+                      <p className="text-[10px] text-emerald-800 leading-relaxed">
+                        * Tiền cọc thế chân ({formatCurrencyVND(vehicle?.depositAmount || 15000000)}) chỉ cần nộp tiền mặt trực tiếp khi bạn đến nhận xe và ký biên bản bàn giao.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-blue-700" />
+                          Hình thức cọc:
+                        </span>
+                        <span className="text-xs font-black text-blue-800 uppercase">Chuyển khoản VietQR</span>
+                      </div>
+                      <div className="text-[11px] text-blue-900 font-semibold flex items-center gap-1.5 bg-white/90 p-2 rounded border border-blue-100">
+                        <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Đã áp dụng ưu đãi: <strong>Giảm 5% tiền thuê</strong> + Tặng 50km/ngày</span>
+                      </div>
+                      <p className="text-[10px] text-blue-800 leading-relaxed">
+                        * Chuyển khoản trực tuyến qua mã VietQR sau khi hồ sơ giấy tờ được phê duyệt.
+                      </p>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting}
-                    className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                    disabled={submitting || isAccountSuspended || isInvalidBookingDates}
+                    className={`w-full font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider ${
+                      isAccountSuspended || isInvalidBookingDates
+                        ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
+                        : depositMethod === 'CASH'
+                        ? 'bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white cursor-pointer hover:shadow-md'
+                        : 'bg-blue-900 hover:bg-blue-800 disabled:bg-slate-400 text-white cursor-pointer hover:shadow-md'
+                    }`}
                   >
-                    {submitting ? (
+                    {isAccountSuspended ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Đã khóa chức năng đặt xe mới</span>
+                      </>
+                    ) : isInvalidBookingDates ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Đã khóa (Ngày giờ không hợp lệ)</span>
+                      </>
+                    ) : submitting ? (
                       <span>Đang gửi hồ sơ thẩm định...</span>
+                    ) : depositMethod === 'CASH' ? (
+                      <>
+                        <span>Gửi hồ sơ & Xác nhận cọc tiền mặt khi nhận xe</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
                     ) : (
                       <>
-                        <span>Gửi yêu cầu thuê xe & Thẩm định</span>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Gửi yêu cầu thuê & Nhận ưu đãi giảm 5%</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}

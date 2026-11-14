@@ -6,6 +6,7 @@ class RentalContractModel {
   final String contractNumber;
   final double totalFee;
   final double depositAmount;
+  final String depositMethod;
   final int? maxKm;
   final String content;
   final String status;
@@ -31,6 +32,7 @@ class RentalContractModel {
     required this.contractNumber,
     required this.totalFee,
     required this.depositAmount,
+    this.depositMethod = 'VIETQR',
     this.maxKm,
     required this.content,
     required this.status,
@@ -59,6 +61,7 @@ class RentalContractModel {
       depositAmount: (json['depositAmount'] is num)
           ? (json['depositAmount'] as num).toDouble()
           : 0.0,
+      depositMethod: json['depositMethod']?.toString() ?? 'VIETQR',
       maxKm: (json['maxKm'] is num) ? (json['maxKm'] as num).toInt() : null,
       content: json['content'] ?? '',
       status: json['status']?.toString() ?? 'WAITING_SIGNATURE',
@@ -86,6 +89,8 @@ class RentalContractModel {
   }
 
   bool get isSigned => status == 'SIGNED' || status == 'DEPOSIT_PAID' || status == 'ACTIVE' || status == 'COMPLETED';
+
+  bool get isCashDeposit => depositMethod.toUpperCase() == 'CASH';
 
   String get formattedTotalFee {
     final f = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');

@@ -43,6 +43,7 @@ namespace CarRental.API.DTOs.RentalRequest
         public DateTime? DriverLicenseExpiry { get; set; }
 
         public string? BookingType { get; set; } = "STANDARD"; // FAST_HOLD, STANDARD
+        public string? DepositMethod { get; set; } = "VIETQR"; // VIETQR, CASH
         public decimal? HoldDepositAmount { get; set; } = 0;
 
         public string? IdCardFrontUrl { get; set; }

@@ -20,13 +20,16 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
-  Zap
+  Zap,
+  Lock
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
 import { formatCurrency } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
+import { useAuth } from '../../context/AuthContext';
+import { getNowLocalInputStr, validateRentalDates } from '../../utils/dateTimeHelpers';
 
 const BRANDS = [
   'Porsche', 
@@ -71,6 +74,8 @@ const STATUS_TABS = [
 ];
 
 const CarCatalogPage = () => {
+  const { user } = useAuth();
+  const isAccountSuspended = user?.isActive === false;
   const [searchParams, setSearchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,13 +99,18 @@ const CarCatalogPage = () => {
   });
 
   const [sortBy, setSortBy] = useState('price_asc');
+  const [minNowStr, setMinNowStr] = useState(() => getNowLocalInputStr());
 
-  // Min datetime for date pickers
-  const nowStr = useMemo(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+  useEffect(() => {
+    const timer = setInterval(() => setMinNowStr(getNowLocalInputStr()), 30000);
+    return () => clearInterval(timer);
   }, []);
+
+  const dateValidation = useMemo(
+    () => validateRentalDates(startTime, endTime, { allowBothEmpty: true }),
+    [startTime, endTime, minNowStr]
+  );
+  const hasInvalidDates = !dateValidation.valid;
 
   const toSafeIso = (val) => {
     if (!val) return '';
@@ -119,8 +129,8 @@ const CarCatalogPage = () => {
       const params = {
         keyword: keyword?.trim() || '',
         pickupLocation: pickupLocation && pickupLocation !== 'Tất cả địa điểm' ? pickupLocation : '',
-        startTime: toSafeIso(startTime),
-        endTime: toSafeIso(endTime),
+        startTime: hasInvalidDates ? '' : toSafeIso(startTime),
+        endTime: hasInvalidDates ? '' : toSafeIso(endTime),
         brand: filters.brand || '',
         seats: filters.seats || '',
         transmission: filters.transmission || '',
@@ -149,6 +159,7 @@ const CarCatalogPage = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (hasInvalidDates) return;
     fetchVehicles();
   };
 
@@ -179,7 +190,7 @@ const CarCatalogPage = () => {
 
   // Estimate rental duration
   const rentalDuration = useMemo(() => {
-    if (!startTime || !endTime) return null;
+    if (!startTime || !endTime || hasInvalidDates) return null;
     const start = new Date(startTime);
     const end = new Date(endTime);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
@@ -191,7 +202,7 @@ const CarCatalogPage = () => {
       days: days <= 0 ? 1 : days,
       hasDiscount: days >= 3
     };
-  }, [startTime, endTime]);
+  }, [startTime, endTime, hasInvalidDates]);
 
   // Client-side quick sort fallback with statusTab filter
   const sortedVehicles = useMemo(() => {
@@ -322,9 +333,17 @@ const CarCatalogPage = () => {
                 <input
                   type="datetime-local"
                   value={startTime}
-                  min={nowStr}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
+                  min={minNowStr}
+                  onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                  onChange={(e) => {
+                    setMinNowStr(getNowLocalInputStr());
+                    setStartTime(e.target.value);
+                  }}
+                  className={`w-full border rounded-lg pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                    dateValidation.startError
+                      ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                      : 'bg-white border-slate-200 focus:border-blue-900'
+                  }`}
                   title="Ngày nhận xe"
                 />
               </div>
@@ -335,9 +354,17 @@ const CarCatalogPage = () => {
                 <input
                   type="datetime-local"
                   value={endTime}
-                  min={startTime || nowStr}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 transition-colors"
+                  min={startTime && startTime > minNowStr ? startTime : minNowStr}
+                  onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                  onChange={(e) => {
+                    setMinNowStr(getNowLocalInputStr());
+                    setEndTime(e.target.value);
+                  }}
+                  className={`w-full border rounded-lg pl-9 pr-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                    dateValidation.endError
+                      ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                      : 'bg-white border-slate-200 focus:border-blue-900'
+                  }`}
                   title="Ngày trả xe"
                 />
               </div>
@@ -345,12 +372,33 @@ const CarCatalogPage = () => {
               {/* Submit Search Button */}
               <button
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                disabled={hasInvalidDates}
+                className={`w-full font-bold text-xs py-2 px-4 rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1.5 ${
+                  hasInvalidDates
+                    ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
+                    : 'bg-slate-900 hover:bg-blue-900 text-white cursor-pointer'
+                }`}
               >
-                <Search className="w-3.5 h-3.5" />
-                <span>Kiểm tra xe trống</span>
+                {hasInvalidDates ? <Lock className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
+                <span>{hasInvalidDates ? 'Ngày giờ không hợp lệ' : 'Kiểm tra xe trống'}</span>
               </button>
             </div>
+
+            {hasInvalidDates && (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-red-50 text-red-700 px-3.5 py-2 rounded-lg border border-red-200 font-semibold">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{dateValidation.error} Vui lòng chọn ngày giờ trong tương lai hoặc xóa lịch đang chọn.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setStartTime(''); setEndTime(''); }}
+                  className="px-2.5 py-1 rounded bg-white border border-red-200 text-red-800 hover:bg-red-100 font-bold text-[11px] cursor-pointer"
+                >
+                  Xóa ngày chọn
+                </button>
+              </div>
+            )}
 
             {/* Rental Duration Notice when dates are entered */}
             {rentalDuration && (
@@ -577,6 +625,36 @@ const CarCatalogPage = () => {
 
           {/* CỘT PHẢI: LƯỚI XE (3 CỘT TRÊN DESKTOP) */}
           <main className="flex-1 w-full min-w-0">
+
+            {isAccountSuspended && (
+              <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-red-100 text-red-700 shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-0.5 text-xs">
+                    <div className="font-extrabold text-red-950">
+                      Tài khoản đang ở trạng thái TẠM KHÓA đặt xe mới
+                    </div>
+                    {user?.lockReason && (
+                      <div className="font-semibold text-red-800">
+                        Lý do: {user.lockReason}
+                      </div>
+                    )}
+                    <div className="text-red-700">
+                      Quý khách vẫn có thể xem thông tin đội xe và quản lý các đơn đang thuê trong Hồ sơ cá nhân.
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  to="/profile?tab=RENTALS"
+                  className="shrink-0 inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors"
+                >
+                  <span>Về hồ sơ của tôi</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
             
             {/* Active Filters Summary Bar */}
             {activeFiltersCount > 0 && (
@@ -769,14 +847,14 @@ const CarCatalogPage = () => {
                         </div>
 
                         {/* Card Footer */}
-                        <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-3">
-                          <div>
+                        <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
                             {item.totalDays > 0 ? (
                               <>
-                                <div className="text-[10px] text-slate-600 font-medium">
+                                <div className="text-[10px] text-slate-600 font-medium truncate">
                                   Tổng {item.totalDays} ngày {item.appliedDiscountPercent > 0 && <span className="text-emerald-600 font-bold">(-{item.appliedDiscountPercent}%)</span>}
                                 </div>
-                                <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                                <div className="text-[15px] font-extrabold text-blue-900 tabular-nums whitespace-nowrap">
                                   {formatCurrency(item.estimatedTotalFee)}
                                 </div>
                               </>
@@ -785,29 +863,50 @@ const CarCatalogPage = () => {
                                 <div className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
                                   Giá thuê
                                 </div>
-                                <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                                <div className="text-[15px] font-extrabold text-blue-900 tabular-nums whitespace-nowrap">
                                   {formatCurrency(car.dailyRate)}
-                                  <span className="text-xs font-normal text-slate-600 ml-0.5">/ngày</span>
+                                  <span className="text-[11px] font-normal text-slate-600 ml-0.5">/ngày</span>
                                 </div>
                               </>
                             )}
-                            <div className="text-[10px] text-amber-700 font-bold flex items-center gap-0.5">
-                              <Zap className="w-3 h-3 text-amber-600" />
-                              Cọc giữ xe 500.000đ
+                            <div className="text-[10px] text-amber-700 font-bold flex items-center gap-0.5 whitespace-nowrap">
+                              <Zap className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Cọc giữ xe 500k</span>
                             </div>
                           </div>
 
-                          <Link
-                            to={`/cars/${car.id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(pickupLocation)}`}
-                            className={`px-3.5 py-2 text-xs font-bold rounded-lg shadow-xs transition-colors shrink-0 flex items-center gap-1.5 ${
-                              item.isAvailable
-                                ? 'bg-slate-900 hover:bg-blue-900 text-white'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
-                            }`}
-                          >
-                            <span>{item.isAvailable ? 'Đặt xe ngay' : 'Xem chi tiết'}</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Link>
+                          {isAccountSuspended ? (
+                            <Link
+                              to={`/cars/${car.id}?startTime=${encodeURIComponent(hasInvalidDates ? '' : startTime)}&endTime=${encodeURIComponent(hasInvalidDates ? '' : endTime)}&pickupLocation=${encodeURIComponent(pickupLocation)}`}
+                              className="px-3 py-2 text-[11px] font-bold rounded-lg shadow-xs transition-colors shrink-0 whitespace-nowrap flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
+                              title="Tài khoản đang tạm khóa quyền đặt xe mới"
+                            >
+                              <Lock className="w-3 h-3 shrink-0" />
+                              <span>Đã khóa</span>
+                            </Link>
+                          ) : hasInvalidDates ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="px-3 py-2 text-[11px] font-bold rounded-lg shrink-0 whitespace-nowrap flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 cursor-not-allowed opacity-85"
+                              title={dateValidation.error}
+                            >
+                              <Lock className="w-3 h-3 shrink-0" />
+                              <span>Sai ngày</span>
+                            </button>
+                          ) : (
+                            <Link
+                              to={`/cars/${car.id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(pickupLocation)}`}
+                              className={`px-3 py-2 text-[11px] font-bold rounded-lg shadow-xs transition-colors shrink-0 whitespace-nowrap flex items-center gap-1 ${
+                                item.isAvailable
+                                  ? 'bg-slate-900 hover:bg-blue-900 text-white'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300'
+                              }`}
+                            >
+                              <span>{item.isAvailable ? 'Đặt xe ngay' : 'Xem chi tiết'}</span>
+                              <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                            </Link>
+                          )}
                         </div>
 
                       </div>

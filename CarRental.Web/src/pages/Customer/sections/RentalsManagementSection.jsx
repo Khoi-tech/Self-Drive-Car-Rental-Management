@@ -475,6 +475,13 @@ const RentalsManagementSection = ({
                   icon: CheckCircle2,
                   subtext: 'Đã hoàn tất cọc 500k & cọc thế chân'
                 }
+              : (!isFastHold && req.depositMethod === 'CASH' && req.status === 'CONFIRMED')
+              ? {
+                  label: 'Đã giữ xe • Cọc tiền mặt khi nhận xe',
+                  badgeClass: 'bg-emerald-50 text-emerald-900 border-emerald-300',
+                  icon: CheckCircle2,
+                  subtext: `Nộp ${formatCurrency(carDeposit)} tiền mặt khi nhận bàn giao xe`
+                }
               : baseStatusInfo;
 
             const StatusIcon = statusInfo.icon;
@@ -504,11 +511,15 @@ const RentalsManagementSection = ({
                         </span>
                       </div>
 
-                      {isFastHold && (
+                      {isFastHold ? (
                         <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow">
                           <Zap className="w-2.5 h-2.5 fill-white" /> CỌC NHANH 500K
                         </div>
-                      )}
+                      ) : req.depositMethod === 'CASH' ? (
+                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow">
+                          💵 CỌC TIỀN MẶT
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="space-y-1 min-w-0">

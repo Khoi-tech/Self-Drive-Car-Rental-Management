@@ -38,6 +38,9 @@ namespace CarRental.API.Entities
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 
+        [Column("lock_reason")]
+        public string? LockReason { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -170,6 +170,26 @@ const DepositPaymentPage = () => {
           </button>
         </div>
 
+        {/* Cash Deposit Notice if selected */}
+        {requestDetails?.depositMethod === 'CASH' && !isCollateral && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="space-y-1">
+              <div className="font-extrabold text-sm flex items-center gap-1.5 text-emerald-900">
+                <span>💵 Đơn thuê này đã chọn Cọc tiền mặt khi nhận xe</span>
+              </div>
+              <p className="text-xs text-emerald-800">
+                Bạn không cần thực hiện thanh toán chuyển khoản trước. Khoản cọc sẽ được bàn giao trực tiếp bằng tiền mặt khi nhận xe. Nếu bạn vẫn muốn chuyển khoản online qua VietQR trước, bạn có thể quét mã bên dưới.
+              </p>
+            </div>
+            <Link
+              to="/profile"
+              className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shrink-0 transition"
+            >
+              Về Hồ sơ của tôi
+            </Link>
+          </div>
+        )}
+
         {/* Stepper Header */}
         <div className="mb-6 bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
           {isCollateral ? (

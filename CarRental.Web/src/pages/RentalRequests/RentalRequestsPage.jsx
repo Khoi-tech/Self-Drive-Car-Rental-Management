@@ -22,7 +22,8 @@ import {
   Mail,
   MapPin,
   FileCheck,
-  Zap
+  Zap,
+  Banknote
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
 import settlementService from '../../services/settlementService';
@@ -178,6 +179,25 @@ const RentalRequestsPage = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi phê duyệt hồ sơ.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Confirm Cash Deposit collection
+  const handleConfirmCashDeposit = async (reqId) => {
+    if (!window.confirm('Xác nhận đã nhận đủ tiền mặt cọc thế chân từ khách hàng?')) return;
+    try {
+      setActionLoading(true);
+      await rentalRequestService.confirmSecurityDeposit(reqId);
+      setSuccessMsg('Đã xác nhận thu cọc tiền mặt thành công.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+      await loadRequests();
+      if (selectedRequest && selectedRequest.id === reqId) {
+        setSelectedRequest(prev => prev ? ({ ...prev, isSecurityDepositPaid: true }) : null);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Có lỗi khi xác nhận thu cọc tiền mặt.');
     } finally {
       setActionLoading(false);
     }
@@ -512,9 +532,17 @@ const RentalRequestsPage = () => {
                           <span className="font-semibold text-zinc-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {req.id.substring(0, 8).toUpperCase()}
                           </span>
-                          {isFastHold && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs">
+                          {isFastHold ? (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Đơn cọc nhanh 500k">
                               <Zap size={10} className="fill-white" /> 500K
+                            </span>
+                          ) : req.depositMethod === 'CASH' ? (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Cọc tiền mặt khi nhận xe">
+                              💵 Tiền mặt
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Cọc chuyển khoản VietQR">
+                              💳 VietQR
                             </span>
                           )}
                         </div>
@@ -906,6 +934,30 @@ const RentalRequestsPage = () => {
                     </div>
                   )}
                   
+                  {/* Cash Deposit Callout for Standard Rental */}
+                  {!isFastHoldModal && selectedRequest.depositMethod === 'CASH' && (
+                    <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg flex items-start gap-3">
+                      <Banknote className="text-emerald-700 flex-shrink-0 mt-0.5" size={20} />
+                      <div className="space-y-1 w-full">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold text-emerald-950">Hình thức đặt cọc: TIỀN MẶT KHI NHẬN XE</h4>
+                          <span className={`text-xs font-black px-2.5 py-0.5 rounded border ${
+                            selectedRequest.isSecurityDepositPaid 
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
+                              : 'bg-amber-100 text-amber-900 border-amber-300'
+                          }`}>
+                            {selectedRequest.isSecurityDepositPaid 
+                              ? '✓ ĐÃ THU CỌC TIỀN MẶT' 
+                              : `CẦN THU KHI GIAO XE: ${formatCurrency(selectedRequest.depositAmount || 15000000)}`}
+                          </span>
+                        </div>
+                        <p className="text-xs text-emerald-800 leading-relaxed">
+                          Khách hàng chọn hình thức nộp cọc thế chân bằng tiền mặt trực tiếp tại thời điểm nhận bàn giao xe. Nhân viên giao xe kiểm đếm trực tiếp khoản cọc <strong>{formatCurrency(selectedRequest.depositAmount || 15000000)}</strong> trước khi ký biên bản bàn giao và giao chìa khóa cho khách.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Rejected Alert Box if status is REJECTED */}
                   {selectedRequest.status === 'REJECTED' && (
                     <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-3">
@@ -1323,16 +1375,41 @@ const RentalRequestsPage = () => {
                     </button>
                   </>
                 ) : (selectedRequest.status === 'APPROVED' || selectedRequest.status === 'CONFIRMED') ? (
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-emerald-700 font-medium">Hồ sơ đã hợp lệ</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-emerald-700 font-medium hidden sm:inline">Hồ sơ đã hợp lệ</span>
                     <Link
                       to={`/contracts/sign/${selectedRequest.id}`}
                       target="_blank"
-                      className="px-4 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition flex items-center gap-1.5 shadow-sm"
+                      className="px-3.5 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition flex items-center gap-1.5 shadow-sm"
                     >
                       <FileText size={15} />
-                      Xem hợp đồng điện tử
+                      Xem hợp đồng
                     </Link>
+                    {selectedRequest.status === 'CONFIRMED' && selectedRequest.depositMethod === 'CASH' && !selectedRequest.isSecurityDepositPaid && (
+                      <button
+                        onClick={() => handleConfirmCashDeposit(selectedRequest.id)}
+                        disabled={actionLoading}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        title="Xác nhận khách hàng đã nộp tiền mặt cọc thế chân"
+                      >
+                        <Banknote size={15} />
+                        Thu cọc tiền mặt
+                      </button>
+                    )}
+                    {selectedRequest.status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => {
+                          setHandoverRequest(selectedRequest);
+                          setIsHandoverModalOpen(true);
+                          setIsDetailModalOpen(false);
+                        }}
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        title="Lập hoặc xem biên bản bàn giao xe"
+                      >
+                        <FileCheck size={15} />
+                        Bàn giao xe
+                      </button>
+                    )}
                   </div>
                 ) : null}
               </div>

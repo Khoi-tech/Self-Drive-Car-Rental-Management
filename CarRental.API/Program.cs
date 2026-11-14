@@ -350,10 +350,22 @@ using (var scope = app.Services.CreateScope())
 
             -- Clean up car brand whitespaces and Fast Hold columns
             UPDATE cars SET brand = TRIM(brand);
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 10', 'Quận 10') WHERE pickup_location LIKE '%Qu?n 10%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 1', 'Quận 1') WHERE pickup_location LIKE '%Qu?n 1%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 3', 'Quận 3') WHERE pickup_location LIKE '%Qu?n 3%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 7', 'Quận 7') WHERE pickup_location LIKE '%Qu?n 7%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Quan Binh Thanh', 'Quận Bình Thạnh') WHERE pickup_location LIKE '%Quan Binh Thanh%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'San bay Tan Son Nhat', 'Sân bay Tân Sơn Nhất') WHERE pickup_location LIKE '%San bay Tan Son Nhat%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Th?o Di?n', 'Thảo Điền') WHERE pickup_location LIKE '%Th?o Di?n%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'TP. Th? D?c', 'TP. Thủ Đức') WHERE pickup_location LIKE '%TP. Th? D?c%';
+            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Hổ Chí Minh', 'Hồ Chí Minh') WHERE pickup_location LIKE '%Hổ Chí Minh%';
+            UPDATE cars SET model = REPLACE(model, 'Ch?', 'Chỗ') WHERE model LIKE '%Ch?%';
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS booking_type VARCHAR(50) DEFAULT 'STANDARD';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS deposit_method VARCHAR(50) DEFAULT 'VIETQR';
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_deposit_amount NUMERIC DEFAULT 0;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS is_security_deposit_paid BOOLEAN DEFAULT FALSE;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at TIMESTAMPTZ;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS lock_reason TEXT;
             UPDATE rental_requests SET estimated_total_fee = 10500000, daily_rate = 3500000, deposit_amount = 20000000 WHERE id = '577f4870-b958-47d5-ae0e-72e23af6f5d6';
             UPDATE rental_requests SET deposit_amount = 20000000 WHERE booking_type = 'FAST_HOLD' AND (deposit_amount < 500000 OR deposit_amount IS NULL);
 
@@ -387,6 +399,21 @@ using (var scope = app.Services.CreateScope())
                 FullName = "Nhân viên VELORA",
                 PhoneNumber = "0901234567",
                 Role = "STAFF",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (!db.Users.Any(u => u.Email == "hoangminh.nguyen@gmail.com"))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "hoangminh.nguyen@gmail.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Velora@2026"),
+                FullName = "Nguyễn Hoàng Minh",
+                PhoneNumber = "0912345678",
+                Role = "CUSTOMER",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             });

@@ -203,8 +203,10 @@ class _RentalOrderDetailScreenState extends State<RentalOrderDetailScreen> {
         break;
       case 'CONFIRMED':
         color = const Color(0xFF10B981);
-        label = 'ĐÃ ĐẶT CỌC (CONFIRMED)';
-        desc = 'Đơn thuê đã xác nhận cọc thành công! Xe đang sẵn sàng bàn giao theo lịch hẹn.';
+        label = req.isCashDeposit ? 'ĐÃ GIỮ XE • CỌC TIỀN MẶT' : 'ĐÃ ĐẶT CỌC (CONFIRMED)';
+        desc = req.isCashDeposit
+            ? 'Đơn thuê đã xác nhận giữ chỗ thành công! Quý khách nộp tiền cọc thế chân bằng tiền mặt khi kiểm tra và nhận bàn giao xe.'
+            : 'Đơn thuê đã xác nhận cọc thành công! Xe đang sẵn sàng bàn giao theo lịch hẹn.';
         break;
       case 'ACTIVE':
         color = const Color(0xFF8B5CF6);

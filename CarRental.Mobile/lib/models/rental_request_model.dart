@@ -12,6 +12,7 @@ class CreateRentalRequestDto {
   final String customerIdCard;
   final String driverLicenseNumber;
   final String? driverLicenseClass;
+  final String depositMethod;
   final String? notes;
 
   CreateRentalRequestDto({
@@ -26,6 +27,7 @@ class CreateRentalRequestDto {
     required this.customerIdCard,
     required this.driverLicenseNumber,
     this.driverLicenseClass,
+    this.depositMethod = 'CASH',
     this.notes,
   });
 
@@ -42,6 +44,7 @@ class CreateRentalRequestDto {
       'customerIdCard': customerIdCard,
       'driverLicenseNumber': driverLicenseNumber,
       'driverLicenseClass': driverLicenseClass ?? 'B2',
+      'depositMethod': depositMethod,
       'notes': notes,
     };
   }
@@ -64,6 +67,7 @@ class RentalRequestModel {
   final double dailyRate;
   final double estimatedTotalFee;
   final double depositAmount;
+  final String depositMethod;
   final String status;
   final String? carMake;
   final String? carModel;
@@ -88,6 +92,7 @@ class RentalRequestModel {
     required this.dailyRate,
     required this.estimatedTotalFee,
     required this.depositAmount,
+    this.depositMethod = 'VIETQR',
     required this.status,
     this.carMake,
     this.carModel,
@@ -118,6 +123,7 @@ class RentalRequestModel {
       depositAmount: (json['depositAmount'] is num)
           ? (json['depositAmount'] as num).toDouble()
           : 0.0,
+      depositMethod: json['depositMethod']?.toString() ?? 'VIETQR',
       status: json['status']?.toString() ?? 'PENDING',
       carMake: json['carMake'],
       carModel: json['carModel'],
@@ -126,6 +132,8 @@ class RentalRequestModel {
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
+
+  bool get isCashDeposit => depositMethod.toUpperCase() == 'CASH';
 
   String get carDisplayName => '${carMake ?? ''} ${carModel ?? ''}'.trim();
 

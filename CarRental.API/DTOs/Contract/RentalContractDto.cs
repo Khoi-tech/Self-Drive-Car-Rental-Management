@@ -9,6 +9,7 @@ namespace CarRental.API.DTOs.Contract
         public string ContractNumber { get; set; } = null!;
         public decimal TotalFee { get; set; }
         public decimal DepositAmount { get; set; }
+        public string? DepositMethod { get; set; } = "VIETQR";
         public int? MaxKm { get; set; }
         public string Content { get; set; } = null!;
         public string Status { get; set; } = null!;

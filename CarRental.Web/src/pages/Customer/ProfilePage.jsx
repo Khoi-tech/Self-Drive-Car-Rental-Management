@@ -17,7 +17,8 @@ import {
   Ban,
   Clock,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import rentalRequestService from '../../services/rentalRequestService';
@@ -226,6 +227,7 @@ const ProfilePage = () => {
   const handleSelectGroup = (groupId) => {
     setActiveGroup(groupId);
     setSearchParams({ tab: groupId });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelRequest = async (reqId) => {
@@ -263,6 +265,42 @@ const ProfilePage = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
         
+        {user?.isActive === false && (
+          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-red-50 border border-red-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-xl bg-red-100 text-red-700 shrink-0 mt-0.5">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-600 text-white">
+                    TÀI KHOẢN TẠM KHÓA
+                  </span>
+                  <h3 className="text-sm font-extrabold text-red-950">
+                    Quyền đặt xe mới đang tạm ngưng
+                  </h3>
+                </div>
+                {user?.lockReason && (
+                  <p className="text-xs font-bold text-red-800">
+                    Lý do: {user.lockReason}
+                  </p>
+                )}
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Các đơn thuê hiện tại, hợp đồng đang lưu hành, thủ tục trả xe và đối soát tiền cọc vẫn hoạt động bình thường. Vui lòng hoàn tất nghĩa vụ đối soát hoặc liên hệ Concierge <strong>1900 8888</strong> để kích hoạt lại quyền đặt xe mới.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleTabChange('PAYMENTS')}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              <span>Kiểm tra thanh toán & cọc</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* 1. Header Banner (VIP greeting, membership badge, 3 KPI cards) */}
         <ProfileHeaderBanner
           user={user}
@@ -275,10 +313,10 @@ const ProfilePage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* CỘT TRÁI: SIDEBAR MENU 8 NHÓM CHỨC NĂNG (Sticky trên Desktop) */}
-          <aside className="lg:col-span-4 xl:col-span-3">
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-xs space-y-1 sticky top-24">
+          <aside className="lg:col-span-4 xl:col-span-3 lg:sticky lg:top-24">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-xs space-y-0.5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
               
-              <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+              <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
                 Quản lý tài khoản
               </div>
 
@@ -291,7 +329,7 @@ const ProfilePage = () => {
                     key={group.id}
                     type="button"
                     onClick={() => handleSelectGroup(group.id)}
-                    className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group cursor-pointer ${
+                    className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between group cursor-pointer ${
                       isActive
                         ? 'bg-slate-900 text-white shadow-sm shadow-slate-900/10'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
@@ -340,11 +378,11 @@ const ProfilePage = () => {
               })}
 
               {/* Logout Button in Sidebar */}
-              <div className="pt-2 border-t border-slate-100 mt-2">
+              <div className="pt-2 border-t border-slate-100 mt-1.5">
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="w-full text-left p-3 rounded-xl transition-colors text-red-600 hover:bg-red-50 flex items-center gap-3 font-bold text-xs cursor-pointer"
+                  className="w-full text-left p-2.5 rounded-xl transition-colors text-red-600 hover:bg-red-50 flex items-center gap-3 font-bold text-xs cursor-pointer"
                 >
                   <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                     <LogOut className="w-4 h-4" />

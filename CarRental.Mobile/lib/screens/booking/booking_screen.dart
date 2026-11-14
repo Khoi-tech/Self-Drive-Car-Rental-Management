@@ -35,6 +35,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final TextEditingController _notesController = TextEditingController();
 
   String _licenseClass = 'B2';
+  String _depositMethod = 'CASH'; // 'CASH' or 'VIETQR'
   bool _isSubmitting = false;
 
   final List<String> _licenseClasses = ['B1_AUTO', 'B1', 'B2', 'C', 'D'];
@@ -113,8 +114,19 @@ class _BookingScreenState extends State<BookingScreen> {
     return widget.car.dailyRate * _rentalDays;
   }
 
+  double get _onlineDiscountAmount {
+    if (_depositMethod == 'VIETQR') {
+      return (_estimatedRentalFee * 0.05).roundToDouble();
+    }
+    return 0.0;
+  }
+
+  double get _finalRentalFee {
+    return _estimatedRentalFee - _onlineDiscountAmount;
+  }
+
   double get _totalInitialPayment {
-    return _estimatedRentalFee + widget.car.depositAmount;
+    return _finalRentalFee + widget.car.depositAmount;
   }
 
   bool get _isLicenseIncompatible {
@@ -208,6 +220,7 @@ class _BookingScreenState extends State<BookingScreen> {
         customerIdCard: _idCardController.text.trim(),
         driverLicenseNumber: _licenseController.text.trim(),
         driverLicenseClass: _licenseClass,
+        depositMethod: _depositMethod,
         notes: _notesController.text.trim(),
       );
 
@@ -382,8 +395,149 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Section 4: Cost Calculation Breakdown
-              _buildSectionTitle('4. Bảng kê dự toán chi phí', Icons.receipt_long_rounded),
+              // Section 4: Deposit Method Selector
+              _buildSectionTitle('4. Phương thức đặt cọc thế chân', Icons.payments_rounded),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _depositMethod = 'CASH'),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _depositMethod == 'CASH'
+                              ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _depositMethod == 'CASH'
+                                ? const Color(0xFF10B981)
+                                : Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _depositMethod == 'CASH'
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              color: _depositMethod == 'CASH'
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Cọc tiền mặt khi nhận xe',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Khuyên dùng',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Không cần trả trước hôm nay. Quý khách nộp cọc thế chân trực tiếp khi nhận bàn giao xe.',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: () => setState(() => _depositMethod = 'VIETQR'),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _depositMethod == 'VIETQR'
+                              ? const Color(0xFF2563EB).withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _depositMethod == 'VIETQR'
+                                ? const Color(0xFF2563EB)
+                                : Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _depositMethod == 'VIETQR'
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_off,
+                              color: _depositMethod == 'VIETQR'
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'Chuyển khoản VietQR',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2563EB),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'GIẢM 5%',
+                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Giảm ngay 5% tiền thuê + tặng 50km/ngày và miễn phí rửa xe khi trả.',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Section 5: Cost Calculation Breakdown
+              _buildSectionTitle('5. Bảng kê dự toán chi phí', Icons.receipt_long_rounded),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -398,9 +552,24 @@ class _BookingScreenState extends State<BookingScreen> {
                       'Tiền thuê xe (${widget.car.formattedDailyRate} × $_rentalDays ngày)',
                       currencyFormatter.format(_estimatedRentalFee),
                     ),
+                    if (_depositMethod == 'VIETQR') ...[
+                      const SizedBox(height: 8),
+                      _buildCostRow(
+                        'Ưu đãi thanh toán online VietQR (5%)',
+                        '-${currencyFormatter.format(_onlineDiscountAmount)}',
+                        isHighlight: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildCostRow(
+                        'Tổng tiền thuê sau giảm',
+                        currencyFormatter.format(_finalRentalFee),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     _buildCostRow(
-                      'Tiền cọc bảo đảm hoàn trả (Escrow)',
+                      _depositMethod == 'CASH'
+                          ? 'Tiền cọc thế chân (Nộp tiền mặt tại bãi nhận xe)'
+                          : 'Tiền cọc bảo đảm hoàn trả (Escrow)',
                       currencyFormatter.format(widget.car.depositAmount),
                       isHighlight: true,
                     ),
@@ -408,16 +577,22 @@ class _BookingScreenState extends State<BookingScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Tổng thanh toán cọc ban đầu',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        Text(
+                          _depositMethod == 'CASH'
+                              ? 'Thanh toán ngay lúc này'
+                              : 'Tổng thanh toán cọc ban đầu',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          currencyFormatter.format(_totalInitialPayment),
-                          style: const TextStyle(
+                          _depositMethod == 'CASH'
+                              ? '0 đ'
+                              : currencyFormatter.format(_totalInitialPayment),
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF2563EB),
+                            color: _depositMethod == 'CASH'
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF2563EB),
                           ),
                         ),
                       ],
@@ -444,8 +619,12 @@ class _BookingScreenState extends State<BookingScreen> {
                         )
                       : const Icon(Icons.draw_rounded),
                   label: Text(
-                    _isSubmitting ? 'Đang tạo đơn thuê...' : 'Xác nhận & Ký Hợp Đồng Cảm Ứng',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    _isSubmitting
+                        ? 'Đang tạo đơn thuê...'
+                        : (_depositMethod == 'CASH'
+                            ? 'Xác nhận & Ký HĐ (Cọc tiền mặt khi nhận xe)'
+                            : 'Xác nhận & Ký HĐ (Nhận ưu đãi giảm 5%)'),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

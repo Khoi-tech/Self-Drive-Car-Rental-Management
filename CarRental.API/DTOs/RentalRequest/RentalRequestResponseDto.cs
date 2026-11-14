@@ -43,6 +43,7 @@ namespace CarRental.API.DTOs.RentalRequest
         public decimal EstimatedTotalFee { get; set; }
         public decimal DepositAmount { get; set; }
         public string? BookingType { get; set; } = "STANDARD";
+        public string DepositMethod { get; set; } = "VIETQR"; // VIETQR, CASH
         public decimal HoldDepositAmount { get; set; } = 0;
         public bool IsSecurityDepositPaid { get; set; } = false;
         public DateTime? HoldExpiresAt { get; set; }

@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, ShieldCheck, Car, Calendar, Phone, Bell } from 'lucide-react';
+import { User, LogOut, ShieldCheck, Car, Calendar, Phone, Bell, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Navbar = ({ isVisible = true }) => {
   const { user, isAuthenticated, isStaff, logout } = useAuth();
+  const isAccountSuspended = isAuthenticated && user?.isActive === false;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,11 +21,12 @@ const Navbar = ({ isVisible = true }) => {
   ];
 
   return (
-    <header 
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
-      }`}
-    >
+    <>
+      <header 
+        className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+          isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+        }`}
+      >
       <div className="bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex justify-between items-center">
           
@@ -109,18 +111,30 @@ const Navbar = ({ isVisible = true }) => {
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
                 </Link>
 
-                <div className="flex items-center border border-slate-200 rounded-md bg-slate-50 p-0.5">
+                <div className={`flex items-center border rounded-md p-0.5 ${
+                  isAccountSuspended ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-slate-50'
+                }`}>
                   <Link
                     to="/profile"
-                    className="flex items-center gap-2 px-2.5 py-1 text-xs font-medium text-slate-800 hover:text-blue-900 transition-colors"
-                    title="Trang cá nhân & Lịch sử đơn thuê"
+                    className={`flex items-center gap-2 px-2.5 py-1 text-xs font-medium transition-colors ${
+                      isAccountSuspended ? 'text-red-900 hover:text-red-700' : 'text-slate-800 hover:text-blue-900'
+                    }`}
+                    title={isAccountSuspended ? 'Tài khoản đang bị tạm khóa đặt xe mới' : 'Trang cá nhân & Lịch sử đơn thuê'}
                   >
-                    <div className="w-6 h-6 rounded-md bg-blue-900 text-white flex items-center justify-center text-xs font-bold">
+                    <div className={`w-6 h-6 rounded-md text-white flex items-center justify-center text-xs font-bold ${
+                      isAccountSuspended ? 'bg-red-600' : 'bg-blue-900'
+                    }`}>
                       {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <span className="max-w-[110px] truncate hidden sm:inline font-semibold">
                       {user?.fullName || 'Khách hàng'}
                     </span>
+                    {isAccountSuspended && (
+                      <span className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider">
+                        <Lock className="w-2.5 h-2.5" />
+                        TẠM KHÓA
+                      </span>
+                    )}
                   </Link>
                   <button
                     onClick={handleLogout}
@@ -160,7 +174,32 @@ const Navbar = ({ isVisible = true }) => {
 
         </div>
       </div>
+
+      {isAccountSuspended && (
+        <div className="bg-red-600 text-white border-b border-red-700 shadow-xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
+            <div className="flex items-center gap-2 font-medium min-w-0">
+              <Lock className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">
+                <strong className="font-extrabold uppercase tracking-wide">Tài khoản đang tạm khóa đặt xe mới</strong>
+                {user?.lockReason ? ` — Lý do: ${user.lockReason}` : ''}
+                <span className="hidden lg:inline opacity-90"> (Hợp đồng đang lưu hành vẫn hoạt động bình thường)</span>
+              </span>
+            </div>
+            <Link
+              to="/profile?tab=RENTALS"
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-bold text-[11px] transition-colors shrink-0 whitespace-nowrap"
+            >
+              <span>Xem chi tiết</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
+    {isAccountSuspended && isVisible && (
+      <div className="h-8 shrink-0" aria-hidden="true" />
+    )}
+    </>
   );
 };
 

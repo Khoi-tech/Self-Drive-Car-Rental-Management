@@ -408,6 +408,30 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                 />
               </div>
 
+              {/* Cash Deposit Collection Reminder for Staff */}
+              {rentalRequest.depositMethod === 'CASH' && (
+                <div className={`p-3.5 rounded-lg border text-xs flex items-start gap-3 ${
+                  rentalRequest.isSecurityDepositPaid 
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                    : 'bg-amber-50 border-amber-300 text-amber-950'
+                }`}>
+                  <div className="font-bold shrink-0 text-base">💵</div>
+                  <div className="space-y-1 flex-1">
+                    <div className="font-bold flex items-center justify-between">
+                      <span>Cọc thế chân TIỀN MẶT khi nhận xe:</span>
+                      <span className="font-extrabold text-blue-900 bg-white px-2 py-0.5 rounded border border-slate-200 tabular-nums">
+                        {(rentalRequest.depositAmount || 15000000).toLocaleString('vi-VN')} đ
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-slate-700">
+                      {rentalRequest.isSecurityDepositPaid 
+                        ? '✓ Tiền cọc thế chân bằng tiền mặt đã được ghi nhận hoàn tất.' 
+                        : 'Lưu ý nhân viên giao xe: Khách hàng chọn cọc tiền mặt khi nhận bàn giao xe. Vui lòng nhận và kiểm đếm đủ tiền cọc thế chân trước khi bàn giao xe. Hệ thống sẽ tự động cập nhật đã thu cọc khi lưu biên bản này.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <span className="text-slate-500 text-[11px]">

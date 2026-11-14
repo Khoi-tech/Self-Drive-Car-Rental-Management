@@ -61,6 +61,9 @@ namespace CarRental.API.Services
             string customerName = request.CustomerName.ToUpper();
             string dailyRateFormatted = request.DailyRate.ToString("N0");
             string depositFormatted = request.DepositAmount.ToString("N0");
+            string depositMethodText = string.Equals(request.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase)
+                ? "Bằng tiền mặt trực tiếp khi nhận bàn giao xe"
+                : "Chuyển khoản trực tuyến VietQR (Napas 24/7) [Ưu đãi: Giảm 5% tiền thuê + Tặng 50 km/ngày & Miễn phí rửa xe]";
             string startDateFormatted = request.StartTime.ToString("dd/MM/yyyy HH:mm");
             string endDateFormatted = request.EndTime.ToString("dd/MM/yyyy HH:mm");
             string pickupLocation = request.PickupLocation;
@@ -71,6 +74,7 @@ namespace CarRental.API.Services
                 .Replace("{{LicensePlate}}", licensePlate)
                 .Replace("{{DailyRate}}", dailyRateFormatted)
                 .Replace("{{DepositAmount}}", depositFormatted)
+                .Replace("{{DepositMethod}}", depositMethodText)
                 .Replace("{{StartDate}}", startDateFormatted)
                 .Replace("{{EndDate}}", endDateFormatted)
                 .Replace("{{PickupLocation}}", pickupLocation);
@@ -131,11 +135,17 @@ namespace CarRental.API.Services
             contract.Status = "SIGNED";
             contract.UpdatedAt = DateTime.UtcNow;
 
-            // Đồng bộ trạng thái đơn thuê sang SIGNED (Đã ký HĐ - Chờ đặt cọc)
-            if (contract.RentalRequest != null && (contract.RentalRequest.Status == "APPROVED" || contract.RentalRequest.Status == "PENDING"))
+            // Đồng bộ trạng thái đơn thuê sang SIGNED hoặc CONFIRMED
+            if (contract.RentalRequest != null && (contract.RentalRequest.Status == "APPROVED" || contract.RentalRequest.Status == "PENDING" || contract.RentalRequest.Status == "SIGNED"))
             {
-                contract.RentalRequest.Status = "SIGNED";
+                bool isCashDeposit = string.Equals(contract.RentalRequest.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase);
+                contract.RentalRequest.Status = isCashDeposit ? "CONFIRMED" : "SIGNED";
                 contract.RentalRequest.UpdatedAt = DateTime.UtcNow;
+
+                if (isCashDeposit && contract.RentalRequest.Vehicle != null)
+                {
+                    contract.RentalRequest.Vehicle.Status = VehicleStatus.BOOKED;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -168,6 +178,7 @@ namespace CarRental.API.Services
                 ContractNumber = contract.ContractNumber ?? $"HD-{contract.Id.ToString()[..8].ToUpper()}",
                 TotalFee = contract.TotalFee,
                 DepositAmount = contract.DepositAmount,
+                DepositMethod = request?.DepositMethod ?? "VIETQR",
                 MaxKm = contract.MaxKm,
                 Content = contract.Content ?? string.Empty,
                 Status = contract.Status,
@@ -211,7 +222,7 @@ BÊN THUÊ XE (BÊN B):
 - Phương tiện thuê: {{CarModel}} - Biển kiểm soát: {{LicensePlate}}
 - Thời gian thuê: Từ {{StartDate}} đến {{EndDate}}
 - Đơn giá: {{DailyRate}} VNĐ/ngày
-- Tiền đặt cọc bảo đảm: {{DepositAmount}} VNĐ
+- Tiền đặt cọc bảo đảm: {{DepositAmount}} VNĐ (Hình thức: {{DepositMethod}})
 
 Hai bên cùng thống nhất tuân thủ các quy định vận hành và an toàn giao thông đường bộ.";
         }

@@ -14,13 +14,17 @@ import {
   Gauge, 
   ChevronRight,
   Sparkles,
-  Play
+  Play,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import IntroVideo from '../components/intro/IntroVideo';
 import vehicleService from '../services/vehicleService';
 import { formatCurrency } from '../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../utils/imageGalleryHelper';
+import { useAuth } from '../context/AuthContext';
+import { getNowLocalInputStr, validateRentalDates } from '../utils/dateTimeHelpers';
 
 const LOCATIONS = [
   'Hồ Chí Minh (Trụ sở Tân Bình)',
@@ -37,6 +41,8 @@ const CAR_TYPES = [
 ];
 
 const Home = () => {
+  const { user } = useAuth();
+  const isAccountSuspended = user?.isActive === false;
   const navigate = useNavigate();
   const [isIntroComplete, setIsIntroComplete] = useState(false);
 
@@ -45,10 +51,19 @@ const Home = () => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [carType, setCarType] = useState('');
+  const [minNowStr, setMinNowStr] = useState(() => getNowLocalInputStr());
 
   // Featured cars for preview
   const [featuredCars, setFeaturedCars] = useState([]);
   const [loadingCars, setLoadingCars] = useState(true);
+
+  const dateValidation = validateRentalDates(startTime, endTime);
+  const hasInvalidDates = Boolean(startTime || endTime) && !dateValidation.valid;
+
+  useEffect(() => {
+    const timer = setInterval(() => setMinNowStr(getNowLocalInputStr()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Set default dates: tomorrow 08:00 to 3 days later 18:00
   useEffect(() => {
@@ -61,11 +76,8 @@ const Home = () => {
     returnDay.setDate(returnDay.getDate() + 3);
     returnDay.setHours(18, 0, 0, 0);
 
-    const pad = (n) => String(n).padStart(2, '0');
-    const toIsoLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-    setStartTime(toIsoLocal(tomorrow));
-    setEndTime(toIsoLocal(returnDay));
+    setStartTime(getNowLocalInputStr(tomorrow));
+    setEndTime(getNowLocalInputStr(returnDay));
 
     // Fetch initial featured cars
     const loadFeatured = async () => {
@@ -88,6 +100,7 @@ const Home = () => {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (!dateValidation.valid) return;
     const params = new URLSearchParams();
     if (pickupLocation) params.set('pickupLocation', pickupLocation);
     if (startTime) params.set('startTime', startTime);
@@ -228,9 +241,18 @@ const Home = () => {
                 <input
                   type="datetime-local"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  min={minNowStr}
+                  onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                  onChange={(e) => {
+                    setMinNowStr(getNowLocalInputStr());
+                    setStartTime(e.target.value);
+                  }}
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                  className={`w-full border rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                    dateValidation.startError
+                      ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                      : 'bg-slate-50 border-slate-200 focus:border-blue-900 focus:bg-white'
+                  }`}
                 />
               </div>
 
@@ -243,9 +265,18 @@ const Home = () => {
                 <input
                   type="datetime-local"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  min={startTime && startTime > minNowStr ? startTime : minNowStr}
+                  onFocus={() => setMinNowStr(getNowLocalInputStr())}
+                  onChange={(e) => {
+                    setMinNowStr(getNowLocalInputStr());
+                    setEndTime(e.target.value);
+                  }}
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
+                  className={`w-full border rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none transition-colors ${
+                    dateValidation.endError
+                      ? 'bg-red-50/70 border-red-500 focus:border-red-600'
+                      : 'bg-slate-50 border-slate-200 focus:border-blue-900 focus:bg-white'
+                  }`}
                 />
               </div>
 
@@ -268,15 +299,27 @@ const Home = () => {
 
                   <button
                     type="submit"
-                    className="shrink-0 px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white font-bold text-xs rounded-md shadow-xs transition-colors flex items-center gap-1.5"
+                    disabled={!dateValidation.valid}
+                    className={`shrink-0 px-4 py-2 font-bold text-xs rounded-md shadow-xs transition-colors flex items-center gap-1.5 ${
+                      !dateValidation.valid
+                        ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
+                        : 'bg-slate-900 hover:bg-blue-900 text-white cursor-pointer'
+                    }`}
                   >
-                    <Search className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Tìm xe trống</span>
+                    {!dateValidation.valid ? <Lock className="w-3.5 h-3.5" /> : <Search className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{!dateValidation.valid ? 'Ngày không hợp lệ' : 'Tìm xe trống'}</span>
                   </button>
                 </div>
               </div>
 
             </div>
+
+            {hasInvalidDates && (
+              <div className="mt-3 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{dateValidation.error}</span>
+              </div>
+            )}
           </form>
         </section>
 
@@ -372,25 +415,37 @@ const Home = () => {
                       </div>
 
                       {/* Card Footer */}
-                      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
-                        <div>
+                      <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
                           <div className="text-[10px] uppercase font-semibold text-slate-600 tracking-wider">
                             Giá thuê ngày
                           </div>
-                          <div className="text-base font-extrabold text-blue-900 tabular-nums">
+                          <div className="text-[15px] font-extrabold text-blue-900 tabular-nums whitespace-nowrap">
                             {formatCurrency(car.dailyRate)}
                             <span className="text-xs font-normal text-slate-600 ml-0.5">/ngày</span>
                           </div>
-                          <div className="text-[10px] text-slate-600 font-medium">
+                          <div className="text-[10px] text-slate-600 font-medium truncate">
                             Cọc {formatCurrency(car.depositAmount || 15000000)}
                           </div>
                         </div>
 
                         <Link
                           to={`/cars/${car.id}`}
-                          className="px-3.5 py-2 bg-slate-900 hover:bg-blue-900 text-white text-xs font-bold rounded-md shadow-xs transition-colors"
+                          className={`px-3 py-2 text-xs font-bold rounded-md shadow-xs transition-colors shrink-0 whitespace-nowrap inline-flex items-center gap-1 ${
+                            isAccountSuspended
+                              ? 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-200'
+                              : 'bg-slate-900 hover:bg-blue-900 text-white'
+                          }`}
+                          title={isAccountSuspended ? 'Tài khoản đang tạm khóa quyền đặt xe mới' : ''}
                         >
-                          Xem chi tiết
+                          {isAccountSuspended ? (
+                            <>
+                              <Lock className="w-3 h-3 shrink-0" />
+                              <span>Đã khóa</span>
+                            </>
+                          ) : (
+                            <span>Xem chi tiết</span>
+                          )}
                         </Link>
                       </div>
 

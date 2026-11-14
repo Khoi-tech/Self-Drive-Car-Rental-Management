@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, KeyRound, CheckCircle2, X } from 'lucide-react';
+import { KeyRound, CheckCircle2, X } from 'lucide-react';
 
 const ChangePasswordModal = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,6 +29,8 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
       }, 1500);
     }, 1000);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">

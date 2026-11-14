@@ -124,6 +124,7 @@ const ContractSignPage = () => {
 
   const isSigned = contract.status === 'SIGNED' || contract.status === 'DEPOSIT_PAID';
   const isDepositPaid = contract.status === 'DEPOSIT_PAID';
+  const isCashDeposit = contract.depositMethod === 'CASH';
 
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-950 flex flex-col font-sans">
@@ -163,9 +164,9 @@ const ContractSignPage = () => {
               <div className="w-4 h-4 rounded-full bg-blue-900 text-white flex items-center justify-center text-[10px]">3</div>
               <span>3. Ký hợp đồng số</span>
             </div>
-            <div className={`flex items-center gap-2 ${isDepositPaid ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+            <div className={`flex items-center gap-2 ${isDepositPaid || (isSigned && isCashDeposit) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
               <Clock size={16} />
-              <span>4. Thanh toán cọc</span>
+              <span>{isCashDeposit ? '4. Cọc tiền mặt khi nhận xe' : '4. Thanh toán cọc'}</span>
             </div>
           </div>
         </div>
@@ -232,7 +233,11 @@ const ContractSignPage = () => {
                 <ul className="list-disc pl-5 space-y-1 text-slate-700">
                   <li>Tổng chi phí thuê xe: <strong className="text-blue-900 font-bold tabular-nums">{formatCurrency(contract.totalFee)}</strong>.</li>
                   <li>Khoản tiền cọc thế chấp: <strong className="text-zinc-950 font-bold tabular-nums">{formatCurrency(contract.depositAmount || 15000000)}</strong>.</li>
-                  <li>Bên B có nghĩa vụ hoàn thành thanh toán tiền đặt cọc theo phương thức chuyển khoản VietQR để hợp đồng có hiệu lực giữ chỗ phương tiện.</li>
+                  {isCashDeposit ? (
+                    <li className="text-emerald-800 font-semibold">Hình thức đặt cọc: Bên B thực hiện nộp tiền cọc thế chấp bằng TIỀN MẶT trực tiếp cho đại diện Bên A tại thời điểm kiểm tra và nhận bàn giao xe.</li>
+                  ) : (
+                    <li>Bên B có nghĩa vụ hoàn thành thanh toán tiền đặt cọc theo phương thức chuyển khoản VietQR để hợp đồng có hiệu lực giữ chỗ phương tiện.</li>
+                  )}
                   <li>Khoản đặt cọc sẽ được Bên A hoàn trả 100% về tài khoản của Bên B trong vòng 30 phút sau khi kết thúc chuyến đi và hoàn tất Biên bản Hoàn trả (đối trừ các chi phí phát sinh nếu có).</li>
                 </ul>
               </div>
@@ -328,7 +333,28 @@ const ContractSignPage = () => {
           )}
 
           {/* NEXT STEP: PAY DEPOSIT CTA */}
-          {isSigned && (
+          {isSigned && isCashDeposit ? (
+            <div className="no-print pt-6 border-t border-slate-200 font-sans flex flex-col sm:flex-row items-center justify-between gap-4 bg-emerald-50/90 p-5 rounded-lg border border-emerald-200">
+              <div className="space-y-1">
+                <div className="text-sm font-extrabold text-emerald-950 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Hợp đồng điện tử đã được ký số thành công!
+                </div>
+                <div className="text-xs text-emerald-900 leading-relaxed">
+                  Đơn thuê của bạn đã được <strong>xác nhận giữ chỗ thành công</strong>. Khoản cọc thế chân <strong>{formatCurrency(contract.depositAmount || 15000000)}</strong> sẽ được bàn giao bằng <strong>TIỀN MẶT</strong> trực tiếp cho nhân viên khi bạn nhận xe tại điểm bàn giao ({contract.pickupLocation}). Bạn không cần chuyển khoản trước hôm nay!
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Link
+                  to="/profile"
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-md shadow-xs transition-colors flex items-center gap-1.5 tracking-wider uppercase"
+                >
+                  <span>Xem đơn thuê tại Hồ sơ</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          ) : isSigned && (
             <div className="no-print pt-6 border-t border-slate-200 font-sans flex flex-col sm:flex-row items-center justify-between gap-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
               <div>
                 <div className="text-xs font-bold text-blue-950">Hợp đồng đã được ký số thành công!</div>

@@ -87,6 +87,10 @@ namespace CarRental.API.Entities
         [MaxLength(50)]
         public string BookingType { get; set; } = "STANDARD"; // FAST_HOLD, STANDARD
 
+        [Column("deposit_method")]
+        [MaxLength(50)]
+        public string DepositMethod { get; set; } = "VIETQR"; // VIETQR, CASH
+
         [Column("hold_deposit_amount", TypeName = "decimal(18,2)")]
         public decimal HoldDepositAmount { get; set; } = 0;
 

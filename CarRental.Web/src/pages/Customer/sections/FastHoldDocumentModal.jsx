@@ -57,22 +57,20 @@ const compressImage = (file) => {
 };
 
 const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
-  if (!isOpen || !rentalRequest) return null;
-
   const getInitialValue = (val) => (!val || val === 'CHƯA_CẬP_NHẬT' ? '' : val);
 
-  const [idCardNumber, setIdCardNumber] = useState(getInitialValue(rentalRequest.customerIdCard));
-  const [driverLicenseNumber, setDriverLicenseNumber] = useState(getInitialValue(rentalRequest.driverLicenseNumber));
-  const [driverLicenseClass, setDriverLicenseClass] = useState(rentalRequest.driverLicenseClass || 'B2');
-  const [driverLicenseExpiry, setDriverLicenseExpiry] = useState(
-    rentalRequest.driverLicenseExpiry ? new Date(rentalRequest.driverLicenseExpiry).toISOString().split('T')[0] : '2028-12-31'
+  const [idCardNumber, setIdCardNumber] = useState(() => getInitialValue(rentalRequest?.customerIdCard));
+  const [driverLicenseNumber, setDriverLicenseNumber] = useState(() => getInitialValue(rentalRequest?.driverLicenseNumber));
+  const [driverLicenseClass, setDriverLicenseClass] = useState(() => rentalRequest?.driverLicenseClass || 'B2');
+  const [driverLicenseExpiry, setDriverLicenseExpiry] = useState(() =>
+    rentalRequest?.driverLicenseExpiry ? new Date(rentalRequest.driverLicenseExpiry).toISOString().split('T')[0] : '2028-12-31'
   );
 
   // 4 Document Photo Slots with real files & previews
-  const [idFrontPreview, setIdFrontPreview] = useState(rentalRequest.idCardFrontUrl || '');
-  const [idBackPreview, setIdBackPreview] = useState(rentalRequest.idCardBackUrl || '');
-  const [licenseFrontPreview, setLicenseFrontPreview] = useState(rentalRequest.driverLicenseFrontUrl || '');
-  const [licenseBackPreview, setLicenseBackPreview] = useState(rentalRequest.driverLicenseBackUrl || '');
+  const [idFrontPreview, setIdFrontPreview] = useState(() => rentalRequest?.idCardFrontUrl || '');
+  const [idBackPreview, setIdBackPreview] = useState(() => rentalRequest?.idCardBackUrl || '');
+  const [licenseFrontPreview, setLicenseFrontPreview] = useState(() => rentalRequest?.driverLicenseFrontUrl || '');
+  const [licenseBackPreview, setLicenseBackPreview] = useState(() => rentalRequest?.driverLicenseBackUrl || '');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -168,6 +166,8 @@ const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
       setLoading(false);
     }
   };
+
+  if (!isOpen || !rentalRequest) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">

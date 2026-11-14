@@ -117,41 +117,61 @@ class _ContractSignScreenState extends State<ContractSignScreen> {
             const SizedBox(height: 6),
             const Text('Trạng thái: ĐÃ KÝ ĐIỆN TỬ (SIGNED)', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
             const Divider(height: 20),
-            const Text(
-              'Hợp đồng đã được lưu trữ vĩnh viễn trên hệ thống và chuyển sang giai đoạn Chờ thanh toán cọc VietQR.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-            ),
+            _currentContract.isCashDeposit
+                ? const Text(
+                    'Đơn thuê đã được xác nhận giữ chỗ thành công! Quý khách không cần thanh toán chuyển khoản trước hôm nay. Tiền cọc thế chân sẽ được nộp bằng tiền mặt trực tiếp cho nhân viên khi kiểm tra và nhận bàn giao xe.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF10B981), height: 1.4),
+                  )
+                : const Text(
+                    'Hợp đồng đã được lưu trữ vĩnh viễn trên hệ thống và chuyển sang giai đoạn Chờ thanh toán cọc VietQR.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                (route) => false,
-              );
-            },
-            child: const Text('Để sau'),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => VietQrPaymentScreen(
-                    requestId: _currentContract.requestId ?? '',
-                    contractId: _currentContract.id,
-                    carName: '${_currentContract.carMake ?? ""} ${_currentContract.carModel ?? ""}'.trim(),
-                    licensePlate: _currentContract.carLicensePlate ?? '',
+          if (_currentContract.isCashDeposit)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              },
+              icon: const Icon(Icons.check_circle_rounded, size: 18),
+              label: const Text('Về Trang Chủ & Quản Lý Đơn'),
+            )
+          else ...[
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('Để sau'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => VietQrPaymentScreen(
+                      requestId: _currentContract.requestId ?? '',
+                      contractId: _currentContract.id,
+                      carName: '${_currentContract.carMake ?? ""} ${_currentContract.carModel ?? ""}'.trim(),
+                      licensePlate: _currentContract.carLicensePlate ?? '',
+                    ),
                   ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.qr_code_2_rounded, size: 18),
-            label: const Text('Thanh Toán Cọc VietQR'),
-          ),
+                );
+              },
+              icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+              label: const Text('Thanh Toán Cọc VietQR'),
+            ),
+          ],
         ],
       ),
     );
@@ -367,6 +387,20 @@ class _ContractSignScreenState extends State<ContractSignScreen> {
             'Chữ ký số: ${contract.customerSignature ?? contract.customerName}',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
+          if (contract.isCashDeposit) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                '💵 Cọc tiền mặt khi nhận xe • Đã giữ chỗ thành công',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+              ),
+            ),
+          ],
         ],
       ),
     );

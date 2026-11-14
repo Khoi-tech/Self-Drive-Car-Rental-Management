@@ -198,6 +198,7 @@ namespace CarRental.API.Services
             if (protocol.RentalRequest != null)
             {
                 protocol.RentalRequest.Status = "ACTIVE"; // Kích hoạt đơn thuê xe
+                protocol.RentalRequest.IsSecurityDepositPaid = true; // Tiền cọc thế chân đã được thu đủ (tiền mặt tại chỗ hoặc đã chuyển khoản)
                 protocol.RentalRequest.UpdatedAt = DateTime.UtcNow;
 
                 if (protocol.RentalRequest.Vehicle != null)

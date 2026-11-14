@@ -23,6 +23,22 @@ namespace CarRental.API.Services
 
         public async Task<RentalRequestResponseDto> CreateRequestAsync(CreateRentalRequestDto dto)
         {
+            if (!string.IsNullOrWhiteSpace(dto.CustomerEmail))
+            {
+                var normalizedEmail = dto.CustomerEmail.Trim().ToLowerInvariant();
+                var customerAccount = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+
+                if (customerAccount != null && !customerAccount.IsActive)
+                {
+                    var reasonText = string.IsNullOrWhiteSpace(customerAccount.LockReason)
+                        ? "Tài khoản đang bị tạm khóa đặt xe mới theo yêu cầu kiểm soát rủi ro."
+                        : customerAccount.LockReason;
+                    throw new InvalidOperationException($"Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới ({reasonText}). Các hợp đồng đang lưu hành (nếu có) vẫn hoạt động bình thường. Vui lòng liên hệ Hotline 1900 8888 để được hỗ trợ.");
+                }
+            }
+
             var car = await _context.Vehicles
                 .FirstOrDefaultAsync(c => c.Id == dto.CarId && c.IsActive);
 
@@ -63,7 +79,7 @@ namespace CarRental.API.Services
                 }
             }
 
-            if (startUtc < DateTime.UtcNow.AddMinutes(-15))
+            if (startUtc < DateTime.UtcNow.AddMinutes(-1))
             {
                 throw new InvalidOperationException("Thời gian bắt đầu thuê xe không thể ở quá khứ.");
             }
@@ -164,6 +180,14 @@ namespace CarRental.API.Services
 
             var holdDeposit = isFastHold ? (dto.HoldDepositAmount.HasValue && dto.HoldDepositAmount.Value > 0 ? dto.HoldDepositAmount.Value : 500000m) : 0m;
 
+            var isCash = string.Equals(dto.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase);
+            var isOnlinePrepay = !isFastHold && !isCash;
+            var onlineDiscountPercent = isOnlinePrepay ? 5m : 0m;
+            var totalDiscountPercent = preview.DiscountPercentage + onlineDiscountPercent;
+            var estimatedFee = isOnlinePrepay 
+                ? Math.Round(preview.RentalPrice * (1m - onlineDiscountPercent / 100m))
+                : preview.RentalPrice;
+
             var rentalRequest = new RentalRequest
             {
                 Id = Guid.NewGuid(),
@@ -188,11 +212,12 @@ namespace CarRental.API.Services
                 
                 TotalDays = totalDays,
                 DailyRate = preview.BasePrice,
-                DiscountPercent = preview.DiscountPercentage,
+                DiscountPercent = totalDiscountPercent,
                 HolidaySurchargePercent = preview.HolidaySurcharge,
-                EstimatedTotalFee = preview.RentalPrice,
+                EstimatedTotalFee = estimatedFee,
                 DepositAmount = car.DepositAmount,
                 BookingType = isFastHold ? "FAST_HOLD" : "STANDARD",
+                DepositMethod = isFastHold ? "VIETQR" : (isCash ? "CASH" : "VIETQR"),
                 HoldDepositAmount = holdDeposit,
                 IsSecurityDepositPaid = false,
                 HoldExpiresAt = isFastHold ? DateTime.UtcNow.AddHours(4) : null,
@@ -538,6 +563,7 @@ namespace CarRental.API.Services
                 EstimatedTotalFee = request.EstimatedTotalFee,
                 DepositAmount = request.DepositAmount,
                 BookingType = request.BookingType ?? "STANDARD",
+                DepositMethod = request.DepositMethod ?? "VIETQR",
                 HoldDepositAmount = request.HoldDepositAmount,
                 IsSecurityDepositPaid = request.IsSecurityDepositPaid,
                 HoldExpiresAt = request.HoldExpiresAt ?? (request.BookingType == "FAST_HOLD" ? request.CreatedAt.AddHours(4) : null),

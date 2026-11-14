@@ -68,7 +68,7 @@ namespace CarRental.API.Services
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
-            if (user == null || !user.IsActive)
+            if (user == null)
             {
                 throw new InvalidOperationException("Email hoặc mật khẩu không chính xác.");
             }
@@ -91,7 +91,7 @@ namespace CarRental.API.Services
         public async Task<UserDto?> GetProfileAsync(Guid userId)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+                .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null) return null;
 
@@ -142,6 +142,8 @@ namespace CarRental.API.Services
                 FullName = user.FullName,
                 PhoneNumber = user.PhoneNumber,
                 Role = user.Role,
+                IsActive = user.IsActive,
+                LockReason = user.LockReason,
                 CreatedAt = user.CreatedAt
             };
         }

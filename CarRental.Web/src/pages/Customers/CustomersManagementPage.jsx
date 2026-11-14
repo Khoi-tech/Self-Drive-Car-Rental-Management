@@ -153,18 +153,21 @@ const CustomersManagementPage = () => {
     try {
       setActionLoading(true);
       const nextStatus = selectedCustomer.accountStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-      const fullReason = `${lockReasonCategory}: ${lockNotes || 'Không có ghi chú thêm'}`;
+      const fullReason = nextStatus === 'SUSPENDED'
+        ? `${lockReasonCategory}: ${lockNotes || 'Không có ghi chú thêm'}`
+        : (lockNotes || 'Admin mở khóa lại quyền đặt xe cho khách hàng');
       await customerService.toggleStatus(selectedCustomer.id, nextStatus, fullReason);
       
       setIsLockModalOpen(false);
-      // Update local state smoothly
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id 
-          ? { ...c, accountStatus: nextStatus, internalStaffNotes: fullReason }
-          : c
-      ));
+      await fetchCustomers();
       if (selectedCustomer) {
-        setSelectedCustomer(prev => ({ ...prev, accountStatus: nextStatus, internalStaffNotes: fullReason }));
+        setSelectedCustomer(prev => ({
+          ...prev,
+          accountStatus: nextStatus,
+          internalStaffNotes: nextStatus === 'SUSPENDED'
+            ? `Lý do tạm khóa: ${fullReason}`
+            : 'Tài khoản đã được mở khóa hoạt động bình thường.'
+        }));
       }
     } catch (err) {
       alert('Không thể cập nhật trạng thái tài khoản. Vui lòng thử lại.');

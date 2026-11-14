@@ -168,8 +168,20 @@ const LoginPage = () => {
                 >
                   <User size={16} className="text-emerald-700 shrink-0" />
                   <div className="truncate">
-                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Khách hàng</div>
+                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Khách hàng Mẫu</div>
                     <div className="text-[10px] text-slate-500 font-mono truncate">customer@velora.vn</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('hoangminh.nguyen@gmail.com', 'Velora@2026')}
+                  className="col-span-2 p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
+                >
+                  <User size={16} className="text-amber-700 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Nguyễn Hoàng Minh (Khách VIP)</div>
+                    <div className="text-[10px] text-slate-500 font-mono truncate">hoangminh.nguyen@gmail.com</div>
                   </div>
                 </button>
               </div>

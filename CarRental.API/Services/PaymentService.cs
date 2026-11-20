@@ -119,9 +119,18 @@ namespace CarRental.API.Services
 
             var defaultHoldDeposit = await _settingsService.GetSettingValueAsync("fast_hold_deposit_amount", 500000m);
             var defaultExpiryHours = await _settingsService.GetSettingValueAsync("fast_hold_expiry_hours", 4);
-            bool isFastHold = string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
-                || payment.Type == "FAST_HOLD"
-                || (payment.Amount == defaultHoldDeposit && payment.Type != "COLLATERAL");
+            bool isCollateral = string.Equals(payment.Type, "COLLATERAL", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(payment.Type, "DEPOSIT_COLLATERAL", StringComparison.OrdinalIgnoreCase);
+
+            bool isFastHold = !isCollateral && (
+                string.Equals(payment.Type, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(payment.Type, "HOLD_DEPOSIT", StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                    && payment.RentalRequest?.Status != "APPROVED"
+                    && payment.RentalRequest?.Status != "CONFIRMED"
+                    && payment.RentalRequest?.IsSecurityDepositPaid != true)
+                || (payment.Amount == defaultHoldDeposit && payment.RentalRequest?.Status == "PENDING")
+            );
 
             // 2. Update Contract status to DEPOSIT_PAID (Chặn nếu chưa SIGNED)
             var contract = payment.RentalContract;
@@ -306,9 +315,18 @@ namespace CarRental.API.Services
                     : $"{payment.Note} [Webhook Ref: {refCode}]";
             }
 
-            bool isWebhookFastHold = string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
-                || payment.Type == "FAST_HOLD"
-                || (payment.Amount == 500000m && payment.Type != "COLLATERAL");
+            bool isWebhookCollateral = string.Equals(payment.Type, "COLLATERAL", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(payment.Type, "DEPOSIT_COLLATERAL", StringComparison.OrdinalIgnoreCase);
+
+            bool isWebhookFastHold = !isWebhookCollateral && (
+                string.Equals(payment.Type, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(payment.Type, "HOLD_DEPOSIT", StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                    && payment.RentalRequest?.Status != "APPROVED"
+                    && payment.RentalRequest?.Status != "CONFIRMED"
+                    && payment.RentalRequest?.IsSecurityDepositPaid != true)
+                || (payment.Amount == 500000m && payment.RentalRequest?.Status == "PENDING")
+            );
 
             var webhookContract = payment.RentalContract;
             if (webhookContract == null && payment.RentalRequestId.HasValue)

@@ -299,26 +299,33 @@ flowchart TD
 ### PHA 5: KIỂM THỬ TÍCH HỢP TOÀN DIỆN (E2E VERIFICATION) & NGHIỆM THU
 - **Mục tiêu:** Xác minh tính đúng đắn, nhất quán dữ liệu và độ an toàn của toàn bộ hệ thống sau khi refactor.
 - **Nội dung công việc:**
-  1. **Kịch bản kiểm thử tự động E2E (Integration Test Script):**
+  1. [x] **Kịch bản kiểm thử tự động E2E (Integration Test Script):**
      - Giả lập trọn vẹn chu trình 10 bước nghiệp vụ:
        * Khách đặt xe Fast Hold $\rightarrow$ Nộp 500k qua webhook VietQR $\rightarrow$ Xe chuyển `BOOKED`.
        * Staff duyệt đơn $\rightarrow$ Sinh hợp đồng `PENDING_SIGNATURE`.
        * Khách ký số $\rightarrow$ Nộp cọc thế chân $\rightarrow$ Hợp đồng `DEPOSIT_PAID`.
        * Staff xuất bãi: ghi nhận ODO 1.000 km, 100% nhiên liệu, vết xước cũ A.
-       * Staff giao xe khách: ODO 1.035 km (vượt ngưỡng $\rightarrow$ nhập giải trình kẹt xe), nhiên liệu 92%, ghi nhận vết xước quẹt nhẹ B lúc đi đường $\rightarrow$ Kiểm tra `incident_reports` nội bộ được tạo tự động cho Staff, không phạt tiền khách. Ký kép $\rightarrow$ Đơn `ACTIVE`, Xe `RENTED`.
-       * Khách trả xe: ODO 1.350 km, nhiên liệu 75%, phát sinh 1 vết trầy mới C do khách $\rightarrow$ Đơn `RETURNED`, Xe `INSPECTION`.
-       * Staff lập quyết toán: tính cước phát sinh (có dung sai xăng), trừ cọc, tạm giữ 2.000.000đ phạt nguội $\rightarrow$ Đơn `SETTLED`.
-       * Giả lập sau 15 ngày: Manager kiểm tra không có lỗi vi phạm giao thông, bấm xác nhận hoàn nốt 2.000.000đ $\rightarrow$ Đơn và Hợp đồng đóng thành công (`COMPLETED`).
-  2. **Kiểm tra tính toàn vẹn dữ liệu Supabase:**
-     - Xác minh không có dữ liệu mồ côi hoặc sai lệch khóa ngoại.
-     - Xác minh `Exclusion Constraint` hoạt động tốt cho cả đơn mới và đơn gia hạn.
-  3. **Biên dịch và đóng gói hoàn tất:**
+       * Staff giao xe khách: ODO 1.035 km (vượt ngưỡng $\rightarrow$ nhập giải trình kẹt xe), nhiên liệu 92%, ghi nhận vết xước quẹt nhẹ B lúc đi đường $\rightarrow$ Kiểm tra `incident_reports` nội bộ được tạo tự động cho Staff (`responsible_party = STAFF`, `customer_cost = 0`), không phạt tiền khách. Ký kép $\rightarrow$ Đơn `ACTIVE`, Hợp đồng `ACTIVE`, Xe `RENTED`.
+       * Khách trả xe: ODO 1.350 km, nhiên liệu 75%, phát sinh 1 vết trầy mới C do khách $\rightarrow$ Quãng đường tính khách = 315 km, xe về bãi ODO 1.380 km $\rightarrow$ Đơn `RETURNED`, Xe `INSPECTION`.
+       * Staff lập quyết toán: tính cước phát sinh (dung sai xăng 3% $\rightarrow$ phụ phí 102.000đ), trừ cọc, tạm giữ 2.000.000đ phạt nguội $\rightarrow$ Manager duyệt hoàn cọc đợt 1 $\rightarrow$ Đơn `SETTLED`, Xe `READY`.
+       * Giả lập sau 15–30 ngày (xe đang được khách khác đặt `BOOKED`): Manager kiểm tra không vi phạm, xác nhận hoàn nốt 2.000.000đ $\rightarrow$ Đơn, Hợp đồng và Quyết toán chuyển `CLOSED`/`COMPLETED`, và **xe vẫn giữ nguyên trạng thái `BOOKED` (không bị ghi đè về `READY`)**. Gọi lại lần 2 bị chặn (Idempotent).
+  2. [x] **Kiểm tra Ràng buộc biên, Phân quyền 3 Role & Bảo mật IDOR (Bộ B):**
+     - Hard block ODO (handover < dispatch hoặc transit > 300km chặn HTTP 400).
+     - Chống trùng lịch (Double booking & gia hạn chồng lấn trả HTTP 409 Conflict).
+     - Chặn xác nhận cọc thế chân `DEPOSIT_PAID` khi hợp đồng chưa `SIGNED`.
+     - Khóa cứng sửa/xóa biên bản sau khi quyết toán đã chốt.
+     - Ma trận phân quyền 3 Role (STAFF ẩn doanh thu & chặn các quyền quản trị; MANAGER xem doanh thu, xem bất thường ODO nhưng bị chặn cấu hình hệ thống & xóa xe; ADMIN toàn quyền).
+     - IDOR & Chặn tức thì tài khoản bị khóa (`is_active = false` trả HTTP 403 ngay lập tức).
+  3. [x] **Kiểm tra tính toàn vẹn dữ liệu Supabase & An toàn tuyệt đối:**
+     - Tự động cleanup bằng script an toàn chỉ xóa các bản ghi test `E2E_TEST_` / `e2e_`, không ảnh hưởng bất kỳ dữ liệu thật nào.
+  4. [x] **Biên dịch và đóng gói hoàn tất:**
      - Chạy `dotnet build` xác nhận **0 errors, 0 warnings**.
      - Chạy `npm run build` xác nhận **0 errors**.
-  4. **Cập nhật tài liệu bàn giao:**
+  5. [x] **Cập nhật tài liệu bàn giao:**
      - Hoàn thiện `docs/PROGRESS.md` đạt 100%.
+     - Tạo tài liệu vận hành `docs/OPERATIONS_3_ROLES_GUIDE.md`.
 - **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Kịch bản kiểm thử E2E chạy thành công 100%.
+  - Kịch bản kiểm thử E2E chạy thành công 100% (48/48 test cases PASS).
   - Toàn bộ 10 bước quy trình và 3 bẫy nghiệp vụ hoạt động chính xác.
   - 0 lỗi biên dịch trên cả Backend và Frontend.
 
@@ -333,4 +340,4 @@ flowchart TD
 | **Pha 2** | Backend Core Services & State Machine | **HOÀN THÀNH** | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
 | **Pha 3** | Phân quyền Ma trận 3 Role & Bảo mật IDOR | **HOÀN THÀNH** | AI & User | Staff/Manager/Admin, claim JWT, chặn user khóa |
 | **Pha 4** | Cải tiến Giao diện Vận hành | **HOÀN THÀNH** | AI & User | Sơ đồ 2D diff, form biên bản ODO/xăng, settlement UI |
-| **Pha 5** | Kiểm thử Tích hợp E2E & Nghiệm thu | Chờ thực hiện | AI & User | Script test 10 bước khép kín |
+| **Pha 5** | Kiểm thử Tích hợp E2E & Nghiệm thu | **HOÀN THÀNH** | AI & User | 48/48 E2E Tests Pass, 0 errors, 0 warnings |

@@ -52,6 +52,7 @@ namespace CarRental.API.DTOs.RentalRequest
         public string? DriverLicenseBackUrl { get; set; }
 
         public string? Notes { get; set; }
+        public decimal? EstimatedDeliveryDistanceKm { get; set; }
 
         public List<CreateAdditionalDriverDto>? AdditionalDrivers { get; set; }
     }

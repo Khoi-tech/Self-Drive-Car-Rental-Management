@@ -62,6 +62,7 @@ namespace CarRental.API.DTOs.Incidents
 
         public string IncidentType { get; set; } = null!;
         public string Severity { get; set; } = null!;
+        public string? ResponsibleParty { get; set; }
         public string Location { get; set; } = null!;
         public string Description { get; set; } = null!;
         public string? PhotoUrls { get; set; }

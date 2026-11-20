@@ -137,9 +137,16 @@ namespace CarRental.API.Controllers
         [Authorize(Policy = "Management")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var deleted = await _protocolService.DeleteAsync(id);
-            if (!deleted) return NotFound(new { message = "Không tìm thấy biên bản để xóa." });
-            return Ok(new { message = "Đã xóa biên bản bàn giao thành công." });
+            try
+            {
+                var deleted = await _protocolService.DeleteAsync(id);
+                if (!deleted) return NotFound(new { message = "Không tìm thấy biên bản để xóa." });
+                return Ok(new { message = "Đã xóa biên bản bàn giao thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

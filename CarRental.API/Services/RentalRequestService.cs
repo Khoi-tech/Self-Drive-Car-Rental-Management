@@ -255,6 +255,7 @@ namespace CarRental.API.Services
                     DriverLicenseFrontUrl = licenseFront,
                     DriverLicenseBackUrl = licenseBack,
                     Notes = dto.Notes,
+                    EstimatedDeliveryDistanceKm = dto.EstimatedDeliveryDistanceKm,
                     
                     TotalDays = totalDays,
                     DailyRate = preview.BasePrice,
@@ -761,6 +762,7 @@ namespace CarRental.API.Services
                 DriverLicenseFrontUrl = request.DriverLicenseFrontUrl,
                 DriverLicenseBackUrl = request.DriverLicenseBackUrl,
                 Notes = request.Notes,
+                EstimatedDeliveryDistanceKm = request.EstimatedDeliveryDistanceKm,
                 TotalDays = request.TotalDays,
                 DailyRate = request.DailyRate,
                 DiscountPercent = request.DiscountPercent,

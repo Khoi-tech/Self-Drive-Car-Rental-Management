@@ -227,6 +227,7 @@ namespace CarRental.API.Services
                 CustomerPhone = i.CustomerPhone,
                 IncidentType = i.IncidentType,
                 Severity = i.Severity,
+                ResponsibleParty = i.ResponsibleParty,
                 Location = i.Location,
                 Description = i.Description,
                 PhotoUrls = i.PhotoUrls,

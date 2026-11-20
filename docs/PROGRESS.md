@@ -3,7 +3,7 @@
 > **Dự án:** VELORA — Nền tảng Cho Thuê Xe Tự Lái Cao Cấp  
 > **Nhánh Git:** `refactor/velora-clean-workflow`  
 > **Bắt đầu:** 20/11/2026  
-> **Cập nhật lần cuối:** 20/11/2026 (Hoàn thành Pha 3 $\rightarrow$ Chuẩn bị Pha 4)
+> **Cập nhật lần cuối:** 20/11/2026 (Hoàn tất 100% toàn bộ 5 Pha Refactor V2.0 Clean Workflow)
 
 ---
 
@@ -16,7 +16,7 @@
 | **2** | Backend Core Services & State Machine | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **3** | Phân quyền Ma trận 3 Role (STAFF / MANAGER / ADMIN) & IDOR | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **4** | Cải tiến Giao diện Vận hành (UI/UX Canvas & Protocol) | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
-| **5** | Kiểm thử Tích hợp E2E & Nghiệm thu Tổng thể | — | — | CHỜ THỰC HIỆN |
+| **5** | Kiểm thử Tích hợp E2E & Nghiệm thu Tổng thể | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 
 ---
 
@@ -184,24 +184,67 @@
   - Backend: `dotnet build` đạt **0 Warning(s), 0 Error(s)**.
   - Frontend: `npm run build` đạt **0 errors**.
 
+### PHA 5: KIỂM THỬ TÍCH HỢP E2E & NGHIỆM THU TỔNG THỂ — [x] HOÀN THÀNH
+- [x] **Xây dựng Script Kiểm thử Tự động E2E Toàn diện (`scripts/e2e_phase5_test.py`):**
+  - Chạy thật qua HTTP REST API `http://localhost:5171/api`.
+  - Cơ chế Safe Cleanup tự động: chỉ dọn dẹp các bản ghi mang tiền tố `E2E_TEST_` hoặc `e2e_`, bảo toàn nguyên vẹn 100% dữ liệu thật trên Supabase.
+  - Tích hợp endpoint dọn dẹp an toàn `POST /api/system-settings/cleanup-e2e` (AdminOnly).
+- [x] **Xác minh 100% Bộ A — Chu trình 10 bước khép kín & 3 Bẫy nghiệp vụ:**
+  - *Bước 1–2:* Customer A đặt xe Fast Hold 500k (có `estimated_delivery_distance_km = 20`) $\rightarrow$ Khởi tạo `HOLD_DEPOSIT` $\rightarrow$ Webhook VietQR kèm chữ ký HMAC-SHA256 (xác thực từ chối chữ ký sai 401, nhận chữ ký đúng 200) $\rightarrow$ `RentalRequest = HOLD_CONFIRMED`, `Car = BOOKED`. Idempotent: Webhook trùng `transaction_code` không bị cộng trùng hay báo lỗi.
+  - *Bước 3–4:* Staff duyệt đơn (`APPROVED`, sinh `RentalContract = PENDING_SIGNATURE`) $\rightarrow$ Customer A ký số (`SIGNED`) $\rightarrow$ Nộp cọc thế chân qua VietQR $\rightarrow$ `Contract = DEPOSIT_PAID`, `Request = CONFIRMED`, `Car = BOOKED`.
+  - *Bước 5–6 (Bẫy 1, 2, 3 chiều đi):*
+    + Staff tạo biên bản `IN_TRANSIT`: `dispatch_odo = 1000`, `dispatch_fuel_level = 100`, kế thừa vết xước cũ `PRE_EXISTING`.
+    + Staff hoàn tất giao xe: `handover_odo = 1035` (vượt `20 * 1.3 + 5 = 31 km`) $\rightarrow$ Kích hoạt **Soft Flag**: chặn lưu nếu không có note giải trình (HTTP 400), cho phép bàn giao khi có note kèm `has_transit_anomaly = true`.
+    + Thêm 1 vết xước mới lúc giao $\rightarrow$ Marker tự động mang `stage = TRANSIT_DELIVERY`. Tự động sinh 1 bản ghi `incident_reports` nội bộ (`INTERNAL_TRANSIT`, `responsible_party = STAFF`, `customer_cost = 0`). Đồng bộ State Machine: `Request = ACTIVE`, `Contract = ACTIVE`, `Car = RENTED`.
+  - *Bước 8 (Bẫy 1, 2, 3 chiều về):*
+    + Khách trả xe: `customer_return_odo = 1350`, `customer_return_fuel_level = 75`, phát sinh 1 vết trầy mới `CUSTOMER_RENTAL` (phí 500.000đ).
+    + Xe về bãi: `yard_checkin_odo = 1380`.
+    + Xác nhận: Quãng đường tính khách = `1350 - 1035 = 315 km` (loại trừ 35km giao và 30km về), `cars.current_mileage = 1380`, `Request = RETURNED`, `Car = INSPECTION`.
+  - *Bước 9 (Quyết toán & Dung sai):*
+    + Staff gọi preview: kiểm tra chỉ phạt vết `CUSTOMER_RENTAL` (500.000đ), không phạt vết `TRANSIT_DELIVERY`. Áp dụng dung sai nhiên liệu 3% (`fuelFee = 102.000đ`). Tách giữ 2.000.000đ quỹ phạt nguội.
+    + Manager xác nhận hoàn cọc đợt 1 (`confirm-refund`): `Settlement = PARTIALLY_SETTLED`, `Request = SETTLED`, `Car = READY`.
+  - *Bước 10 (Hoàn phạt nguội & Kiểm chứng Hotfix):*
+    + Giả lập xe lúc này được khách khác đặt (`Car.Status = BOOKED`).
+    + Manager gọi `confirm-traffic-fine-refund`: `Settlement = CLOSED`, `Contract = COMPLETED`, `Request = COMPLETED`, và **`Car.Status` VẪN GIỮ NGUYÊN `BOOKED` (không bị ghi đè về `READY`)**.
+    + Idempotent: Gọi lại `confirm-traffic-fine-refund` lần 2 bị chặn (HTTP 400).
+- [x] **Xác minh 100% Bộ B — Ràng buộc biên, Ma trận Phân quyền 3 Role & Bảo mật IDOR:**
+  - *Hard Block ODO:* Chặn lưu `handover_odo < dispatch_odo` và `transit_km > 300` (HTTP 400).
+  - *Chống trùng lịch:* Đặt xe trùng khung giờ đơn khác trả về HTTP 409 Conflict.
+  - *Thứ tự ký hợp đồng:* Cố tình nộp cọc thế chân khi hợp đồng chưa `SIGNED` bị chặn (HTTP 400).
+  - *Khóa cứng sau quyết toán:* Cố tình sửa hoặc xóa `HandoverProtocol` sau khi đã chốt quyết toán bị chặn (HTTP 400).
+  - *Ma trận 3 Role:*
+    + `STAFF`: Gọi Analytics trả `totalRevenue = null`, `monthlyRevenue = null`. Chặn gọi `confirm-refund`, `resolve-dispute`, `system-settings`, xóa xe (toàn bộ HTTP 403).
+    + `MANAGER`: Xem đầy đủ doanh thu & cảnh báo `TransitAnomalies`. Bị chặn truy cập `system-settings`, tạo `compensation-policies`, tạo `contract-templates`, xóa xe (toàn bộ HTTP 403).
+    + `ADMIN`: Gọi các endpoint `AdminOnly` thành công (HTTP 200).
+  - *IDOR & Khóa tài khoản:*
+    + Customer B dùng JWT của mình gọi xem/ký/hủy/khiếu nại đơn Customer A $\rightarrow$ Toàn bộ bị chặn HTTP 403.
+    + Manager khóa Customer B (`is_active = false`) $\rightarrow$ `UserActiveStatusMiddleware` chặn ngay lập tức request tiếp theo bằng HTTP 403 Forbidden.
+- [x] **Kết quả kiểm thử:**
+  - **48 / 48 PASSED (100% PASS)**, 0 FAILED.
+  - Supabase Database: 100% an toàn, không rò rỉ dữ liệu test.
+- [x] **Xác minh Biên dịch cuối cùng:**
+  - Backend: `dotnet build` đạt **0 Warning(s), 0 Error(s)**.
+  - Frontend: `npm run build` đạt **0 errors**.
+
 ---
 
-## 3. Danh Mục File Thay Đổi (Phase 4 Artifacts)
+## 3. Danh Mục File Thay Đổi (Phase 4 & 5 Artifacts)
 
-### Frontend:
-1. `CarRental.Web/src/components/operations/VehicleDamageMap.jsx`: Canvas sơ đồ xước 2D hỗ trợ diff 4 stage, modal xem ảnh độ phân giải cao, upload ảnh vết xước mới.
-2. `CarRental.Web/src/components/handover/HandoverModal.jsx`: Biểu mẫu bàn giao xe 2 luồng (tại bãi & tận nơi 2 bước), bộ chọn nhiên liệu thông minh (pin EV % vs xăng 8 vạch), Audit ODO 2 cấp độ, khóa khi đã quyết toán.
-3. `CarRental.Web/src/components/operations/CustomerHandoverModal.jsx`: Modal khách hàng xác nhận bàn giao hiển thị ODO, pin/xăng thông minh, ảnh taplo và sơ đồ 2D.
-4. `CarRental.Web/src/pages/Handovers/HandoversPage.jsx`: Cột ODO xuất bãi/bàn giao, mức xăng/pin %, ảnh taplo và sơ đồ 2D xem nhanh.
-5. `CarRental.Web/src/components/operations/ReturnProtocolModal.jsx`: Biểu mẫu nghiệm thu trả xe, ODO khách trả, fuel thông minh, ảnh taplo, khóa vết cũ chỉ cho chấm `CUSTOMER_RENTAL`, khối trung chuyển về bãi và dòng tóm tắt quãng đường khách đi.
-6. `CarRental.Web/src/pages/Returns/ReturnsPage.jsx`: Bảng danh sách trả xe cập nhật các trường ODO khách trả, về bãi, ảnh taplo.
-7. `CarRental.Web/src/components/operations/SettlementModal.jsx`: Bảng kê minh bạch từ `PreviewSettlementDto`, dung sai nhiên liệu, chỉ phạt vết `CUSTOMER_RENTAL`, tách 2 đợt hoàn cọc / giữ quỹ phạt nguội, phân quyền Manager/Admin.
-8. `CarRental.Web/src/components/operations/CustomerSettlementReceiptModal.jsx`: Phiếu quyết toán cho khách hàng giải trình dung sai nhiên liệu và vết xước mới.
-9. `CarRental.Web/src/pages/Auth/LoginPage.jsx`: Tiếp nhận cả `returnUrl` và `redirect` để điều hướng mượt mà sau khi đăng nhập.
-10. `CarRental.Web/src/pages/Catalog/CarDetailPage.jsx`: Điều hướng khách chưa đăng nhập sang `/login?returnUrl=...` khi bấm Đặt xe / Fast Hold.
-11. `CarRental.Web/src/pages/Booking/BookingPage.jsx`: Tự động chuyển hướng khách vãng lai sang đăng nhập khi truy cập form đặt xe.
-12. `CarRental.Web/src/pages/RentalRequests/RentalRequestsPage.jsx`: Đồng bộ `STATUS_CONFIG` 21 trạng thái, đếm và lọc tab theo nhóm trạng thái mới, khóa/ẩn nút hành động sai bước.
-13. `CarRental.Web/src/pages/Customer/sections/RentalsManagementSection.jsx`: Đồng bộ `RENTAL_TABS` và `STATUS_CONFIG` phía khách hàng, kiểm soát các nút thao tác theo đúng tiến độ vòng đời xe.
+### Backend (`CarRental.API`):
+1. `Services/PaymentService.cs`: Sửa điều kiện phân biệt `FAST_HOLD` vs `COLLATERAL` trong luồng Webhook và nộp cọc; bảo đảm tính chính xác khi đơn `FAST_HOLD` bước sang nộp cọc thế chân.
+2. `DTOs/Incidents/IncidentDtos.cs`: Bổ sung `ResponsibleParty` vào `IncidentReportDto`.
+3. `Services/IncidentReportService.cs`: Ánh xạ `ResponsibleParty` trong `MapToDto`.
+4. `Controllers/HandoverProtocolsController.cs`: Bổ sung try-catch cho endpoint `Delete` để trả HTTP 400 thay vì 500 khi vi phạm khóa cứng quyết toán.
+5. `Controllers/SystemSettingsController.cs`: Thêm endpoint nội bộ an toàn `cleanup-e2e` (AdminOnly) hỗ trợ dọn sạch dữ liệu test tiền tố `E2E_` / `e2e_`.
+6. `Program.cs`: Đồng bộ schema migration khởi động cho `customer_violations` và `additional_drivers`, seed tài khoản Manager/Admin.
+
+### Testing & Verification:
+7. `scripts/e2e_phase5_test.py`: Bộ script kiểm thử tự động toàn diện 48 kịch bản tích hợp bao phủ 100% yêu cầu Pha 5.
+
+### Tài liệu Bàn giao:
+8. `docs/OPERATIONS_3_ROLES_GUIDE.md`: Cẩm nang hướng dẫn vận hành & ma trận phân quyền chuẩn hóa 3 Role (`STAFF`, `MANAGER`, `ADMIN`).
+9. `docs/REFACTOR_PLAN.md`: Cập nhật trạng thái hoàn thành Pha 5 và kết thúc toàn bộ đợt refactor.
+10. `docs/PROGRESS.md`: Cập nhật chi tiết tiến độ 100% và nhật ký thay đổi.
 
 ---
 
@@ -211,4 +254,5 @@
 - **20/11/2026 10:42:** Hoàn tất Pha 1: Nâng cấp Enums, Entities, Migration SQL `20261120_UpgradeWorkflowAndDiffMarkers.sql`, backfill dữ liệu, seed settings. Commit `688ce80`.
 - **20/11/2026 11:04:** Hoàn tất Pha 2: Cài đặt State Machine 10 bước tập trung, 3 bẫy nghiệp vụ (Nhiên liệu tolerance, Sơ đồ xước diff & incident nội bộ, Audit ODO 2 cấp độ 2 chiều), khóa cứng sau Settlement, chống trùng lịch gia hạn (HTTP 409), và sửa triệt để lệch số liệu Analytics. Commit `ca43051`.
 - **20/11/2026 11:35:** Hoàn tất Pha 3: Hotfix Bước 10 (không đổi Car -> READY khi hoàn phạt nguội), chuẩn hóa Ma trận 3 Role (STAFF / MANAGER / ADMIN), vá triệt để lỗ hổng IDOR, phân tách dữ liệu Backend Analytics & Dashboard theo role, ẩn hoàn toàn các nút thao tác vượt quyền trên Frontend. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors. Commit `04ff22e`.
-- **20/11/2026 12:05:** Hoàn tất Pha 4: Nâng cấp sơ đồ xước 2D diff 4 stage, form bàn giao 2 luồng & ODO audit, form nghiệm thu trả xe & tóm tắt quãng đường, giao diện quyết toán 2 đợt & phân quyền duyệt hoàn cọc, đồng bộ 10 bước State Machine trên toàn bộ trang quản trị và giao diện khách hàng. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors.
+- **20/11/2026 12:05:** Hoàn tất Pha 4: Nâng cấp sơ đồ xước 2D diff 4 stage, form bàn giao 2 luồng & ODO audit, form nghiệm thu trả xe & tóm tắt quãng đường, giao diện quyết toán 2 đợt & phân quyền duyệt hoàn cọc, đồng bộ 10 bước State Machine trên toàn bộ trang quản trị và giao diện khách hàng. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors. Commit `aeb4d6c`.
+- **20/11/2026 12:47:** Hoàn tất Pha 5: Triển khai kiểm thử tích hợp tự động E2E 48/48 test cases PASS tuyệt đối (100%). Xác minh trọn vẹn 10 bước nghiệp vụ, 3 bẫy nghiệp vụ, ma trận phân quyền 3 role, kiểm chứng hotfix giữ trạng thái BOOKED, bảo mật IDOR & khóa tài khoản tức thì, an toàn dữ liệu Supabase 100%. Ban hành cẩm nang vận hành `OPERATIONS_3_ROLES_GUIDE.md`. Hoàn tất toàn bộ dự án Refactor VELORA Clean Workflow V2.0!

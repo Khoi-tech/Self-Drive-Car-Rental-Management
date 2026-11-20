@@ -214,17 +214,45 @@ using (var scope = app.Services.CreateScope())
             -- 3. customer_violations
             CREATE TABLE IF NOT EXISTS customer_violations (
                 id uuid NOT NULL,
-                customer_id uuid NOT NULL,
-                date timestamp with time zone NOT NULL,
+                user_id uuid NULL,
+                customer_id uuid NULL,
+                date timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
                 type character varying(100) NOT NULL,
-                description text NOT NULL,
+                reason text NULL,
+                description text NULL,
+                officer character varying(100) NULL DEFAULT 'Hệ thống',
+                points_change integer NOT NULL DEFAULT 0,
                 fine numeric(18,2) NOT NULL DEFAULT 0,
                 severity character varying(20) NOT NULL DEFAULT 'MINOR',
                 created_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
-                CONSTRAINT pk_customer_violations PRIMARY KEY (id),
-                CONSTRAINT fk_customer_violations_users_customer_id FOREIGN KEY (customer_id) REFERENCES app_users (id) ON DELETE CASCADE
+                CONSTRAINT pk_customer_violations PRIMARY KEY (id)
             );
-            CREATE INDEX IF NOT EXISTS ix_customer_violations_customer_id ON customer_violations (customer_id);
+            ALTER TABLE customer_violations ADD COLUMN IF NOT EXISTS user_id uuid NULL;
+            ALTER TABLE customer_violations ADD COLUMN IF NOT EXISTS points_change integer NOT NULL DEFAULT 0;
+            ALTER TABLE customer_violations ADD COLUMN IF NOT EXISTS reason text NULL;
+            ALTER TABLE customer_violations ADD COLUMN IF NOT EXISTS officer character varying(100) NULL DEFAULT 'Hệ thống';
+            DO $$ BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'customer_violations' AND column_name = 'customer_id') THEN
+                    UPDATE customer_violations SET user_id = customer_id WHERE user_id IS NULL;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'customer_violations' AND column_name = 'description') THEN
+                    UPDATE customer_violations SET reason = description WHERE reason IS NULL;
+                END IF;
+            END $$;
+            CREATE INDEX IF NOT EXISTS ix_customer_violations_user_id ON customer_violations (user_id);
+
+            -- 3b. additional_drivers
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS user_id uuid NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS rental_request_id uuid NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS id_card_number character varying(50) NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS license_number character varying(50) NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS relationship character varying(50) NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS date_of_birth timestamp with time zone NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS license_class character varying(20) NULL DEFAULT 'B2';
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS license_expiry timestamp with time zone NULL;
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS status character varying(50) NOT NULL DEFAULT 'VERIFIED';
+            ALTER TABLE additional_drivers ADD COLUMN IF NOT EXISTS created_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc');
+            CREATE INDEX IF NOT EXISTS ix_additional_drivers_user_id ON additional_drivers (user_id);
 
             -- 4. system_settings
             CREATE TABLE IF NOT EXISTS system_settings (
@@ -343,6 +371,36 @@ using (var scope = app.Services.CreateScope())
                 FullName = "Khách hàng Mẫu",
                 PhoneNumber = "0987654321",
                 Role = "CUSTOMER",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (!db.Users.Any(u => u.Email == "manager@velora.vn"))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "manager@velora.vn",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Velora@2026"),
+                FullName = "Quản lý Vận hành VELORA",
+                PhoneNumber = "0908889999",
+                Role = "MANAGER",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        if (!db.Users.Any(u => u.Email == "admin@velora.vn"))
+        {
+            db.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "admin@velora.vn",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Velora@2026"),
+                FullName = "Chủ hệ thống Admin VELORA",
+                PhoneNumber = "0909999999",
+                Role = "ADMIN",
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             });

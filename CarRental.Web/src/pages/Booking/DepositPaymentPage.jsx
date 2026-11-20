@@ -2,22 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { 
   CheckCircle2, 
-  Clock, 
   Copy, 
   QrCode, 
   ShieldCheck, 
   Car, 
-  Calendar, 
-  MapPin, 
   FileText, 
   AlertCircle, 
   ArrowRight,
-  ExternalLink,
-  Sparkles,
   Zap,
   ArrowLeft,
   UploadCloud,
-  FileCheck
+  FileCheck,
+  Wallet
 } from 'lucide-react';
 import paymentService from '../../services/paymentService';
 import rentalRequestService from '../../services/rentalRequestService';
@@ -93,6 +89,10 @@ const DepositPaymentPage = () => {
   };
 
   const handleConfirmSandbox = async () => {
+    if (!import.meta.env.DEV) {
+      alert('Chức năng Sandbox Simulation chỉ khả dụng trong môi trường thử nghiệm (Development).');
+      return;
+    }
     if (!paymentData?.transactionCode) return;
 
     try {
@@ -175,10 +175,11 @@ const DepositPaymentPage = () => {
           <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="space-y-1">
               <div className="font-extrabold text-sm flex items-center gap-1.5 text-emerald-900">
-                <span>💵 Đơn thuê này đã chọn Cọc tiền mặt khi nhận xe</span>
+                <Wallet className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>Đơn thuê này đã chọn Cọc khi nhận xe</span>
               </div>
               <p className="text-xs text-emerald-800">
-                Bạn không cần thực hiện thanh toán chuyển khoản trước. Khoản cọc sẽ được bàn giao trực tiếp bằng tiền mặt khi nhận xe. Nếu bạn vẫn muốn chuyển khoản online qua VietQR trước, bạn có thể quét mã bên dưới.
+                Bạn không cần thực hiện thanh toán chuyển khoản trước. Khoản cọc thế chân sẽ được thanh toán linh hoạt bằng chuyển khoản hoặc tiền mặt khi bạn nhận bàn giao xe. Nếu bạn vẫn muốn chuyển khoản online qua VietQR trước, bạn có thể quét mã bên dưới.
               </p>
             </div>
             <Link
@@ -262,9 +263,9 @@ const DepositPaymentPage = () => {
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                 {isCollateral
-                  ? '🛡️ Đã Hoàn Tất Thanh Toán Cọc Thế Chân Xe'
+                  ? 'Đã Hoàn Tất Thanh Toán Cọc Thế Chân Xe'
                   : isFastHold
-                  ? '⚡ Cọc Giữ Xe 500K Đã Xác Nhận Thành Công'
+                  ? 'Cọc Giữ Xe 500K Đã Xác Nhận Thành Công'
                   : 'Giao Dịch Đã Xác Nhận Thành Công'}
               </span>
               <h2 className="text-2xl font-extrabold text-zinc-950 mt-3 mb-2">
@@ -334,7 +335,7 @@ const DepositPaymentPage = () => {
                     className="w-full sm:w-auto px-6 py-3 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center justify-center gap-2 uppercase tracking-wider shadow-sm cursor-pointer"
                   >
                     <UploadCloud size={16} />
-                    <span>⚡ Bổ sung CCCD & GPLX ngay</span>
+                    <span>Bổ sung CCCD & GPLX ngay</span>
                     <ArrowRight size={14} />
                   </Link>
                   <Link
@@ -489,23 +490,30 @@ const DepositPaymentPage = () => {
                 </div>
               </div>
 
-              {/* Instant Confirmation Action (Sandbox / Real-time Webhook Simulator) */}
+              {/* Instant Confirmation Action (Sandbox Simulator in DEV / Auto-webhook in PROD) */}
               <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleConfirmSandbox}
-                  disabled={confirming}
-                  className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
-                >
-                  {confirming ? (
-                    <span>Đang kiểm tra giao dịch liên ngân hàng...</span>
-                  ) : (
-                    <>
-                      <Zap size={14} className="text-amber-400" />
-                      <span>Tôi đã hoàn tất chuyển tiền (Xác nhận ngay)</span>
-                    </>
-                  )}
-                </button>
+                {import.meta.env.DEV ? (
+                  <button
+                    type="button"
+                    onClick={handleConfirmSandbox}
+                    disabled={confirming}
+                    className="w-full bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  >
+                    {confirming ? (
+                      <span>Đang kiểm tra giao dịch liên ngân hàng...</span>
+                    ) : (
+                      <>
+                        <Zap size={14} className="text-amber-400" />
+                        <span>Tôi đã hoàn tất chuyển tiền (Sandbox Simulation)</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-full bg-blue-50 border border-blue-200 text-blue-900 rounded-md p-3 text-xs text-center flex items-center justify-center gap-2 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+                    <span>Hệ thống đang tự động lắng nghe xác nhận chuyển khoản từ ngân hàng qua VietQR...</span>
+                  </div>
+                )}
               </div>
 
             </div>

@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using CarRental.API.Common;
 using CarRental.API.Data;
 using CarRental.API.Entities;
 using CarRental.API.DTOs.RentalRequest;
 using CarRental.API.DTOs.PricingPolicy;
+using CarRental.API.Helpers;
 
 namespace CarRental.API.Services
 {
@@ -14,234 +17,289 @@ namespace CarRental.API.Services
     {
         private readonly AppDbContext _context;
         private readonly IPricingPolicyService _pricingService;
+        private readonly IStorageService _storageService;
+        private readonly ISystemSettingsService _settingsService;
+        private readonly INotificationService _notificationService;
 
-        public RentalRequestService(AppDbContext context, IPricingPolicyService pricingService)
+        public RentalRequestService(
+            AppDbContext context, 
+            IPricingPolicyService pricingService, 
+            IStorageService storageService,
+            ISystemSettingsService settingsService,
+            INotificationService notificationService)
         {
             _context = context;
             _pricingService = pricingService;
+            _storageService = storageService;
+            _settingsService = settingsService;
+            _notificationService = notificationService;
         }
 
         public async Task<RentalRequestResponseDto> CreateRequestAsync(CreateRentalRequestDto dto)
         {
-            if (!string.IsNullOrWhiteSpace(dto.CustomerEmail))
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                var normalizedEmail = dto.CustomerEmail.Trim().ToLowerInvariant();
-                var customerAccount = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
-
-                if (customerAccount != null && !customerAccount.IsActive)
+                if (!string.IsNullOrWhiteSpace(dto.CustomerEmail))
                 {
-                    var reasonText = string.IsNullOrWhiteSpace(customerAccount.LockReason)
-                        ? "Tài khoản đang bị tạm khóa đặt xe mới theo yêu cầu kiểm soát rủi ro."
-                        : customerAccount.LockReason;
-                    throw new InvalidOperationException($"Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới ({reasonText}). Các hợp đồng đang lưu hành (nếu có) vẫn hoạt động bình thường. Vui lòng liên hệ Hotline 1900 8888 để được hỗ trợ.");
-                }
-            }
+                    var normalizedEmail = dto.CustomerEmail.Trim().ToLowerInvariant();
+                    var customerAccount = await _context.Users
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
 
-            var car = await _context.Vehicles
-                .FirstOrDefaultAsync(c => c.Id == dto.CarId && c.IsActive);
-
-            if (car == null)
-            {
-                throw new InvalidOperationException("Xe không tồn tại hoặc đã bị vô hiệu hóa.");
-            }
-
-            // Block vehicles that are physically unavailable AND the booking starts now/soon
-            var nonBookableStatuses = new[] { VehicleStatus.MAINTENANCE, VehicleStatus.REPAIR, VehicleStatus.INACTIVE };
-            if (nonBookableStatuses.Contains(car.Status))
-            {
-                throw new InvalidOperationException("Xe hiện đang trong kỳ bảo dưỡng / sửa chữa / kiểm định và chưa sẵn sàng để thuê.");
-            }
-
-            var startUtc = dto.StartTime.Kind == DateTimeKind.Utc ? dto.StartTime : dto.StartTime.ToUniversalTime();
-            var endUtc = dto.EndTime.Kind == DateTimeKind.Utc ? dto.EndTime : dto.EndTime.ToUniversalTime();
-
-            // Block vehicles that are currently rented out to another customer
-            if (car.Status == VehicleStatus.RENTED)
-            {
-                var activeRental = await _context.RentalRequests
-                    .Where(r => r.CarId == dto.CarId && (r.Status == "ACTIVE" || r.Status == "CONFIRMED"))
-                    .OrderByDescending(r => r.EndTime)
-                    .FirstOrDefaultAsync();
-
-                if (activeRental != null)
-                {
-                    var earliestAvailable = activeRental.EndTime.AddHours(3);
-                    if (startUtc < earliestAvailable)
+                    if (customerAccount != null && !customerAccount.IsActive)
                     {
-                        throw new InvalidOperationException($"Xe hiện đang trong hành trình lưu hành với khách hàng (dự kiến hoàn trả lúc {activeRental.EndTime:dd/MM/yyyy HH:mm}). Vui lòng chọn thời gian nhận xe sau {earliestAvailable:dd/MM/yyyy HH:mm} hoặc chọn dòng xe khác.");
+                        var reasonText = string.IsNullOrWhiteSpace(customerAccount.LockReason)
+                            ? "Tài khoản đang bị tạm khóa đặt xe mới theo yêu cầu kiểm soát rủi ro."
+                            : customerAccount.LockReason;
+                        throw new InvalidOperationException($"Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới ({reasonText}). Các hợp đồng đang lưu hành (nếu có) vẫn hoạt động bình thường. Vui lòng liên hệ Hotline 1900 8888 để được hỗ trợ.");
                     }
                 }
-                else
+
+                var car = await _context.Vehicles
+                    .FirstOrDefaultAsync(c => c.Id == dto.CarId && c.IsActive);
+
+                if (car == null)
                 {
-                    throw new InvalidOperationException("Xe hiện đang ở trạng thái cho thuê và chưa được nghiệm thu trả xe về bãi. Không thể tạo đơn mới cho xe này.");
-                }
-            }
-
-            if (startUtc < DateTime.UtcNow.AddMinutes(-1))
-            {
-                throw new InvalidOperationException("Thời gian bắt đầu thuê xe không thể ở quá khứ.");
-            }
-
-            if (startUtc >= endUtc)
-            {
-                throw new InvalidOperationException("Thời gian bắt đầu phải trước thời gian kết thúc.");
-            }
-
-            var rentalHours = (endUtc - startUtc).TotalHours;
-            if (rentalHours < 4)
-            {
-                throw new InvalidOperationException("Thời gian thuê xe tối thiểu là 4 giờ.");
-            }
-
-            // Check for overlaps with 3-hour buffer time between consecutive bookings
-            var bufferHours = 3;
-            var endWithBufferUtc = endUtc.AddHours(bufferHours);
-            bool hasOverlap = await _context.RentalRequests
-                .AnyAsync(r => r.CarId == dto.CarId 
-                    && r.Status != "CANCELLED" 
-                    && r.Status != "REJECTED"
-                    && r.Status != "COMPLETED"
-                    && r.StartTime < endWithBufferUtc 
-                    && r.EndTime.AddHours(bufferHours) > startUtc);
-
-            if (hasOverlap)
-            {
-                throw new InvalidOperationException("Xe đã có lịch đặt trong khoảng thời gian này (bao gồm 3 giờ đệm giữa các chuyến).");
-            }
-
-            // Check for maintenance schedule overlaps
-            bool hasMaintenanceOverlap = await _context.MaintenanceRecords
-                .AnyAsync(m => m.CarId == dto.CarId
-                    && m.Status == "SCHEDULED"
-                    && m.ScheduledDate < dto.EndTime
-                    && (m.CompletedDate == null || m.CompletedDate > dto.StartTime));
-
-            if (hasMaintenanceOverlap)
-            {
-                throw new InvalidOperationException("Xe có lịch bảo dưỡng trùng với thời gian thuê bạn chọn.");
-            }
-
-            // PHASE 2: Advanced Rental Eligibility & Driver's License Validation
-            if (dto.DriverLicenseExpiry.HasValue && dto.DriverLicenseExpiry.Value.Date < dto.EndTime.Date)
-            {
-                throw new InvalidOperationException($"Giấy phép lái xe hết hạn vào ngày {dto.DriverLicenseExpiry.Value:dd/MM/yyyy}, trước ngày dự kiến trả xe ({dto.EndTime:dd/MM/yyyy}). Vui lòng cập nhật GPLX còn hạn.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(dto.DriverLicenseClass))
-            {
-                if (dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) && car.Transmission == TransmissionType.MANUAL)
-                {
-                    throw new InvalidOperationException($"GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn ({car.Make} {car.Model}). Vui lòng chọn dòng xe số tự động hoặc cập nhật hạng bằng lái.");
+                    throw new InvalidOperationException("Xe không tồn tại hoặc đã bị vô hiệu hóa.");
                 }
 
-                if ((dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) || 
-                     dto.DriverLicenseClass.Equals("B1", StringComparison.OrdinalIgnoreCase) || 
-                     dto.DriverLicenseClass.Equals("B2", StringComparison.OrdinalIgnoreCase)) && car.Seats > 9)
+                // Block vehicles that are physically unavailable AND the booking starts now/soon
+                var nonBookableStatuses = new[] { VehicleStatus.MAINTENANCE, VehicleStatus.REPAIR, VehicleStatus.INACTIVE };
+                if (nonBookableStatuses.Contains(car.Status))
                 {
-                    throw new InvalidOperationException($"GPLX hạng {dto.DriverLicenseClass} chỉ cho phép điều khiển phương tiện tối đa 9 chỗ ngồi ({car.Make} {car.Model} có {car.Seats} chỗ).");
-                }
-            }
-
-            // Luxury Car Rental History Requirement (DailyRate >= 1,500,000 VND)
-            // FAST_HOLD bypasses this check because Fast Hold is a reservation holding deposit!
-            bool isFastHold = string.Equals(dto.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase);
-
-            if (!isFastHold && car.DailyRate >= 1500000m)
-            {
-                var hasDispute = await _context.RentalRequests.AnyAsync(r => 
-                    (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
-                    && r.Status == "DISPUTED");
-                if (hasDispute)
-                {
-                    throw new InvalidOperationException("Khách hàng đang có hồ sơ khiếu nại tranh chấp chưa hoàn tất, tạm thời không thể đặt xe thuộc phân khúc cao cấp.");
+                    throw new InvalidOperationException("Xe hiện đang trong kỳ bảo dưỡng / sửa chữa / kiểm định và chưa sẵn sàng để thuê.");
                 }
 
-                var hasCompletedRental = await _context.RentalRequests.AnyAsync(r => 
-                    (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
-                    && r.Status == "COMPLETED");
-                if (!hasCompletedRental)
+                var startUtc = dto.StartTime.ToUtc();
+                var endUtc = dto.EndTime.ToUtc();
+
+                // Block vehicles that are currently rented out to another customer
+                if (car.Status == VehicleStatus.RENTED)
                 {
-                    throw new InvalidOperationException($"Dòng xe cao cấp ({car.Make} {car.Model}) yêu cầu khách hàng phải có tối thiểu 1 chuyến đi hoàn tất tốt trên hệ thống VELORA để xác minh độ tín nhiệm. Bạn có thể sử dụng tính năng 'Cọc giữ xe siêu tốc 500k' để giữ chỗ xe trước!");
+                    var activeRental = await _context.RentalRequests
+                        .Where(r => r.CarId == dto.CarId && (r.Status == "ACTIVE" || r.Status == "CONFIRMED"))
+                        .OrderByDescending(r => r.EndTime)
+                        .FirstOrDefaultAsync();
+
+                    if (activeRental != null)
+                    {
+                        var earliestAvailable = activeRental.EndTime.AddHours(3);
+                        if (startUtc < earliestAvailable)
+                        {
+                            throw new InvalidOperationException($"Xe hiện đang trong hành trình lưu hành với khách hàng (dự kiến hoàn trả lúc {activeRental.EndTime:dd/MM/yyyy HH:mm}). Vui lòng chọn thời gian nhận xe sau {earliestAvailable:dd/MM/yyyy HH:mm} hoặc chọn dòng xe khác.");
+                        }
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Xe hiện đang ở trạng thái cho thuê và chưa được nghiệm thu trả xe về bãi. Không thể tạo đơn mới cho xe này.");
+                    }
                 }
-            }
 
-            var totalDays = (int)Math.Ceiling((dto.EndTime - dto.StartTime).TotalDays);
-            if (totalDays <= 0) totalDays = 1;
+                if (startUtc < DateTime.UtcNow.AddMinutes(-1))
+                {
+                    throw new InvalidOperationException("Thời gian bắt đầu thuê xe không thể ở quá khứ.");
+                }
 
-            var previewDto = new PricingPreviewRequestDto { RentalDays = totalDays };
-            var preview = await _pricingService.PreviewPricingAsync(dto.CarId, previewDto);
+                if (startUtc >= endUtc)
+                {
+                    throw new InvalidOperationException("Thời gian bắt đầu phải trước thời gian kết thúc.");
+                }
 
-            if (preview == null)
-            {
-                throw new InvalidOperationException("Không thể tính giá dự kiến.");
-            }
+                var rentalHours = (endUtc - startUtc).TotalHours;
+                if (rentalHours < 4)
+                {
+                    throw new InvalidOperationException("Thời gian thuê xe tối thiểu là 4 giờ.");
+                }
 
-            var holdDeposit = isFastHold ? (dto.HoldDepositAmount.HasValue && dto.HoldDepositAmount.Value > 0 ? dto.HoldDepositAmount.Value : 500000m) : 0m;
+                // Check for overlaps with 3-hour buffer time between consecutive bookings
+                var bufferHours = 3;
+                var endWithBufferUtc = endUtc.AddHours(bufferHours);
+                bool hasOverlap = await _context.RentalRequests
+                    .AnyAsync(r => r.CarId == dto.CarId 
+                        && r.Status != "CANCELLED" 
+                        && r.Status != "REJECTED"
+                        && r.Status != "COMPLETED"
+                        && r.StartTime < endWithBufferUtc 
+                        && r.EndTime.AddHours(bufferHours) > startUtc);
 
-            var isCash = string.Equals(dto.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase);
-            var isOnlinePrepay = !isFastHold && !isCash;
-            var onlineDiscountPercent = isOnlinePrepay ? 5m : 0m;
-            var totalDiscountPercent = preview.DiscountPercentage + onlineDiscountPercent;
-            var estimatedFee = isOnlinePrepay 
-                ? Math.Round(preview.RentalPrice * (1m - onlineDiscountPercent / 100m))
-                : preview.RentalPrice;
+                if (hasOverlap)
+                {
+                    throw new ConflictException("Xe đã có khách hàng khác đặt trong khoảng thời gian này. Vui lòng chọn khung giờ khác hoặc xe khác.");
+                }
 
-            var rentalRequest = new RentalRequest
-            {
-                Id = Guid.NewGuid(),
-                CarId = dto.CarId,
-                StartTime = startUtc,
-                EndTime = endUtc,
-                PickupLocation = dto.PickupLocation,
-                DropoffLocation = dto.DropoffLocation,
-                
-                CustomerName = dto.CustomerName,
-                CustomerPhone = dto.CustomerPhone,
-                CustomerEmail = dto.CustomerEmail,
-                CustomerIdCard = !string.IsNullOrWhiteSpace(dto.CustomerIdCard) ? dto.CustomerIdCard : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
-                DriverLicenseNumber = !string.IsNullOrWhiteSpace(dto.DriverLicenseNumber) ? dto.DriverLicenseNumber : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
-                DriverLicenseClass = dto.DriverLicenseClass,
-                DriverLicenseExpiry = dto.DriverLicenseExpiry,
-                IdCardFrontUrl = dto.IdCardFrontUrl,
-                IdCardBackUrl = dto.IdCardBackUrl,
-                DriverLicenseFrontUrl = dto.DriverLicenseFrontUrl,
-                DriverLicenseBackUrl = dto.DriverLicenseBackUrl,
-                Notes = dto.Notes,
-                
-                TotalDays = totalDays,
-                DailyRate = preview.BasePrice,
-                DiscountPercent = totalDiscountPercent,
-                HolidaySurchargePercent = preview.HolidaySurcharge,
-                EstimatedTotalFee = estimatedFee,
-                DepositAmount = car.DepositAmount,
-                BookingType = isFastHold ? "FAST_HOLD" : "STANDARD",
-                DepositMethod = isFastHold ? "VIETQR" : (isCash ? "CASH" : "VIETQR"),
-                HoldDepositAmount = holdDeposit,
-                IsSecurityDepositPaid = false,
-                HoldExpiresAt = isFastHold ? DateTime.UtcNow.AddHours(4) : null,
-                
-                Status = "PENDING",
-                CreatedAt = DateTime.UtcNow
-            };
+                // Check for maintenance schedule overlaps
+                bool hasMaintenanceOverlap = await _context.MaintenanceRecords
+                    .AnyAsync(m => m.CarId == dto.CarId
+                        && m.Status == "SCHEDULED"
+                        && m.ScheduledDate < dto.EndTime
+                        && (m.CompletedDate == null || m.CompletedDate > dto.StartTime));
 
-            if (dto.AdditionalDrivers != null && dto.AdditionalDrivers.Any())
-            {
-                rentalRequest.AdditionalDrivers = dto.AdditionalDrivers.Select(d => new AdditionalDriver
+                if (hasMaintenanceOverlap)
+                {
+                    throw new InvalidOperationException("Xe có lịch bảo dưỡng trùng với thời gian thuê bạn chọn.");
+                }
+
+                // PHASE 2: Advanced Rental Eligibility & Driver's License Validation
+                if (dto.DriverLicenseExpiry.HasValue && dto.DriverLicenseExpiry.Value.Date < dto.EndTime.Date)
+                {
+                    throw new InvalidOperationException($"Giấy phép lái xe hết hạn vào ngày {dto.DriverLicenseExpiry.Value:dd/MM/yyyy}, trước ngày dự kiến trả xe ({dto.EndTime:dd/MM/yyyy}). Vui lòng cập nhật GPLX còn hạn.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.DriverLicenseClass))
+                {
+                    if (dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) && car.Transmission == TransmissionType.MANUAL)
+                    {
+                        throw new InvalidOperationException($"GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn ({car.Make} {car.Model}). Vui lòng chọn dòng xe số tự động hoặc cập nhật hạng bằng lái.");
+                    }
+
+                    if ((dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) || 
+                         dto.DriverLicenseClass.Equals("B1", StringComparison.OrdinalIgnoreCase) || 
+                         dto.DriverLicenseClass.Equals("B2", StringComparison.OrdinalIgnoreCase)) && car.Seats > 9)
+                    {
+                        throw new InvalidOperationException($"GPLX hạng {dto.DriverLicenseClass} chỉ cho phép điều khiển phương tiện tối đa 9 chỗ ngồi ({car.Make} {car.Model} có {car.Seats} chỗ).");
+                    }
+                }
+
+                // Luxury Car Rental History Requirement (DailyRate >= 1,500,000 VND)
+                // FAST_HOLD bypasses this check because Fast Hold is a reservation holding deposit!
+                bool isFastHold = string.Equals(dto.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase);
+
+                if (!isFastHold && car.DailyRate >= 1500000m)
+                {
+                    var hasDispute = await _context.RentalRequests.AnyAsync(r => 
+                        (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
+                        && r.Status == "DISPUTED");
+                    if (hasDispute)
+                    {
+                        throw new InvalidOperationException("Khách hàng đang có hồ sơ khiếu nại tranh chấp chưa hoàn tất, tạm thời không thể đặt xe thuộc phân khúc cao cấp.");
+                    }
+
+                    var hasCompletedRental = await _context.RentalRequests.AnyAsync(r => 
+                        (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
+                        && r.Status == "COMPLETED");
+                    if (!hasCompletedRental)
+                    {
+                        throw new InvalidOperationException($"Dòng xe cao cấp ({car.Make} {car.Model}) yêu cầu khách hàng phải có tối thiểu 1 chuyến đi hoàn tất tốt trên hệ thống VELORA để xác minh độ tín nhiệm. Bạn có thể sử dụng tính năng 'Cọc giữ xe siêu tốc 500k' để giữ chỗ xe trước!");
+                    }
+                }
+
+                var totalDays = (int)Math.Ceiling((dto.EndTime - dto.StartTime).TotalDays);
+                if (totalDays <= 0) totalDays = 1;
+
+                var previewDto = new PricingPreviewRequestDto { RentalDays = totalDays };
+                var preview = await _pricingService.PreviewPricingAsync(dto.CarId, previewDto);
+
+                if (preview == null)
+                {
+                    throw new InvalidOperationException("Không thể tính giá dự kiến.");
+                }
+
+                var defaultHoldDeposit = await _settingsService.GetSettingValueAsync("fast_hold_deposit_amount", 500000m);
+                var holdDeposit = isFastHold ? (dto.HoldDepositAmount.HasValue && dto.HoldDepositAmount.Value > 0 ? dto.HoldDepositAmount.Value : defaultHoldDeposit) : 0m;
+
+                var isCash = string.Equals(dto.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase);
+                var isOnlinePrepay = !isFastHold && !isCash;
+                var onlineDiscountPercentSetting = await _settingsService.GetSettingValueAsync("vietqr_discount_percent", 5m);
+                var onlineDiscountPercent = isOnlinePrepay ? onlineDiscountPercentSetting : 0m;
+                var totalDiscountPercent = preview.DiscountPercentage + onlineDiscountPercent;
+                var estimatedFee = isOnlinePrepay 
+                    ? Math.Round(preview.RentalPrice * (1m - onlineDiscountPercent / 100m))
+                    : preview.RentalPrice;
+
+                // Phase 3: Auto-upload Base64 KYC documents to Supabase Storage Bucket (sensitive-docs)
+                var idCardFront = dto.IdCardFrontUrl;
+                if (!string.IsNullOrWhiteSpace(idCardFront) && idCardFront.StartsWith("data:image"))
+                {
+                    idCardFront = await _storageService.UploadBase64Async(idCardFront, "sensitive-docs", "kyc");
+                }
+
+                var idCardBack = dto.IdCardBackUrl;
+                if (!string.IsNullOrWhiteSpace(idCardBack) && idCardBack.StartsWith("data:image"))
+                {
+                    idCardBack = await _storageService.UploadBase64Async(idCardBack, "sensitive-docs", "kyc");
+                }
+
+                var licenseFront = dto.DriverLicenseFrontUrl;
+                if (!string.IsNullOrWhiteSpace(licenseFront) && licenseFront.StartsWith("data:image"))
+                {
+                    licenseFront = await _storageService.UploadBase64Async(licenseFront, "sensitive-docs", "kyc");
+                }
+
+                var licenseBack = dto.DriverLicenseBackUrl;
+                if (!string.IsNullOrWhiteSpace(licenseBack) && licenseBack.StartsWith("data:image"))
+                {
+                    licenseBack = await _storageService.UploadBase64Async(licenseBack, "sensitive-docs", "kyc");
+                }
+
+                var expiryHours = await _settingsService.GetSettingValueAsync("fast_hold_expiry_hours", 4);
+
+                var rentalRequest = new RentalRequest
                 {
                     Id = Guid.NewGuid(),
-                    FullName = d.FullName,
-                    PhoneNumber = d.PhoneNumber,
-                    IdCardNumber = d.IdCardNumber,
-                    LicenseNumber = d.LicenseNumber
-                }).ToList();
+                    CarId = dto.CarId,
+                    StartTime = startUtc,
+                    EndTime = endUtc,
+                    PickupLocation = dto.PickupLocation,
+                    DropoffLocation = dto.DropoffLocation,
+                    
+                    CustomerName = dto.CustomerName,
+                    CustomerPhone = dto.CustomerPhone,
+                    CustomerEmail = dto.CustomerEmail,
+                    CustomerIdCard = !string.IsNullOrWhiteSpace(dto.CustomerIdCard) ? dto.CustomerIdCard : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
+                    DriverLicenseNumber = !string.IsNullOrWhiteSpace(dto.DriverLicenseNumber) ? dto.DriverLicenseNumber : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
+                    DriverLicenseClass = dto.DriverLicenseClass,
+                    DriverLicenseExpiry = dto.DriverLicenseExpiry.ToUtc(),
+                    IdCardFrontUrl = idCardFront,
+                    IdCardBackUrl = idCardBack,
+                    DriverLicenseFrontUrl = licenseFront,
+                    DriverLicenseBackUrl = licenseBack,
+                    Notes = dto.Notes,
+                    
+                    TotalDays = totalDays,
+                    DailyRate = preview.BasePrice,
+                    DiscountPercent = totalDiscountPercent,
+                    HolidaySurchargePercent = preview.HolidaySurcharge,
+                    EstimatedTotalFee = estimatedFee,
+                    DepositAmount = car.DepositAmount,
+                    BookingType = isFastHold ? "FAST_HOLD" : "STANDARD",
+                    DepositMethod = isFastHold ? "VIETQR" : (isCash ? "CASH" : "VIETQR"),
+                    HoldDepositAmount = holdDeposit,
+                    IsSecurityDepositPaid = false,
+                    HoldExpiresAt = isFastHold ? DateTime.UtcNow.AddHours(expiryHours) : null,
+                    
+                    Status = "PENDING",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                if (dto.AdditionalDrivers != null && dto.AdditionalDrivers.Any())
+                {
+                    rentalRequest.AdditionalDrivers = dto.AdditionalDrivers.Select(d => new AdditionalDriver
+                    {
+                        Id = Guid.NewGuid(),
+                        FullName = d.FullName,
+                        PhoneNumber = d.PhoneNumber,
+                        IdCardNumber = d.IdCardNumber,
+                        LicenseNumber = d.LicenseNumber
+                    }).ToList();
+                }
+
+                _context.RentalRequests.Add(rentalRequest);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return MapToResponseDto(rentalRequest);
             }
-
-            _context.RentalRequests.Add(rentalRequest);
-            await _context.SaveChangesAsync();
-
-            return MapToResponseDto(rentalRequest);
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23P01")
+            {
+                await transaction.RollbackAsync();
+                throw new ConflictException("Xe đã có khách hàng khác đặt trong khoảng thời gian này. Vui lòng chọn khung giờ khác hoặc xe khác.");
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<RentalRequestResponseDto?> GetByIdAsync(Guid id)
@@ -301,174 +359,250 @@ namespace CarRental.API.Services
 
         public async Task<RentalRequestResponseDto> ApproveRequestAsync(Guid id)
         {
-            var request = await _context.RentalRequests
-                .Include(r => r.Vehicle)
-                .Include(r => r.AdditionalDrivers)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (request == null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
-            }
+                var request = await _context.RentalRequests
+                    .Include(r => r.Vehicle)
+                    .Include(r => r.AdditionalDrivers)
+                    .FirstOrDefaultAsync(r => r.Id == id);
 
-            if (request.Status != "PENDING")
+                if (request == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
+                }
+
+                if (request.Status != "PENDING")
+                {
+                    throw new InvalidOperationException($"Chỉ có thể duyệt yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                }
+
+                request.Status = "APPROVED";
+                request.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Real-time notification for customer
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(request.CustomerEmail))
+                    {
+                        var user = await _context.Users
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(u => u.Email.ToLower() == request.CustomerEmail.ToLower());
+                        if (user != null)
+                        {
+                            await _notificationService.CreateNotificationAsync(
+                                user.Id,
+                                "Hồ sơ thuê xe đã được phê duyệt",
+                                $"Yêu cầu thuê xe {request.Vehicle?.Make} {request.Vehicle?.Model} ({request.TotalDays} ngày) đã được Ban Điều Hành phê duyệt. Vui lòng ký hợp đồng điện tử để hoàn tất.",
+                                "RENTAL",
+                                request.Id.ToString(),
+                                "/profile?tab=documents"
+                            );
+                        }
+                    }
+                }
+                catch { }
+
+                return MapToResponseDto(request);
+            }
+            catch
             {
-                throw new InvalidOperationException($"Chỉ có thể duyệt yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            request.Status = "APPROVED";
-            request.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            return MapToResponseDto(request);
         }
 
         public async Task<RentalRequestResponseDto> RejectRequestAsync(Guid id, string reason)
         {
-            var request = await _context.RentalRequests
-                .Include(r => r.Vehicle)
-                .Include(r => r.AdditionalDrivers)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (request == null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
-            }
+                var request = await _context.RentalRequests
+                    .Include(r => r.Vehicle)
+                    .Include(r => r.AdditionalDrivers)
+                    .FirstOrDefaultAsync(r => r.Id == id);
 
-            if (request.Status != "PENDING")
+                if (request == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
+                }
+
+                if (request.Status != "PENDING")
+                {
+                    throw new InvalidOperationException($"Chỉ có thể từ chối yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                }
+
+                request.Status = "REJECTED";
+                request.RejectReason = reason.Trim();
+                request.UpdatedAt = DateTime.UtcNow;
+
+                // Also cancel associated contract if any exists
+                var contract = await _context.RentalContracts
+                    .FirstOrDefaultAsync(c => c.RequestId == request.Id);
+                if (contract != null)
+                {
+                    contract.Status = "CANCELLED";
+                    contract.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Real-time notification for customer
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(request.CustomerEmail))
+                    {
+                        var user = await _context.Users
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(u => u.Email.ToLower() == request.CustomerEmail.ToLower());
+                        if (user != null)
+                        {
+                            await _notificationService.CreateNotificationAsync(
+                                user.Id,
+                                "Yêu cầu thuê xe chưa được duyệt",
+                                $"Yêu cầu thuê xe {request.Vehicle?.Make} {request.Vehicle?.Model} bị từ chối với lý do: {request.RejectReason}.",
+                                "RENTAL",
+                                request.Id.ToString(),
+                                "/profile?tab=rentals"
+                            );
+                        }
+                    }
+                }
+                catch { }
+
+                return MapToResponseDto(request);
+            }
+            catch
             {
-                throw new InvalidOperationException($"Chỉ có thể từ chối yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            request.Status = "REJECTED";
-            request.RejectReason = reason.Trim();
-            request.UpdatedAt = DateTime.UtcNow;
-
-            // Also cancel associated contract if any exists
-            var contract = await _context.RentalContracts
-                .FirstOrDefaultAsync(c => c.RequestId == request.Id);
-            if (contract != null)
-            {
-                contract.Status = "CANCELLED";
-                contract.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
-
-            return MapToResponseDto(request);
         }
 
         public async Task<CancelRentalResultDto> CancelRequestAsync(Guid id)
         {
-            var request = await _context.RentalRequests
-                .Include(r => r.Vehicle)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (request == null)
-                throw new KeyNotFoundException("Không tìm thấy yêu cầu thuê xe.");
-
-            var cancellableStatuses = new[] { "PENDING", "APPROVED", "SIGNED", "CONFIRMED" };
-            if (!cancellableStatuses.Contains(request.Status))
-                throw new InvalidOperationException($"Không thể hủy đơn ở trạng thái {request.Status}. Chỉ hủy được đơn PENDING, APPROVED, SIGNED hoặc CONFIRMED.");
-
-            bool wasConfirmed = request.Status == "CONFIRMED";
-            decimal penaltyPercent = 0m;
-            string penaltyReason = "Không áp dụng phí hủy.";
-            decimal depositAmount = request.DepositAmount;
-
-            // Only apply penalty if deposit was already paid (CONFIRMED)
-            if (wasConfirmed)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                var hoursUntilPickup = (request.StartTime - DateTime.UtcNow).TotalHours;
+                var request = await _context.RentalRequests
+                    .Include(r => r.Vehicle)
+                    .FirstOrDefaultAsync(r => r.Id == id);
 
-                if (hoursUntilPickup > 24)
+                if (request == null)
+                    throw new KeyNotFoundException("Không tìm thấy yêu cầu thuê xe.");
+
+                var cancellableStatuses = new[] { "PENDING", "APPROVED", "SIGNED", "CONFIRMED" };
+                if (!cancellableStatuses.Contains(request.Status))
+                    throw new InvalidOperationException($"Không thể hủy đơn ở trạng thái {request.Status}. Chỉ hủy được đơn PENDING, APPROVED, SIGNED hoặc CONFIRMED.");
+
+                bool wasConfirmed = request.Status == "CONFIRMED";
+                decimal penaltyPercent = 0m;
+                string penaltyReason = "Không áp dụng phí hủy.";
+                decimal depositAmount = request.DepositAmount;
+
+                // Only apply penalty if deposit was already paid (CONFIRMED)
+                if (wasConfirmed)
                 {
-                    penaltyPercent = 0m;
-                    penaltyReason = "Hủy trước 24 giờ nhận xe — Hoàn 100% tiền cọc.";
+                    var hoursUntilPickup = (request.StartTime - DateTime.UtcNow).TotalHours;
+
+                    if (hoursUntilPickup > 24)
+                    {
+                        penaltyPercent = 0m;
+                        penaltyReason = "Hủy trước 24 giờ nhận xe — Hoàn 100% tiền cọc.";
+                    }
+                    else if (hoursUntilPickup > 6)
+                    {
+                        penaltyPercent = 30m;
+                        penaltyReason = $"Hủy trong vòng 6–24 giờ trước giờ nhận xe — Phạt 30% tiền cọc.";
+                    }
+                    else if (hoursUntilPickup > 0)
+                    {
+                        penaltyPercent = 50m;
+                        penaltyReason = $"Hủy dưới 6 giờ trước giờ nhận xe — Phạt 50% tiền cọc.";
+                    }
+                    else
+                    {
+                        penaltyPercent = 100m;
+                        penaltyReason = "Đã quá giờ nhận xe (No-show) — Mất 100% tiền cọc.";
+                    }
                 }
-                else if (hoursUntilPickup > 6)
+
+                decimal penaltyAmount = Math.Round(depositAmount * penaltyPercent / 100m, 0);
+                decimal refundAmount = depositAmount - penaltyAmount;
+
+                // Update request status
+                request.Status = "CANCELLED";
+                request.RejectReason = penaltyReason;
+                request.UpdatedAt = DateTime.UtcNow;
+
+                // Release vehicle back to READY if it was reserved
+                if (request.Vehicle != null && 
+                    (request.Vehicle.Status == VehicleStatus.BOOKED || request.Vehicle.Status == VehicleStatus.RENTED))
                 {
-                    penaltyPercent = 30m;
-                    penaltyReason = $"Hủy trong vòng 6–24 giờ trước giờ nhận xe — Phạt 30% tiền cọc.";
+                    // Only release if no other active bookings exist for this vehicle
+                    bool hasOtherActiveBookings = await _context.RentalRequests
+                        .AnyAsync(r => r.CarId == request.CarId 
+                            && r.Id != request.Id
+                            && (r.Status == "CONFIRMED" || r.Status == "ACTIVE"));
+
+                    if (!hasOtherActiveBookings)
+                    {
+                        request.Vehicle.Status = VehicleStatus.READY;
+                    }
                 }
-                else if (hoursUntilPickup > 0)
+
+                // Also cancel associated contract if exists
+                var requestContract = await _context.RentalContracts
+                    .FirstOrDefaultAsync(c => c.RequestId == request.Id);
+                if (requestContract != null)
                 {
-                    penaltyPercent = 50m;
-                    penaltyReason = $"Hủy dưới 6 giờ trước giờ nhận xe — Phạt 50% tiền cọc.";
+                    requestContract.Status = "CANCELLED";
+                    requestContract.UpdatedAt = DateTime.UtcNow;
                 }
-                else
+
+                // If deposit was paid, log refund payment for audit trail
+                if (wasConfirmed && refundAmount > 0)
                 {
-                    penaltyPercent = 100m;
-                    penaltyReason = "Đã quá giờ nhận xe (No-show) — Mất 100% tiền cọc.";
+                    var refundPayment = new Payment
+                    {
+                        Id = Guid.NewGuid(),
+                        ContractId = requestContract?.Id,
+                        RentalRequestId = request.Id,
+                        Amount = refundAmount,
+                        Type = "REFUND_CANCELLATION",
+                        Status = "SUCCESS",
+                        PaymentMethod = "VIETQR",
+                        PaidAt = DateTime.UtcNow,
+                        Note = $"Hoàn tiền cọc sau hủy đơn {request.Id.ToString()[..8].ToUpper()} ({penaltyReason})",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Payments.Add(refundPayment);
                 }
-            }
 
-            decimal penaltyAmount = Math.Round(depositAmount * penaltyPercent / 100m, 0);
-            decimal refundAmount = depositAmount - penaltyAmount;
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
-            // Update request status
-            request.Status = "CANCELLED";
-            request.RejectReason = penaltyReason;
-            request.UpdatedAt = DateTime.UtcNow;
-
-            // Release vehicle back to READY if it was reserved
-            if (request.Vehicle != null && 
-                (request.Vehicle.Status == VehicleStatus.BOOKED || request.Vehicle.Status == VehicleStatus.RENTED))
-            {
-                // Only release if no other active bookings exist for this vehicle
-                bool hasOtherActiveBookings = await _context.RentalRequests
-                    .AnyAsync(r => r.CarId == request.CarId 
-                        && r.Id != request.Id
-                        && (r.Status == "CONFIRMED" || r.Status == "ACTIVE"));
-
-                if (!hasOtherActiveBookings)
+                return new CancelRentalResultDto
                 {
-                    request.Vehicle.Status = VehicleStatus.READY;
-                }
-            }
-
-            // Also cancel associated contract if exists
-            var requestContract = await _context.RentalContracts
-                .FirstOrDefaultAsync(c => c.RequestId == request.Id);
-            if (requestContract != null)
-            {
-                requestContract.Status = "CANCELLED";
-                requestContract.UpdatedAt = DateTime.UtcNow;
-            }
-
-            // If deposit was paid, log refund payment for audit trail
-            if (wasConfirmed && refundAmount > 0)
-            {
-                var refundPayment = new Payment
-                {
-                    Id = Guid.NewGuid(),
-                    ContractId = requestContract?.Id,
-                    RentalRequestId = request.Id,
-                    Amount = refundAmount,
-                    Type = "REFUND_CANCELLATION",
-                    Status = "SUCCESS",
-                    PaymentMethod = "VIETQR",
-                    PaidAt = DateTime.UtcNow,
-                    Note = $"Hoàn tiền cọc sau hủy đơn {request.Id.ToString()[..8].ToUpper()} ({penaltyReason})",
-                    CreatedAt = DateTime.UtcNow
+                    RequestId = request.Id,
+                    Status = "CANCELLED",
+                    DepositAmount = depositAmount,
+                    PenaltyPercent = penaltyPercent,
+                    PenaltyAmount = penaltyAmount,
+                    RefundAmount = refundAmount,
+                    PenaltyReason = penaltyReason,
+                    CancelledAt = DateTime.UtcNow
                 };
-                _context.Payments.Add(refundPayment);
             }
-
-            await _context.SaveChangesAsync();
-
-            return new CancelRentalResultDto
+            catch
             {
-                RequestId = request.Id,
-                Status = "CANCELLED",
-                DepositAmount = depositAmount,
-                PenaltyPercent = penaltyPercent,
-                PenaltyAmount = penaltyAmount,
-                RefundAmount = refundAmount,
-                PenaltyReason = penaltyReason,
-                CancelledAt = DateTime.UtcNow
-            };
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<RentalRequestResponseDto> UpdateDocumentsAsync(Guid id, UpdateRentalDocumentsDto dto)

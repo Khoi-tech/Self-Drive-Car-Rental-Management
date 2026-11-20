@@ -24,7 +24,8 @@ import {
   UploadCloud,
   FileQuestion,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Wallet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
@@ -477,10 +478,10 @@ const RentalsManagementSection = ({
                 }
               : (!isFastHold && req.depositMethod === 'CASH' && req.status === 'CONFIRMED')
               ? {
-                  label: 'Đã giữ xe • Cọc tiền mặt khi nhận xe',
+                  label: 'Đã giữ xe • Cọc khi nhận xe',
                   badgeClass: 'bg-emerald-50 text-emerald-900 border-emerald-300',
                   icon: CheckCircle2,
-                  subtext: `Nộp ${formatCurrency(carDeposit)} tiền mặt khi nhận bàn giao xe`
+                  subtext: `Nộp ${formatCurrency(carDeposit)} (tiền mặt hoặc chuyển khoản) khi nhận xe`
                 }
               : baseStatusInfo;
 
@@ -517,7 +518,7 @@ const RentalsManagementSection = ({
                         </div>
                       ) : req.depositMethod === 'CASH' ? (
                         <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow">
-                          💵 CỌC TIỀN MẶT
+                          <Wallet className="w-2.5 h-2.5" /> CỌC KHI NHẬN XE
                         </div>
                       ) : null}
                     </div>
@@ -562,11 +563,11 @@ const RentalsManagementSection = ({
                     <div className="text-[11px] text-slate-500 space-y-0.5 mt-0.5">
                       {isFastHold ? (
                         <>
-                          <div className="font-bold text-amber-700">⚡ Đã cọc giữ chỗ: 500.000đ</div>
+                          <div className="font-bold text-amber-700">Đã cọc giữ chỗ: 500.000đ</div>
                           {isSecurityDepositPaid ? (
                             <div className="font-bold text-emerald-700">✓ Đã cọc thế chân: {formatCurrency(remainingDeposit)}</div>
                           ) : (
-                            <div className="font-bold text-rose-700">🛡️ Cọc thế chân: {formatCurrency(remainingDeposit)} (Cần nộp)</div>
+                            <div className="font-bold text-rose-700">Cọc thế chân: {formatCurrency(remainingDeposit)} (Cần nộp)</div>
                           )}
                         </>
                       ) : (
@@ -621,7 +622,7 @@ const RentalsManagementSection = ({
                         <span>
                           {req.customerIdCard && req.customerIdCard !== 'CHƯA_CẬP_NHẬT'
                             ? '✓ Đã nộp (Chỉnh sửa CCCD/GPLX)'
-                            : '⚡ Bổ sung CCCD/GPLX'}
+                            : 'Bổ sung CCCD/GPLX'}
                         </span>
                       </button>
                     )}

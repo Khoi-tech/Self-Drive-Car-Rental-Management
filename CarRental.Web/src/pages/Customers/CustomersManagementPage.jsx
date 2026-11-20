@@ -95,7 +95,7 @@ const CustomersManagementPage = () => {
         status: statusFilter
       });
       const data = res?.data || res;
-      setCustomers(Array.isArray(data) ? data : []);
+      setCustomers(Array.isArray(data) ? data : (data?.items || []));
     } catch (err) {
       console.error(err);
       setError('Không thể kết nối máy chủ để tải danh sách khách hàng.');

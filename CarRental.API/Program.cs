@@ -12,9 +12,8 @@ using Microsoft.OpenApi;
 using CarRental.API.Data;
 using CarRental.API.Entities;
 using CarRental.API.Services;
+using CarRental.API.Workers;
 
-// Enable legacy timestamp behavior to allow local and UTC DateTimes seamlessly with PostgreSQL
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,11 +81,50 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
+
+#pragma warning disable EXTEXP0018
+builder.Services.AddHybridCache(options =>
+{
+    options.DefaultEntryOptions = new Microsoft.Extensions.Caching.Hybrid.HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromMinutes(30),
+        LocalCacheExpiration = TimeSpan.FromMinutes(30)
+    };
+});
+#pragma warning restore EXTEXP0018
+
+// Policy-based Authorization Setup
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Operations", policy =>
+        policy.RequireRole("ADMIN", "MANAGER", "STAFF"));
+
+    options.AddPolicy("Management", policy =>
+        policy.RequireRole("ADMIN", "MANAGER"));
+
+    options.AddPolicy("CustomerOrStaff", policy =>
+        policy.RequireRole("CUSTOMER", "ADMIN", "MANAGER", "STAFF"));
+});
 
 // Dependency Injection
+builder.Services.AddHttpClient<IStorageService, StorageService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IRentalConditionService, RentalConditionService>();
@@ -104,6 +142,12 @@ builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<IReturnProtocolService, ReturnProtocolService>();
 builder.Services.AddScoped<ISettlementService, SettlementService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// Background Workers
+builder.Services.AddHostedService<FastHoldExpirationWorker>();
+builder.Services.AddHostedService<DailyOperationalAlertsWorker>();
 
 // Build app
 var app = builder.Build();
@@ -114,278 +158,145 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try {
         db.Database.ExecuteSqlRaw(@"
-            DO $$
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'text'::regtype AND casttarget = 'car_status'::regtype) THEN
-                    CREATE CAST (text AS public.car_status) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (character varying AS public.car_status) WITH INOUT AS IMPLICIT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'public.car_status'::regtype AND casttarget = 'text'::regtype) THEN
-                    CREATE CAST (public.car_status AS text) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (public.car_status AS character varying) WITH INOUT AS IMPLICIT;
-                END IF;
+            -- Extension
+            CREATE EXTENSION IF NOT EXISTS btree_gist;
 
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'text'::regtype AND casttarget = 'fuel_type'::regtype) THEN
-                    CREATE CAST (text AS public.fuel_type) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (character varying AS public.fuel_type) WITH INOUT AS IMPLICIT;
-                END IF;
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'public.fuel_type'::regtype AND casttarget = 'text'::regtype) THEN
-                    CREATE CAST (public.fuel_type AS text) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (public.fuel_type AS character varying) WITH INOUT AS IMPLICIT;
-                END IF;
+            -- 1. app_users columns
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS kyc_status character varying(20) NOT NULL DEFAULT 'NOT_SUBMITTED';
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS kyc_reviewed_at timestamp with time zone NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS kyc_note character varying(500) NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS driver_license_number character varying(50) NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS driver_license_class character varying(20) NULL DEFAULT 'B2';
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS driver_license_expiry timestamp with time zone NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS id_card_front_url text NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS id_card_back_url text NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS driver_license_front_url text NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS driver_license_back_url text NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS id_card_number character varying(50) NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS trust_score integer NOT NULL DEFAULT 100;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone NULL;
 
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'text'::regtype AND casttarget = 'car_transmission'::regtype) THEN
-                    CREATE CAST (text AS public.car_transmission) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (character varying AS public.car_transmission) WITH INOUT AS IMPLICIT;
+            -- 2. refresh_tokens
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id uuid NOT NULL,
+                user_id uuid NOT NULL,
+                token character varying(500) NOT NULL,
+                expires_at timestamp with time zone NOT NULL,
+                created_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
+                revoked_at timestamp with time zone NULL,
+                replaced_by_token character varying(255) NULL,
+                CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
+                CONSTRAINT fk_refresh_tokens_users_user_id FOREIGN KEY (user_id) REFERENCES app_users (id) ON DELETE CASCADE
+            );
+            ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS expires_at timestamp with time zone NULL;
+            ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked_at timestamp with time zone NULL;
+            ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS replaced_by_token character varying(255) NULL;
+            DO $$ BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'refresh_tokens' AND column_name = 'jwt_id') THEN
+                    ALTER TABLE refresh_tokens ALTER COLUMN jwt_id DROP NOT NULL;
                 END IF;
-                IF NOT EXISTS (SELECT 1 FROM pg_cast WHERE castsource = 'public.car_transmission'::regtype AND casttarget = 'text'::regtype) THEN
-                    CREATE CAST (public.car_transmission AS text) WITH INOUT AS IMPLICIT;
-                    CREATE CAST (public.car_transmission AS character varying) WITH INOUT AS IMPLICIT;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'refresh_tokens' AND column_name = 'expiry_date') THEN
+                    ALTER TABLE refresh_tokens ALTER COLUMN expiry_date DROP NOT NULL;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'refresh_tokens' AND column_name = 'is_used') THEN
+                    ALTER TABLE refresh_tokens ALTER COLUMN is_used DROP NOT NULL;
+                END IF;
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'refresh_tokens' AND column_name = 'is_revoked') THEN
+                    ALTER TABLE refresh_tokens ALTER COLUMN is_revoked DROP NOT NULL;
                 END IF;
             END $$;
+            CREATE INDEX IF NOT EXISTS ix_refresh_tokens_token ON refresh_tokens (token);
+            CREATE INDEX IF NOT EXISTS ix_refresh_tokens_user_id ON refresh_tokens (user_id);
 
-            CREATE TABLE IF NOT EXISTS car_insurances (
-                id UUID PRIMARY KEY,
-                car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
-                provider VARCHAR(150) NOT NULL,
-                start_date DATE NOT NULL,
-                end_date DATE NOT NULL
+            -- 3. customer_violations
+            CREATE TABLE IF NOT EXISTS customer_violations (
+                id uuid NOT NULL,
+                customer_id uuid NOT NULL,
+                date timestamp with time zone NOT NULL,
+                type character varying(100) NOT NULL,
+                description text NOT NULL,
+                fine numeric(18,2) NOT NULL DEFAULT 0,
+                severity character varying(20) NOT NULL DEFAULT 'MINOR',
+                created_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
+                CONSTRAINT pk_customer_violations PRIMARY KEY (id),
+                CONSTRAINT fk_customer_violations_users_customer_id FOREIGN KEY (customer_id) REFERENCES app_users (id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS ix_customer_violations_customer_id ON customer_violations (customer_id);
+
+            -- 4. system_settings
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key character varying(100) NOT NULL,
+                value text NOT NULL,
+                data_type character varying(20) NOT NULL DEFAULT 'string',
+                description character varying(255) NULL,
+                updated_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
+                CONSTRAINT pk_system_settings PRIMARY KEY (key)
             );
 
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS insurance_type VARCHAR(50) DEFAULT 'TNDS';
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS policy_number VARCHAR(100) DEFAULT '';
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS coverage_summary TEXT;
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS deductible_amount NUMERIC DEFAULT 0;
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS premium_amount NUMERIC DEFAULT 0;
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS certificate_image_url TEXT;
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ACTIVE';
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE car_insurances ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
-
-            CREATE TABLE IF NOT EXISTS handover_protocols (
-                id UUID PRIMARY KEY,
-                contract_id UUID REFERENCES rental_contracts(id),
-                staff_id UUID,
-                start_km INT DEFAULT 0,
-                fuel_level INT DEFAULT 100,
-                damages_desc TEXT,
-                images TEXT,
-                created_at TIMESTAMPTZ DEFAULT NOW()
+            -- 5. notifications
+            CREATE TABLE IF NOT EXISTS notifications (
+                id uuid NOT NULL,
+                user_id uuid NOT NULL,
+                title character varying(200) NOT NULL,
+                message text NOT NULL,
+                type character varying(50) NOT NULL DEFAULT 'SYSTEM',
+                reference_id character varying(100) NULL,
+                action_url character varying(500) NULL,
+                is_read boolean NOT NULL DEFAULT FALSE,
+                created_at timestamp with time zone NOT NULL DEFAULT (now() at time zone 'utc'),
+                CONSTRAINT pk_notifications PRIMARY KEY (id),
+                CONSTRAINT fk_notifications_users_user_id FOREIGN KEY (user_id) REFERENCES app_users (id) ON DELETE CASCADE
             );
+            CREATE INDEX IF NOT EXISTS ix_notifications_user_id_is_read_created_at ON notifications (user_id, is_read, created_at);
 
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS protocol_number VARCHAR(50);
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS rental_request_id UUID;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100);
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(20);
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS exterior_condition TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS interior_condition TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS tire_condition TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS accessories_checklist TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_name VARCHAR(100);
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_notes TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS staff_signature TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS customer_signature TEXT;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'PENDING_CUSTOMER';
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS handover_date TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
-            ALTER TABLE handover_protocols ALTER COLUMN images TYPE TEXT USING images::text;
+            -- 6. rental_requests extra columns
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS booking_type character varying(50) NOT NULL DEFAULT 'STANDARD';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS deposit_method character varying(50) NOT NULL DEFAULT 'CASH';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_class character varying(20) NULL DEFAULT 'B2';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_expiry timestamp with time zone NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_deposit_amount numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at timestamp with time zone NULL;
 
-            -- SPRINT 4: Rental Extensions Table (US-08, US-20)
-            CREATE TABLE IF NOT EXISTS rental_extensions (
-                id UUID PRIMARY KEY,
-                rental_request_id UUID NOT NULL REFERENCES rental_requests(id) ON DELETE CASCADE,
-                old_end_time TIMESTAMPTZ NOT NULL,
-                new_end_time TIMESTAMPTZ NOT NULL,
-                extended_days INT NOT NULL DEFAULT 1,
-                extended_hours INT NOT NULL DEFAULT 24,
-                additional_fee NUMERIC(18,2) NOT NULL DEFAULT 0,
-                reason TEXT NOT NULL,
-                status VARCHAR(50) DEFAULT 'PENDING',
-                staff_notes TEXT,
-                processed_by_staff_id UUID,
-                processed_by_staff_name VARCHAR(100),
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                processed_at TIMESTAMPTZ
+            -- 7. rental_contracts extra columns
+            ALTER TABLE rental_contracts ADD COLUMN IF NOT EXISTS cancellation_reason text NULL;
+            ALTER TABLE rental_contracts ADD COLUMN IF NOT EXISTS cancelled_at timestamp with time zone NULL;
+
+            -- 8. payments extra columns
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_purpose character varying(50) NOT NULL DEFAULT 'DEPOSIT';
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_metadata text NULL;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS bank_name character varying(100) NULL;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS bank_account_number character varying(50) NULL;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS bank_account_name character varying(150) NULL;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS raw_webhook_payload text NULL;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS processed_at timestamp with time zone NULL;
+
+            -- 9. rental_settlements extra columns
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_hold_amount numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_date timestamp with time zone NULL;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_settled_at timestamp with time zone NULL;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_payment_id uuid NULL;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_notes text NULL;
+
+            -- 10. Mark migration as applied in history if not present
+            CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (
+                ""MigrationId"" character varying(150) NOT NULL,
+                ""ProductVersion"" character varying(32) NOT NULL,
+                CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY (""MigrationId"")
             );
-
-            -- SPRINT 4: Incident Reports Table (US-09, US-21)
-            CREATE TABLE IF NOT EXISTS incident_reports (
-                id UUID PRIMARY KEY,
-                incident_code VARCHAR(50),
-                rental_request_id UUID NOT NULL REFERENCES rental_requests(id) ON DELETE CASCADE,
-                car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
-                customer_id UUID,
-                customer_name VARCHAR(100) NOT NULL,
-                customer_phone VARCHAR(20) NOT NULL,
-                incident_type VARCHAR(50) DEFAULT 'COLLISION',
-                severity VARCHAR(50) DEFAULT 'MEDIUM',
-                location TEXT NOT NULL,
-                description TEXT NOT NULL,
-                photo_urls TEXT,
-                has_injuries BOOLEAN DEFAULT FALSE,
-                status VARCHAR(50) DEFAULT 'REPORTED',
-                resolution_action VARCHAR(50),
-                replacement_car_id UUID REFERENCES cars(id),
-                estimated_damage_cost NUMERIC(18,2) DEFAULT 0,
-                insurance_coverage_status VARCHAR(50) DEFAULT 'PENDING_CLAIM',
-                customer_pay_amount NUMERIC(18,2) DEFAULT 0,
-                company_pay_amount NUMERIC(18,2) DEFAULT 0,
-                staff_notes TEXT,
-                handled_by_staff_name VARCHAR(100),
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                resolved_at TIMESTAMPTZ
-            );
-
-            -- SPRINT 4: Maintenance Records Table (US-24)
-            CREATE TABLE IF NOT EXISTS maintenance_records (
-                id UUID PRIMARY KEY,
-                maintenance_code VARCHAR(50),
-                car_id UUID NOT NULL REFERENCES cars(id) ON DELETE CASCADE,
-                maintenance_type VARCHAR(50) DEFAULT 'ROUTINE',
-                title VARCHAR(200) NOT NULL,
-                garage_name VARCHAR(150) DEFAULT 'Gara chính hãng VELORA Care',
-                cost NUMERIC(18,2) DEFAULT 0,
-                odo_at_maintenance INT DEFAULT 0,
-                scheduled_date TIMESTAMPTZ DEFAULT NOW(),
-                completed_date TIMESTAMPTZ,
-                details TEXT,
-                next_maintenance_mileage INT,
-                next_maintenance_date TIMESTAMPTZ,
-                status VARCHAR(50) DEFAULT 'SCHEDULED',
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ
-            );
-
-            -- SPRINT 5: Return Protocols Table (US-22)
-            CREATE TABLE IF NOT EXISTS return_protocols (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS protocol_number VARCHAR(50);
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS rental_request_id UUID;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS contract_id UUID;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_id UUID;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_name VARCHAR(100) DEFAULT 'Nhân viên kiểm định VELORA';
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_name VARCHAR(100);
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(20);
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS return_date TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS start_km INT NOT NULL DEFAULT 0;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS end_km INT NOT NULL DEFAULT 0;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS fuel_level INT NOT NULL DEFAULT 100;
-            ALTER TABLE return_protocols ALTER COLUMN end_km DROP NOT NULL;
-            ALTER TABLE return_protocols ALTER COLUMN fuel_level DROP NOT NULL;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS total_km_driven INT NOT NULL DEFAULT 0;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS max_km_allowed INT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS excess_km INT NOT NULL DEFAULT 0;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS initial_fuel_level INT NOT NULL DEFAULT 100;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS return_fuel_level INT NOT NULL DEFAULT 100;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS fuel_difference INT NOT NULL DEFAULT 0;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS exterior_condition TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS interior_condition TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS tire_condition TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS new_damages_notes TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS accessories_checklist TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS missing_accessories TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS evidence_photo_urls TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_notes TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS staff_signature TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS customer_signature TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS next_vehicle_status VARCHAR(50) DEFAULT 'READY';
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'COMPLETED';
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
-
-            -- SPRINT 5: Rental Settlements Table (US-23)
-            CREATE TABLE IF NOT EXISTS rental_settlements (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settlement_number VARCHAR(50);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS rental_request_id UUID;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS contract_id UUID;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS return_protocol_id UUID;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS rental_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS deposit_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS extra_km_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS late_hours NUMERIC(5,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS late_return_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS fuel_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS damage_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS cleaning_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS other_fee NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS other_fee_notes TEXT;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS total_deduction NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS balance_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settlement_type VARCHAR(50) DEFAULT 'REFUND_TO_CUSTOMER';
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS additional_amount_due NUMERIC(18,2) NOT NULL DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50) DEFAULT 'PENDING';
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_method VARCHAR(50) DEFAULT 'VIETQR';
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_bank_name VARCHAR(100);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_account_number VARCHAR(50);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_account_name VARCHAR(100);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_transaction_code VARCHAR(100);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refund_proof_url TEXT;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS staff_notes TEXT;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'SETTLED';
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_hold_amount NUMERIC(18,2) DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_date TIMESTAMPTZ;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_status VARCHAR(50) DEFAULT 'NONE';
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_actual_deduction NUMERIC(18,2) DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_actual_refund NUMERIC(18,2) DEFAULT 0;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refunded_at TIMESTAMPTZ;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_transaction_code VARCHAR(100);
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_notes TEXT;
-            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_violation_proof_url TEXT;
-
-            UPDATE rental_settlements 
-            SET traffic_fine_refund_status = 'HOLDING' 
-            WHERE traffic_fine_hold_amount > 0 AND (traffic_fine_refund_status IS NULL OR traffic_fine_refund_status = 'NONE');
-
-            -- Clean up car brand whitespaces and Fast Hold columns
-            UPDATE cars SET brand = TRIM(brand);
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 10', 'Quận 10') WHERE pickup_location LIKE '%Qu?n 10%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 1', 'Quận 1') WHERE pickup_location LIKE '%Qu?n 1%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 3', 'Quận 3') WHERE pickup_location LIKE '%Qu?n 3%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Qu?n 7', 'Quận 7') WHERE pickup_location LIKE '%Qu?n 7%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Quan Binh Thanh', 'Quận Bình Thạnh') WHERE pickup_location LIKE '%Quan Binh Thanh%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'San bay Tan Son Nhat', 'Sân bay Tân Sơn Nhất') WHERE pickup_location LIKE '%San bay Tan Son Nhat%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Th?o Di?n', 'Thảo Điền') WHERE pickup_location LIKE '%Th?o Di?n%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'TP. Th? D?c', 'TP. Thủ Đức') WHERE pickup_location LIKE '%TP. Th? D?c%';
-            UPDATE cars SET pickup_location = REPLACE(pickup_location, 'Hổ Chí Minh', 'Hồ Chí Minh') WHERE pickup_location LIKE '%Hổ Chí Minh%';
-            UPDATE cars SET model = REPLACE(model, 'Ch?', 'Chỗ') WHERE model LIKE '%Ch?%';
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS booking_type VARCHAR(50) DEFAULT 'STANDARD';
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS deposit_method VARCHAR(50) DEFAULT 'VIETQR';
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_deposit_amount NUMERIC DEFAULT 0;
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS is_security_deposit_paid BOOLEAN DEFAULT FALSE;
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at TIMESTAMPTZ;
-            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS lock_reason TEXT;
-            UPDATE rental_requests SET estimated_total_fee = 10500000, daily_rate = 3500000, deposit_amount = 20000000 WHERE id = '577f4870-b958-47d5-ae0e-72e23af6f5d6';
-            UPDATE rental_requests SET deposit_amount = 20000000 WHERE booking_type = 'FAST_HOLD' AND (deposit_amount < 500000 OR deposit_amount IS NULL);
-
-            -- PHASE 2: Advanced Rental Eligibility & 2D Vehicle Damage Mapping
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_class VARCHAR(50);
-            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_expiry TIMESTAMPTZ;
-            ALTER TABLE handover_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
-            ALTER TABLE return_protocols ADD COLUMN IF NOT EXISTS damage_points_json TEXT;
-
-            -- Synchronize RentalRequest status to SIGNED for any orders whose contracts have already been signed
-            UPDATE rental_requests r
-            SET status = 'SIGNED', updated_at = NOW()
-            FROM rental_contracts c
-            WHERE c.request_id = r.id AND c.status = 'SIGNED' AND r.status = 'APPROVED';
-
             INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-            VALUES ('20261014060016_AddOperationalAndSprintTables', '10.0.12')
+            VALUES ('20261119064208_AddSystemSettingsAndNotifications', '10.0.12')
             ON CONFLICT (""MigrationId"") DO NOTHING;
         ");
-    } catch { /* Ignore if already exists */ }
+        Console.WriteLine("[Database Schema Sync]: Schema synchronized successfully.");
+    } catch (Exception ex) {
+        Console.WriteLine($"[Database Schema Sync Notice]: {ex.Message}");
+    }
+
+    try {
+        db.Database.Migrate();
+    } catch (Exception ex) {
+        Console.WriteLine($"[Database Migration Notice]: {ex.Message}");
+    }
 
     // Seed default users if not existing
     try {
@@ -744,6 +655,61 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Seed default system settings if not existing
+        try
+        {
+            if (!db.SystemSettings.Any())
+            {
+                db.SystemSettings.AddRange(
+                    new SystemSetting
+                    {
+                        Key = "vietqr_discount_percent",
+                        Value = "5",
+                        DataType = "DECIMAL",
+                        Description = "Tỷ lệ chiết khấu (%) khi thanh toán trực tuyến VietQR",
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new SystemSetting
+                    {
+                        Key = "fast_hold_deposit_amount",
+                        Value = "500000",
+                        DataType = "DECIMAL",
+                        Description = "Số tiền cọc giữ xe siêu tốc Fast Hold (VNĐ)",
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new SystemSetting
+                    {
+                        Key = "fast_hold_expiry_hours",
+                        Value = "4",
+                        DataType = "INTEGER",
+                        Description = "Thời hạn giữ chỗ Fast Hold (giờ) trước khi tự động hủy",
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new SystemSetting
+                    {
+                        Key = "traffic_fine_hold_amount",
+                        Value = "2000000",
+                        DataType = "DECIMAL",
+                        Description = "Khoản tiền giữ lại đối soát phạt nguội khi quyết toán (VNĐ)",
+                        UpdatedAt = DateTime.UtcNow
+                    },
+                    new SystemSetting
+                    {
+                        Key = "traffic_fine_hold_days",
+                        Value = "30",
+                        DataType = "INTEGER",
+                        Description = "Số ngày phong tỏa tiền cọc đối soát phạt nguội",
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                );
+                db.SaveChanges();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Settings Seeding Notice]: {ex.Message}");
+        }
+
         db.SaveChanges();
     } catch (Exception ex) {
         Console.WriteLine($"Error seeding test data: {ex.Message}");
@@ -757,7 +723,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors(x => x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+app.UseCors(x => x
+    .SetIsOriginAllowed(_ => true)
+    .AllowAnyMethod()
+    .AllowAnyHeader()
+    .AllowCredentials());
 
 if (!app.Environment.IsDevelopment())
 {
@@ -765,9 +735,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+app.UseMiddleware<CarRental.API.Middleware.UserActiveStatusMiddleware>();
 app.UseAuthorization();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 app.MapControllers();
+app.MapHub<CarRental.API.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

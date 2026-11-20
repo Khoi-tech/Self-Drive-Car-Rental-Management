@@ -1,126 +1,84 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Bell, 
   CheckCircle2, 
   Clock, 
-  CreditCard, 
   Car, 
   ShieldCheck, 
-  AlertCircle, 
   Trash2, 
   CheckCheck,
-  Zap,
   ArrowRight,
-  Filter,
   Search,
   Settings,
-  Mail,
-  Smartphone,
-  MessageSquare,
   AlertTriangle,
   X,
-  FileCheck2,
-  FileSignature,
   QrCode,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import notificationService from '../../../services/notificationService';
+import { formatDateTime } from '../../../utils/formatters';
 
-const INITIAL_NOTIFICATIONS = [
-  {
-    id: 'notif-1',
-    category: 'RENTAL',
-    priority: 'HIGH',
-    typeBadge: 'KÝ HỢP ĐỒNG',
-    title: 'Hồ sơ thuê xe Porsche Taycan 4S đã được phê duyệt',
-    description: 'Hồ sơ CCCD gắn chip & Giấy phép lái xe của bạn đã được Pháp chế VELORA xác thực cấp 2 hợp lệ. Vui lòng ký hợp đồng điện tử để khóa xe giao tận nơi.',
-    timestamp: '10 phút trước',
-    fullTime: '14:35 • Hôm nay',
-    isRead: false,
-    actionType: 'LINK',
-    actionText: 'Ký hợp đồng số ngay',
-    actionLink: '/profile?tab=documents'
-  },
-  {
-    id: 'notif-2',
-    category: 'PAYMENT',
-    priority: 'NORMAL',
-    typeBadge: 'CỌC GIỮ XE',
-    title: 'Xác nhận cọc giữ xe 500.000đ (Fast Hold) thành công',
-    description: 'Hệ thống đã nhận thanh toán 500.000đ qua VietQR Napas 247. Xe Porsche Taycan 4S đã được giữ lịch trong 4 giờ để bạn kiểm tra hợp đồng.',
-    timestamp: '2 giờ trước',
-    fullTime: '12:45 • Hôm nay',
-    isRead: false,
-    actionType: 'VIEW_RECEIPT',
-    actionText: 'Xem sổ cái tiền cọc',
-    actionLink: '/profile?tab=payments'
-  },
-  {
-    id: 'notif-3',
-    category: 'ACCOUNT',
-    priority: 'NORMAL',
-    typeBadge: 'ĐỊNH DANH KYC',
-    title: 'Xác thực định danh Cấp 2 thành công',
-    description: 'Căn cước công dân gắn chip (079092004568) và Giấy phép lái xe Hạng B2 (790184920194) đã đồng bộ dữ liệu chuẩn mực theo Nghị định 13/2023/NĐ-CP.',
-    timestamp: '1 ngày trước',
-    fullTime: '09:15 • Hôm qua',
-    isRead: true,
-    actionType: 'LINK',
-    actionText: 'Xem hồ sơ định danh',
-    actionLink: '/profile?tab=identity'
-  },
-  {
-    id: 'notif-4',
-    category: 'PAYMENT',
-    priority: 'NORMAL',
-    typeBadge: 'HOÀN CỌC VIETQR',
-    title: 'Hoàn trả tiền cọc thế chân 44.800.000đ hoàn tất',
-    description: 'Đã hoàn tất thanh lý hợp đồng và đối soát phạt nguội chuyến đi BMW 530i. Tiền cọc đã được chuyển hoàn tự động về tài khoản Techcombank (1903 8920 4910).',
-    timestamp: '3 ngày trước',
-    fullTime: '17:05 • 06/11/2026',
-    isRead: true,
-    actionType: 'VIEW_RECEIPT',
-    actionText: 'Xem chi tiết biên nhận',
-    actionLink: '/profile?tab=payments'
-  },
-  {
-    id: 'notif-5',
-    category: 'RENTAL',
-    priority: 'NORMAL',
-    typeBadge: 'NHẮC LỊCH NHẬN XE',
-    title: 'Nhắc nhở: Lịch nhận bàn giao xe BMW 320i SportLine vào ngày mai',
-    description: 'Chuyên viên giao nhận VELORA sẽ bàn giao xe tại 15 Lê Lợi, Phường Bến Nghé, Quận 1 vào lúc 08:00 sáng mai. Vui lòng mang theo bản gốc CCCD & GPLX.',
-    timestamp: '4 ngày trước',
-    fullTime: '10:00 • 05/11/2026',
-    isRead: true,
-    actionType: 'LINK',
-    actionText: 'Xem đơn sắp nhận',
-    actionLink: '/profile?tab=rentals'
-  },
-  {
-    id: 'notif-6',
-    category: 'SECURITY',
-    priority: 'ALERT',
-    typeBadge: 'AN TOÀN',
-    title: 'Phát hiện đăng nhập từ thiết bị mới',
-    description: 'Tài khoản của bạn vừa đăng nhập từ thiết bị iPhone 15 Pro (Safari Mobile) tại TP. Hồ Chí Minh (IP: 14.169.89.201). Nếu không phải bạn, hãy đổi mật khẩu ngay.',
-    timestamp: '1 tuần trước',
-    fullTime: '21:12 • 02/11/2026',
-    isRead: true,
-    actionType: 'LINK',
-    actionText: 'Quản lý phiên đăng nhập',
-    actionLink: '/profile?tab=settings'
+const mapNotification = (n) => {
+  const date = new Date(n.createdAt);
+  const now = new Date();
+  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
+  
+  let timestamp = 'Vừa xong';
+  if (diffSec >= 86400 * 2) {
+    timestamp = `${Math.floor(diffSec / 86400)} ngày trước`;
+  } else if (diffSec >= 86400) {
+    timestamp = 'Hôm qua';
+  } else if (diffSec >= 3600) {
+    timestamp = `${Math.floor(diffSec / 3600)} giờ trước`;
+  } else if (diffSec >= 60) {
+    timestamp = `${Math.floor(diffSec / 60)} phút trước`;
   }
-];
+
+  const category = (n.type || 'SYSTEM').toUpperCase();
+  let typeBadge = 'HỆ THỐNG';
+  let actionText = 'Xem chi tiết';
+
+  if (category === 'RENTAL') {
+    typeBadge = 'THUÊ XE';
+    actionText = n.actionUrl?.includes('documents') ? 'Ký hợp đồng số ngay' : 'Xem đơn thuê';
+  } else if (category === 'PAYMENT') {
+    typeBadge = 'THANH TOÁN';
+    actionText = 'Xem sổ cái giao dịch';
+  } else if (category === 'ACCOUNT') {
+    typeBadge = 'TÀI KHOẢN';
+    actionText = 'Xem hồ sơ định danh';
+  } else if (category === 'SECURITY') {
+    typeBadge = 'BẢO MẬT';
+    actionText = 'Quản lý bảo mật';
+  }
+
+  return {
+    id: n.id,
+    category,
+    priority: n.isRead ? 'NORMAL' : 'HIGH',
+    typeBadge,
+    title: n.title,
+    description: n.message,
+    timestamp,
+    fullTime: formatDateTime(n.createdAt),
+    isRead: n.isRead,
+    actionType: 'LINK',
+    actionText,
+    actionLink: n.actionUrl || null
+  };
+};
 
 const NotificationsSection = () => {
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
 
-  // User notification preferences
+  // User notification preferences (stored locally)
   const [preferences, setPreferences] = useState({
     smsHandover: true,
     emailContracts: true,
@@ -128,6 +86,65 @@ const NotificationsSection = () => {
     appTripAlerts: true,
     promotions: false
   });
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const res = await notificationService.getMyNotifications({ page: 1, pageSize: 50 });
+      const list = Array.isArray(res) ? res : res?.items || res?.data || [];
+      setNotifications(list.map(mapNotification));
+    } catch (err) {
+      console.error('Lỗi nạp thông báo từ server:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initData = async () => {
+      try {
+        setLoading(true);
+        const res = await notificationService.getMyNotifications({ page: 1, pageSize: 50 });
+        if (!isMounted) return;
+        const list = Array.isArray(res) ? res : res?.items || res?.data || [];
+        setNotifications(list.map(mapNotification));
+      } catch (err) {
+        console.error('Lỗi nạp thông báo từ server:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initData();
+
+    // SignalR Hub Connection
+    const connection = notificationService.createHubConnection({
+      onReceiveNotification: (newNotif) => {
+        if (!isMounted || !newNotif) return;
+        setNotifications(prev => {
+          const exists = prev.some(n => n.id === newNotif.id);
+          if (exists) return prev;
+          return [mapNotification(newNotif), ...prev];
+        });
+      },
+      onUnreadCountUpdated: () => {}
+    });
+
+    if (connection) {
+      connection.start()
+        .then(() => console.log('SignalR Notification Hub Connected'))
+        .catch(err => console.warn('SignalR Hub Connection error:', err));
+    }
+
+    return () => {
+      isMounted = false;
+      if (connection) {
+        connection.stop();
+      }
+    };
+  }, []);
 
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.isRead).length;
@@ -153,8 +170,8 @@ const NotificationsSection = () => {
       // Keyword search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchTitle = n.title.toLowerCase().includes(q);
-        const matchDesc = n.description.toLowerCase().includes(q);
+        const matchTitle = n.title?.toLowerCase().includes(q);
+        const matchDesc = n.description?.toLowerCase().includes(q);
         const matchBadge = n.typeBadge?.toLowerCase().includes(q);
         return matchTitle || matchDesc || matchBadge;
       }
@@ -163,27 +180,43 @@ const NotificationsSection = () => {
   }, [notifications, activeTab, searchQuery]);
 
   // Handlers
-  const handleMarkAsRead = (id) => {
+  const handleMarkAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    try {
+      await notificationService.markAsRead(id);
+    } catch (err) {
+      console.warn('Lỗi markAsRead:', err);
+    }
   };
 
-  const handleToggleRead = (id, e) => {
+  const handleToggleRead = async (id, e) => {
     e.stopPropagation();
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: !n.isRead } : n));
+    const target = notifications.find(n => n.id === id);
+    if (!target) return;
+
+    if (!target.isRead) {
+      await handleMarkAsRead(id);
+    } else {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n));
+    }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      await notificationService.markAllAsRead();
+    } catch (err) {
+      console.warn('Lỗi markAllAsRead:', err);
+    }
   };
 
-  const handleDeleteNotification = (id, e) => {
+  const handleDeleteNotification = async (id, e) => {
     e.stopPropagation();
     setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const handleClearAllRead = () => {
-    if (window.confirm('Quý khách có chắc chắn muốn xóa toàn bộ thông báo đã đọc?')) {
-      setNotifications(prev => prev.filter(n => !n.isRead));
+    try {
+      await notificationService.deleteNotification(id);
+    } catch (err) {
+      console.warn('Lỗi deleteNotification:', err);
     }
   };
 
@@ -218,60 +251,56 @@ const NotificationsSection = () => {
             )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Theo dõi thời gian thực tiến độ phê duyệt hồ sơ, giải ngân cọc VietQR, biên bản bàn giao và cảnh báo an toàn.
+            Thông báo trạng thái đơn đặt xe, biên bản bàn giao, cập nhật tiền cọc và đối soát phạt nguội thời gian thực qua SignalR.
           </p>
         </div>
 
-        {/* Global Action Buttons */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
-            <button
-              type="button"
-              onClick={handleMarkAllAsRead}
-              className="px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-            >
-              <CheckCheck className="w-3.5 h-3.5 text-blue-900" />
-              <span>Đánh dấu tất cả đã đọc</span>
-            </button>
-          )}
-
+          <button
+            type="button"
+            onClick={fetchNotifications}
+            disabled={loading}
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition border border-slate-200 cursor-pointer"
+            title="Làm mới"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
           <button
             type="button"
             onClick={() => setIsPreferencesOpen(true)}
-            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition cursor-pointer shadow-2xs"
-            title="Cài đặt kênh nhận thông báo"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">Cài đặt kênh</span>
           </button>
-
-          {notifications.some(n => n.isRead) && (
-            <button
-              type="button"
-              onClick={handleClearAllRead}
-              className="p-2 rounded-lg border border-slate-200 hover:bg-red-50 text-slate-400 hover:text-red-600 transition cursor-pointer shadow-2xs"
-              title="Dọn dẹp thông báo đã đọc"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleMarkAllAsRead}
+            disabled={unreadCount === 0}
+            className="px-3.5 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 disabled:opacity-40 disabled:hover:bg-blue-900 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+          >
+            <CheckCheck className="w-3.5 h-3.5" />
+            <span>Đọc tất cả</span>
+          </button>
         </div>
       </div>
 
-      {/* 2. Quick Stat Counters */}
+      {/* 2. Top Statistic Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div 
           onClick={() => setActiveTab('UNREAD')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
             activeTab === 'UNREAD' 
-              ? 'bg-blue-50/80 border-blue-300 ring-1 ring-blue-300' 
-              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/60'
+              ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-900/10' 
+              : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/60'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Chưa đọc</span>
+            <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider">Chưa đọc</span>
             <Bell className="w-3.5 h-3.5 text-blue-900" />
           </div>
-          <div className="text-xl font-black text-slate-900 tabular-nums mt-1">
+          <div className="text-xl font-black text-blue-950 tabular-nums mt-1">
             {stats.unread}
           </div>
         </div>
@@ -280,13 +309,13 @@ const NotificationsSection = () => {
           onClick={() => setActiveTab('RENTAL')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
             activeTab === 'RENTAL' 
-              ? 'bg-indigo-50/80 border-indigo-300 ring-1 ring-indigo-300' 
-              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/60'
+              ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-900/10' 
+              : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/60'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Đơn thuê & Xe</span>
-            <Car className="w-3.5 h-3.5 text-indigo-800" />
+            <span className="text-[11px] font-bold text-indigo-900 uppercase tracking-wider">Hợp đồng & Xe</span>
+            <Car className="w-3.5 h-3.5 text-indigo-900" />
           </div>
           <div className="text-xl font-black text-indigo-950 tabular-nums mt-1">
             {stats.rentals}
@@ -297,13 +326,13 @@ const NotificationsSection = () => {
           onClick={() => setActiveTab('PAYMENT')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
             activeTab === 'PAYMENT' 
-              ? 'bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-300' 
-              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/60'
+              ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-900/10' 
+              : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/60'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Cọc & VietQR</span>
-            <CreditCard className="w-3.5 h-3.5 text-emerald-800" />
+            <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider">Tiền cọc & Quyết toán</span>
+            <QrCode className="w-3.5 h-3.5 text-emerald-900" />
           </div>
           <div className="text-xl font-black text-emerald-950 tabular-nums mt-1">
             {stats.payments}
@@ -314,8 +343,8 @@ const NotificationsSection = () => {
           onClick={() => setActiveTab('ACCOUNT')}
           className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
             activeTab === 'ACCOUNT' 
-              ? 'bg-amber-50/80 border-amber-300 ring-1 ring-amber-300' 
-              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/60'
+              ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-900/10' 
+              : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/60'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -376,7 +405,12 @@ const NotificationsSection = () => {
       </div>
 
       {/* 4. Notification Items List */}
-      {filteredNotifications.length === 0 ? (
+      {loading ? (
+        <div className="py-16 text-center">
+          <div className="w-7 h-7 border-3 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p className="text-xs text-slate-500 font-medium">Đang tải thông báo từ máy chủ...</p>
+        </div>
+      ) : filteredNotifications.length === 0 ? (
         <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-3">
           <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
             <Bell className="w-6 h-6" />
@@ -520,113 +554,58 @@ const NotificationsSection = () => {
               </div>
               <button 
                 onClick={() => setIsPreferencesOpen(false)}
-                className="text-slate-400 hover:text-slate-900 cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {preferencesSaved && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2 font-semibold animate-fade-in">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Đã cập nhật tùy chọn nhận thông báo của quý khách!</span>
+            <form onSubmit={handleSavePreferences} className="space-y-4">
+              <div className="space-y-3">
+                {[
+                  { id: 'smsHandover', label: 'SMS nhắc lịch nhận & bàn giao xe', desc: 'Nhận tin nhắn thương hiệu VELORA 2 giờ trước giờ hẹn' },
+                  { id: 'emailContracts', label: 'Email sao lưu Hợp đồng & Biên bản số', desc: 'Gửi bản PDF hợp đồng ngay khi ký số thành công' },
+                  { id: 'zaloDepositRefund', label: 'Zalo / App thông báo hoàn tiền cọc', desc: 'Nhận thông báo biến động số dư hoàn cọc Đợt 1 & Đợt 2' },
+                  { id: 'appTripAlerts', label: 'Thông báo ứng dụng theo thời gian thực', desc: 'Đẩy thông báo qua SignalR khi đơn được duyệt / cọc thành công' },
+                  { id: 'promotions', label: 'Bản tin ưu đãi & Nâng hạng hội viên', desc: 'Chương trình tri ân khách hàng thân thiết vào cuối tuần' }
+                ].map(opt => (
+                  <label key={opt.id} className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition">
+                    <input
+                      type="checkbox"
+                      checked={preferences[opt.id]}
+                      onChange={(e) => setPreferences({ ...preferences, [opt.id]: e.target.checked })}
+                      className="mt-0.5 rounded text-blue-900 focus:ring-blue-900"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-slate-800">{opt.label}</div>
+                      <div className="text-[11px] text-slate-500">{opt.desc}</div>
+                    </div>
+                  </label>
+                ))}
               </div>
-            )}
 
-            <form onSubmit={handleSavePreferences} className="space-y-4 text-xs">
-              
-              {/* Option 1: SMS */}
-              <div className="flex items-start justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="space-y-0.5">
-                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5 text-blue-900" />
-                    Tin nhắn SMS khẩn cấp & Giờ giao nhận xe
-                  </span>
-                  <p className="text-[11px] text-slate-500">
-                    Nhận SMS nhắc lịch trước 2 giờ khi nhân viên VELORA xuất phát giao xe tận nơi.
-                  </p>
+              {preferencesSaved && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Đã lưu cài đặt kênh nhận thông báo của bạn.</span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={preferences.smsHandover}
-                  onChange={(e) => setPreferences(p => ({ ...p, smsHandover: e.target.checked }))}
-                  className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 cursor-pointer mt-1"
-                />
-              </div>
+              )}
 
-              {/* Option 2: Email */}
-              <div className="flex items-start justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="space-y-0.5">
-                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-indigo-700" />
-                    Email Hợp đồng ký số & Biên lai tài chính
-                  </span>
-                  <p className="text-[11px] text-slate-500">
-                    Tự động gửi bản sao PDF Hợp đồng thuê xe có chữ ký SHA-256 và biên nhận quyết toán cọc.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={preferences.emailContracts}
-                  onChange={(e) => setPreferences(p => ({ ...p, emailContracts: e.target.checked }))}
-                  className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 cursor-pointer mt-1"
-                />
-              </div>
-
-              {/* Option 3: Zalo ZNS */}
-              <div className="flex items-start justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="space-y-0.5">
-                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
-                    Zalo ZNS Biến động tiền cọc VietQR
-                  </span>
-                  <p className="text-[11px] text-slate-500">
-                    Nhận thông báo Zalo chính thức khi tiền hoàn cọc được chuyển thành công về tài khoản ngân hàng.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={preferences.zaloDepositRefund}
-                  onChange={(e) => setPreferences(p => ({ ...p, zaloDepositRefund: e.target.checked }))}
-                  className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 cursor-pointer mt-1"
-                />
-              </div>
-
-              {/* Option 4: Cảnh báo phạt nguội & bảo hiểm */}
-              <div className="flex items-start justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="space-y-0.5">
-                  <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-                    Cảnh báo đối soát phạt nguội & Nhắc hạn GPLX
-                  </span>
-                  <p className="text-[11px] text-slate-500">
-                    Thông báo khi hoàn tất 14 ngày đối soát vi phạm giao thông và nhắc gia hạn trước khi bằng lái hết hạn.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={preferences.appTripAlerts}
-                  onChange={(e) => setPreferences(p => ({ ...p, appTripAlerts: e.target.checked }))}
-                  className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 cursor-pointer mt-1"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsPreferencesOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                 >
                   Đóng
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-lg font-bold shadow-xs cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 transition cursor-pointer shadow-xs"
                 >
-                  Lưu cấu hình nhận tin
+                  Lưu tùy chọn
                 </button>
               </div>
-
             </form>
           </div>
         </div>

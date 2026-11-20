@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +9,11 @@ using CarRental.API.Entities;
 
 namespace CarRental.API.Services
 {
+    /// <summary>
+    /// Service phân tích & báo cáo vận hành tối ưu hiệu năng cao.
+    /// Toàn bộ phép tính tổng, nhóm, đếm đều được đẩy trực tiếp xuống PostgreSQL qua LINQ (AsNoTracking, GroupBy, Sum, Count),
+    /// tuyệt đối không tải toàn bộ bảng lên RAM để chống lỗi tràn bộ nhớ (Out-Of-Memory).
+    /// </summary>
     public class AnalyticsService : IAnalyticsService
     {
         private readonly AppDbContext _context;
@@ -19,157 +23,214 @@ namespace CarRental.API.Services
             _context = context;
         }
 
-        public async Task<DashboardOverviewDto> GetDashboardOverviewAsync()
+        public async Task<DashboardOverviewDto> GetDashboardOverviewAsync(DateTime? fromDate = null, DateTime? toDate = null)
         {
             var now = DateTime.UtcNow;
             var firstDayThisMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
             var firstDayLastMonth = firstDayThisMonth.AddMonths(-1);
 
-            // Fleet stats
-            var allVehicles = await _context.Vehicles.Where(v => v.IsActive).ToListAsync();
-            int totalVehicles = allVehicles.Count;
-            int readyVehicles = allVehicles.Count(v => v.Status == VehicleStatus.READY);
-            int rentedVehicles = allVehicles.Count(v => v.Status == VehicleStatus.RENTED);
-            int bookedVehicles = allVehicles.Count(v => v.Status == VehicleStatus.BOOKED);
-            int maintenanceVehicles = allVehicles.Count(v => v.Status == VehicleStatus.MAINTENANCE);
-            int repairVehicles = allVehicles.Count(v => v.Status == VehicleStatus.REPAIR);
+            // 1. Fleet status aggregation (Đẩy trực tiếp xuống PostgreSQL bằng GroupBy)
+            var vehicleStatusCounts = await _context.Vehicles
+                .AsNoTracking()
+                .Where(v => v.IsActive)
+                .GroupBy(v => v.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            int totalVehicles = vehicleStatusCounts.Sum(x => x.Count);
+            int readyVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.READY)?.Count ?? 0;
+            int rentedVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.RENTED)?.Count ?? 0;
+            int bookedVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.BOOKED)?.Count ?? 0;
+            int maintenanceVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.MAINTENANCE)?.Count ?? 0;
+            int repairVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.REPAIR)?.Count ?? 0;
 
             decimal fleetUtilization = totalVehicles > 0
                 ? Math.Round(((decimal)(rentedVehicles + bookedVehicles) / totalVehicles) * 100m, 1)
                 : 0m;
 
-            // Rental Request stats
-            var requests = await _context.RentalRequests
-                .Include(r => r.Vehicle)
+            // 2. Rental Request metrics (Lọc theo khoảng thời gian và GroupBy theo Status)
+            var requestQuery = _context.RentalRequests.AsNoTracking();
+            if (fromDate.HasValue) requestQuery = requestQuery.Where(r => r.CreatedAt >= fromDate.Value);
+            if (toDate.HasValue) requestQuery = requestQuery.Where(r => r.CreatedAt <= toDate.Value);
+
+            var requestStatusCounts = await requestQuery
+                .GroupBy(r => r.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync();
 
-            int totalRequests = requests.Count;
-            int pendingRequests = requests.Count(r => r.Status == "PENDING");
-            int activeRentals = requests.Count(r => r.Status == "ACTIVE");
-            int holdingRequests = requests.Count(r => r.Status == "HOLDING");
-            int disputedRequests = requests.Count(r => r.Status == "DISPUTED");
-            int completedRentals = requests.Count(r => r.Status == "COMPLETED");
+            int totalRequests = requestStatusCounts.Sum(x => x.Count);
+            int pendingRequests = requestStatusCounts.FirstOrDefault(x => x.Status == "PENDING")?.Count ?? 0;
+            int activeRentals = requestStatusCounts.FirstOrDefault(x => x.Status == "ACTIVE")?.Count ?? 0;
+            int holdingRequests = requestStatusCounts.FirstOrDefault(x => x.Status == "HOLDING")?.Count ?? 0;
+            int disputedRequests = requestStatusCounts.FirstOrDefault(x => x.Status == "DISPUTED")?.Count ?? 0;
+            int completedRentals = requestStatusCounts.FirstOrDefault(x => x.Status == "COMPLETED")?.Count ?? 0;
+            int cancelledRequests = requestStatusCounts.FirstOrDefault(x => x.Status == "CANCELLED")?.Count ?? 0;
 
-            // Operational stats
-            int totalIncidents = await _context.IncidentReports.CountAsync();
-            int activeExtensions = await _context.RentalExtensions.CountAsync(e => e.Status == "APPROVED");
-            int cancelledRequests = requests.Count(r => r.Status == "CANCELLED");
-            int totalExtensionsCount = await _context.RentalExtensions.CountAsync();
+            // 3. Operational metrics
+            int totalIncidents = await _context.IncidentReports.AsNoTracking().CountAsync();
+            int activeExtensions = await _context.RentalExtensions.AsNoTracking().CountAsync(e => e.Status == "APPROVED");
+            int totalExtensionsCount = await _context.RentalExtensions.AsNoTracking().CountAsync();
 
-            var incidents = await _context.IncidentReports.ToListAsync();
-            int insuranceClaimsCount = incidents.Count(i => 
-                i.InsuranceCoverageStatus == "COVERED" || i.InsuranceCoverageStatus == "PENDING_CLAIM");
-            decimal totalCompensationCollected = incidents.Sum(i => i.CustomerPayAmount);
+            var incidentAggregates = await _context.IncidentReports
+                .AsNoTracking()
+                .GroupBy(i => 1)
+                .Select(g => new
+                {
+                    ClaimsCount = g.Count(i => i.InsuranceCoverageStatus == "COVERED" || i.InsuranceCoverageStatus == "PENDING_CLAIM"),
+                    TotalCompensation = g.Sum(i => (decimal?)i.CustomerPayAmount) ?? 0m,
+                    TotalEstimatedDamage = g.Sum(i => (decimal?)i.EstimatedDamageCost) ?? 0m
+                })
+                .FirstOrDefaultAsync();
 
-            var maintenanceRecords = await _context.MaintenanceRecords.ToListAsync();
-            decimal totalRepairCost = incidents.Sum(i => i.EstimatedDamageCost) + maintenanceRecords.Sum(m => m.Cost);
-
-            var returnProtocols = await _context.ReturnProtocols
-                .Include(p => p.RentalRequest)
-                .ToListAsync();
-
-            int lateReturnsCount = returnProtocols.Count(p =>
-                p.RentalRequest != null && p.ReturnDate > p.RentalRequest.EndTime);
-
-            // Revenue calculation
-            var contracts = await _context.RentalContracts.ToListAsync();
-            var validContracts = contracts.Where(c =>
-                c.Status == "DEPOSIT_PAID" || c.Status == "CONFIRMED" || c.Status == "ACTIVE" || c.Status == "HOLDING" || c.Status == "DISPUTED" || c.Status == "COMPLETED").ToList();
+            int insuranceClaimsCount = incidentAggregates?.ClaimsCount ?? 0;
+            decimal totalCompensationCollected = incidentAggregates?.TotalCompensation ?? 0m;
+            decimal totalMaintenanceCost = await _context.MaintenanceRecords.AsNoTracking().SumAsync(m => (decimal?)m.Cost) ?? 0m;
+            decimal totalRepairCost = (incidentAggregates?.TotalEstimatedDamage ?? 0m) + totalMaintenanceCost;
 
             decimal riskRecoveryRatio = totalRepairCost > 0
                 ? Math.Min(100m, Math.Round((totalCompensationCollected / totalRepairCost) * 100m, 1))
                 : (totalCompensationCollected > 0 ? 100m : 0m);
 
-            decimal baseContractRevenue = validContracts.Sum(c => c.TotalFee);
+            int lateReturnsCount = await _context.ReturnProtocols
+                .AsNoTracking()
+                .Where(p => p.RentalRequest != null && p.ReturnDate > p.RentalRequest.EndTime)
+                .CountAsync();
 
-            var settlements = await _context.RentalSettlements.ToListAsync();
-            decimal deductionsRevenue = settlements.Sum(s => s.TotalDeduction);
+            // 4. Revenue metrics (Tính tổng doanh thu hợp đồng hợp lệ + quyết toán)
+            var validContractStatuses = new[] { "DEPOSIT_PAID", "CONFIRMED", "ACTIVE", "HOLDING", "DISPUTED", "COMPLETED" };
 
+            var contractRevQuery = _context.RentalContracts.AsNoTracking().Where(c => validContractStatuses.Contains(c.Status));
+            var settlementRevQuery = _context.RentalSettlements.AsNoTracking();
+
+            decimal baseContractRevenue = await contractRevQuery.SumAsync(c => (decimal?)c.TotalFee) ?? 0m;
+            decimal deductionsRevenue = await settlementRevQuery.SumAsync(s => (decimal?)s.TotalDeduction) ?? 0m;
             decimal totalRevenue = baseContractRevenue + deductionsRevenue;
 
-            // This month revenue
-            decimal thisMonthContractRevenue = validContracts
+            // Doanh thu tháng này
+            decimal thisMonthContractRevenue = await contractRevQuery
                 .Where(c => c.CreatedAt >= firstDayThisMonth)
-                .Sum(c => c.TotalFee);
-            decimal thisMonthDeductions = settlements
-                .Where(s => s.CreatedAt >= firstDayThisMonth)
-                .Sum(s => s.TotalDeduction);
+                .SumAsync(c => (decimal?)c.TotalFee) ?? 0m;
+            decimal thisMonthDeductions = await settlementRevQuery
+                .Where(s => s.CreatedAt != null && s.CreatedAt >= firstDayThisMonth)
+                .SumAsync(s => (decimal?)s.TotalDeduction) ?? 0m;
             decimal thisMonthRevenue = thisMonthContractRevenue + thisMonthDeductions;
 
-            // Last month revenue
-            decimal lastMonthContractRevenue = validContracts
+            // Doanh thu tháng trước
+            decimal lastMonthContractRevenue = await contractRevQuery
                 .Where(c => c.CreatedAt >= firstDayLastMonth && c.CreatedAt < firstDayThisMonth)
-                .Sum(c => c.TotalFee);
-            decimal lastMonthDeductions = settlements
-                .Where(s => s.CreatedAt >= firstDayLastMonth && s.CreatedAt < firstDayThisMonth)
-                .Sum(s => s.TotalDeduction);
+                .SumAsync(c => (decimal?)c.TotalFee) ?? 0m;
+            decimal lastMonthDeductions = await settlementRevQuery
+                .Where(s => s.CreatedAt != null && s.CreatedAt >= firstDayLastMonth && s.CreatedAt < firstDayThisMonth)
+                .SumAsync(s => (decimal?)s.TotalDeduction) ?? 0m;
             decimal lastMonthRevenue = lastMonthContractRevenue + lastMonthDeductions;
 
             decimal revenueGrowth = lastMonthRevenue > 0
                 ? Math.Round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100m, 1)
                 : (thisMonthRevenue > 0 ? 100m : 0m);
 
-            // Top Vehicles by revenue & bookings
-            var topVehicles = requests
+            // 5. Top 5 xe doanh thu cao nhất (GroupBy tại DB kết hợp Join thông tin xe)
+            var topVehiclesData = await _context.RentalRequests
+                .AsNoTracking()
                 .Where(r => r.Status == "ACTIVE" || r.Status == "COMPLETED" || r.Status == "CONFIRMED")
                 .GroupBy(r => r.CarId)
-                .Select(g =>
+                .Select(g => new
                 {
-                    var veh = allVehicles.FirstOrDefault(v => v.Id == g.Key);
-                    return new TopVehicleItemDto
-                    {
-                        VehicleId = g.Key,
-                        Make = veh?.Make ?? "VELORA",
-                        Model = veh?.Model ?? "Xe",
-                        LicensePlate = veh?.LicensePlate ?? "",
-                        RentalCount = g.Count(),
-                        TotalRevenue = g.Sum(r => r.EstimatedTotalFee),
-                        ImageUrl = veh?.ImageUrl
-                    };
+                    CarId = g.Key,
+                    RentalCount = g.Count(),
+                    TotalRevenue = g.Sum(r => r.EstimatedTotalFee)
                 })
-                .OrderByDescending(t => t.TotalRevenue)
+                .OrderByDescending(x => x.TotalRevenue)
                 .Take(5)
-                .ToList();
+                .ToListAsync();
 
-            // Monthly Revenue (Last 6 Months)
+            var topCarIds = topVehiclesData.Select(x => x.CarId).ToList();
+            var topVehiclesMap = await _context.Vehicles
+                .AsNoTracking()
+                .Where(v => topCarIds.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id);
+
+            var topVehicles = topVehiclesData.Select(t =>
+            {
+                topVehiclesMap.TryGetValue(t.CarId, out var veh);
+                return new TopVehicleItemDto
+                {
+                    VehicleId = t.CarId,
+                    Make = veh?.Make ?? "VELORA",
+                    Model = veh?.Model ?? "Xe",
+                    LicensePlate = veh?.LicensePlate ?? "",
+                    RentalCount = t.RentalCount,
+                    TotalRevenue = t.TotalRevenue,
+                    ImageUrl = veh?.ImageUrl
+                };
+            }).ToList();
+
+            // 6. Doanh thu 6 tháng gần nhất (GroupBy Year/Month trực tiếp tại PostgreSQL)
+            var sixMonthsAgo = firstDayThisMonth.AddMonths(-5);
+
+            var contractsByMonth = await contractRevQuery
+                .Where(c => c.CreatedAt != null && c.CreatedAt >= sixMonthsAgo)
+                .GroupBy(c => new { Year = c.CreatedAt!.Value.Year, Month = c.CreatedAt!.Value.Month })
+                .Select(g => new
+                {
+                    g.Key.Year,
+                    g.Key.Month,
+                    Revenue = g.Sum(c => c.TotalFee),
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            var deductionsByMonth = await settlementRevQuery
+                .Where(s => s.CreatedAt != null && s.CreatedAt >= sixMonthsAgo)
+                .GroupBy(s => new { Year = s.CreatedAt!.Value.Year, Month = s.CreatedAt!.Value.Month })
+                .Select(g => new
+                {
+                    g.Key.Year,
+                    g.Key.Month,
+                    Deduction = g.Sum(s => s.TotalDeduction)
+                })
+                .ToListAsync();
+
             var monthlyRevenue = new List<MonthlyRevenueItemDto>();
             for (int i = 5; i >= 0; i--)
             {
                 var monthStart = firstDayThisMonth.AddMonths(-i);
-                var monthEnd = monthStart.AddMonths(1);
                 string monthLabel = $"T{monthStart.Month}/{monthStart.Year}";
 
-                var monthContracts = validContracts.Where(c => c.CreatedAt >= monthStart && c.CreatedAt < monthEnd).ToList();
-                decimal monthRev = monthContracts.Sum(c => c.TotalFee);
-                monthRev += settlements.Where(s => s.CreatedAt >= monthStart && s.CreatedAt < monthEnd).Sum(s => s.TotalDeduction);
+                var cData = contractsByMonth.FirstOrDefault(x => x.Year == monthStart.Year && x.Month == monthStart.Month);
+                var dData = deductionsByMonth.FirstOrDefault(x => x.Year == monthStart.Year && x.Month == monthStart.Month);
 
                 monthlyRevenue.Add(new MonthlyRevenueItemDto
                 {
                     MonthLabel = monthLabel,
-                    Revenue = monthRev,
-                    BookingCount = monthContracts.Count
+                    Revenue = (cData?.Revenue ?? 0m) + (dData?.Deduction ?? 0m),
+                    BookingCount = cData?.Count ?? 0
                 });
             }
 
-            // Recent Activities (Latest 8 items across entities)
+            // 7. Hoạt động gần đây (Chỉ lấy đúng số lượng cần thiết từ DB)
             var recentActivities = new List<RecentActivityItemDto>();
 
-            foreach (var req in requests.OrderByDescending(r => r.CreatedAt).Take(4))
-            {
-                recentActivities.Add(new RecentActivityItemDto
+            var recentRequests = await _context.RentalRequests
+                .AsNoTracking()
+                .Include(r => r.Vehicle)
+                .OrderByDescending(r => r.CreatedAt)
+                .Take(4)
+                .Select(req => new RecentActivityItemDto
                 {
                     Id = req.Id.ToString(),
                     Type = "REQUEST",
                     Title = $"Đơn thuê: {req.CustomerName}",
-                    Subtitle = $"{req.Vehicle?.Make} {req.Vehicle?.Model} ({req.Vehicle?.LicensePlate})",
+                    Subtitle = req.Vehicle != null ? $"{req.Vehicle.Make} {req.Vehicle.Model} ({req.Vehicle.LicensePlate})" : "Chưa rõ xe",
                     Timestamp = req.CreatedAt,
                     Status = req.Status
-                });
-            }
+                })
+                .ToListAsync();
 
-            foreach (var stl in settlements.OrderByDescending(s => s.CreatedAt).Take(2))
-            {
-                recentActivities.Add(new RecentActivityItemDto
+            var recentSettlements = await _context.RentalSettlements
+                .AsNoTracking()
+                .OrderByDescending(s => s.CreatedAt)
+                .Take(2)
+                .Select(stl => new RecentActivityItemDto
                 {
                     Id = stl.Id.ToString(),
                     Type = "RETURN",
@@ -177,12 +238,14 @@ namespace CarRental.API.Services
                     Subtitle = $"Hoàn cọc: {stl.RefundAmount:N0}đ • Khấu trừ: {stl.TotalDeduction:N0}đ",
                     Timestamp = stl.CreatedAt ?? DateTime.UtcNow,
                     Status = stl.Status
-                });
-            }
+                })
+                .ToListAsync();
 
-            foreach (var inc in await _context.IncidentReports.OrderByDescending(i => i.CreatedAt).Take(2).ToListAsync())
-            {
-                recentActivities.Add(new RecentActivityItemDto
+            var recentIncidents = await _context.IncidentReports
+                .AsNoTracking()
+                .OrderByDescending(i => i.CreatedAt)
+                .Take(2)
+                .Select(inc => new RecentActivityItemDto
                 {
                     Id = inc.Id.ToString(),
                     Type = "INCIDENT",
@@ -190,9 +253,12 @@ namespace CarRental.API.Services
                     Subtitle = $"{inc.Severity} • {inc.Location}",
                     Timestamp = inc.CreatedAt,
                     Status = inc.Status
-                });
-            }
+                })
+                .ToListAsync();
 
+            recentActivities.AddRange(recentRequests);
+            recentActivities.AddRange(recentSettlements);
+            recentActivities.AddRange(recentIncidents);
             recentActivities = recentActivities.OrderByDescending(a => a.Timestamp).Take(8).ToList();
 
             return new DashboardOverviewDto
@@ -228,12 +294,45 @@ namespace CarRental.API.Services
             };
         }
 
-        public async Task<FleetUtilizationReportDto> GetFleetUtilizationReportAsync()
+        public async Task<FleetUtilizationReportDto> GetFleetUtilizationReportAsync(DateTime? fromDate = null, DateTime? toDate = null)
         {
-            var vehicles = await _context.Vehicles.Where(v => v.IsActive).ToListAsync();
-            var requests = await _context.RentalRequests.ToListAsync();
-            var incidents = await _context.IncidentReports.ToListAsync();
-            var maintenance = await _context.MaintenanceRecords.ToListAsync();
+            // 1. Nhóm và tính toán thống kê thuê theo từng CarId trực tiếp tại DB
+            var validRentalStatuses = new[] { "ACTIVE", "COMPLETED", "CONFIRMED" };
+            var rentalQuery = _context.RentalRequests.AsNoTracking().Where(r => validRentalStatuses.Contains(r.Status));
+
+            if (fromDate.HasValue) rentalQuery = rentalQuery.Where(r => r.CreatedAt >= fromDate.Value);
+            if (toDate.HasValue) rentalQuery = rentalQuery.Where(r => r.CreatedAt <= toDate.Value);
+
+            var rentalStatsByCar = await rentalQuery
+                .GroupBy(r => r.CarId)
+                .Select(g => new
+                {
+                    CarId = g.Key,
+                    RentalCount = g.Count(),
+                    TotalDays = g.Sum(r => r.TotalDays),
+                    TotalRevenue = g.Sum(r => r.EstimatedTotalFee)
+                })
+                .ToDictionaryAsync(x => x.CarId);
+
+            // 2. Nhóm số vụ sự cố theo xe
+            var incidentCountByCar = await _context.IncidentReports
+                .AsNoTracking()
+                .GroupBy(i => i.CarId)
+                .Select(g => new { CarId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CarId, x => x.Count);
+
+            // 3. Nhóm số lần bảo dưỡng theo xe
+            var maintenanceCountByCar = await _context.MaintenanceRecords
+                .AsNoTracking()
+                .GroupBy(m => m.CarId)
+                .Select(g => new { CarId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CarId, x => x.Count);
+
+            // 4. Lấy danh sách các xe đang hoạt động
+            var vehicles = await _context.Vehicles
+                .AsNoTracking()
+                .Where(v => v.IsActive)
+                .ToListAsync();
 
             int totalFleet = vehicles.Count;
             int rented = vehicles.Count(v => v.Status == VehicleStatus.RENTED);
@@ -248,14 +347,14 @@ namespace CarRental.API.Services
 
             foreach (var v in vehicles)
             {
-                var vRequests = requests.Where(r => r.CarId == v.Id).ToList();
-                int rentalCount = vRequests.Count(r => r.Status == "ACTIVE" || r.Status == "COMPLETED" || r.Status == "CONFIRMED");
-                int totalDays = vRequests.Where(r => r.Status == "ACTIVE" || r.Status == "COMPLETED" || r.Status == "CONFIRMED").Sum(r => r.TotalDays);
-                decimal revenue = vRequests.Where(r => r.Status == "ACTIVE" || r.Status == "COMPLETED" || r.Status == "CONFIRMED").Sum(r => r.EstimatedTotalFee);
-                int incCount = incidents.Count(i => i.CarId == v.Id);
-                int maintCount = maintenance.Count(m => m.CarId == v.Id);
+                rentalStatsByCar.TryGetValue(v.Id, out var rStats);
+                incidentCountByCar.TryGetValue(v.Id, out var incCount);
+                maintenanceCountByCar.TryGetValue(v.Id, out var maintCount);
 
-                // Ước tính tỷ lệ khai thác cá nhân (tính trên 30 ngày gần nhất hoặc theo tổng ngày)
+                int rentalCount = rStats?.RentalCount ?? 0;
+                int totalDays = rStats?.TotalDays ?? 0;
+                decimal revenue = rStats?.TotalRevenue ?? 0m;
+
                 decimal util = totalDays > 0 ? Math.Min(100m, Math.Round((decimal)totalDays / 30m * 100m, 1)) : 0m;
 
                 items.Add(new VehicleUtilizationItemDto

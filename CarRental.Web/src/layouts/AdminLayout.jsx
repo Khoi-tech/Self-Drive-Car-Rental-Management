@@ -73,6 +73,7 @@ const AdminLayout = () => {
         { name: 'Điều kiện thuê xe', path: '/admin/policies', icon: <FileText size={17} /> },
         { name: 'Biểu phí bồi thường', path: '/admin/compensation', icon: <ShieldAlert size={17} /> },
         { name: 'Mẫu hợp đồng', path: '/admin/contracts', icon: <Files size={17} /> },
+        { name: 'Cài đặt hệ thống', path: '/admin/settings', icon: <Settings size={17} /> },
       ]
     }
   ];

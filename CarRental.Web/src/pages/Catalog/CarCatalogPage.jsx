@@ -1,13 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, 
   MapPin, 
   Calendar, 
-  Filter, 
-  Users, 
-  Fuel, 
-  Settings, 
-  ChevronDown, 
   Check, 
   X, 
   RotateCcw, 
@@ -16,7 +11,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
-  Tag,
   Clock,
   ArrowRight,
   ShieldCheck,
@@ -76,7 +70,7 @@ const STATUS_TABS = [
 const CarCatalogPage = () => {
   const { user } = useAuth();
   const isAccountSuspended = user?.isActive === false;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -108,11 +102,11 @@ const CarCatalogPage = () => {
 
   const dateValidation = useMemo(
     () => validateRentalDates(startTime, endTime, { allowBothEmpty: true }),
-    [startTime, endTime, minNowStr]
+    [startTime, endTime]
   );
   const hasInvalidDates = !dateValidation.valid;
 
-  const toSafeIso = (val) => {
+  const toSafeIso = useCallback((val) => {
     if (!val) return '';
     try {
       const d = new Date(val);
@@ -120,11 +114,9 @@ const CarCatalogPage = () => {
     } catch {
       return '';
     }
-  };
+  }, []);
 
-  const fetchVehicles = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchVehicles = useCallback(async () => {
     try {
       const params = {
         keyword: keyword?.trim() || '',
@@ -143,7 +135,8 @@ const CarCatalogPage = () => {
 
       const response = await vehicleService.searchVehicles(params);
       const data = response?.value || response?.data || response;
-      setVehicles(Array.isArray(data) ? data : []);
+      setError(null);
+      setVehicles(Array.isArray(data) ? data : (data?.items || []));
     } catch (err) {
       console.error('Failed to search vehicles', err);
       setError('Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng bấm "Thử lại".');
@@ -151,15 +144,50 @@ const CarCatalogPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, hasInvalidDates, keyword, pickupLocation, sortBy, startTime, endTime, statusTab, toSafeIso]);
 
   useEffect(() => {
-    fetchVehicles();
-  }, [filters, pickupLocation, statusTab, sortBy]);
+    let ignore = false;
+    vehicleService.searchVehicles({
+      keyword: keyword?.trim() || '',
+      pickupLocation: pickupLocation && pickupLocation !== 'Tất cả địa điểm' ? pickupLocation : '',
+      startTime: hasInvalidDates ? '' : toSafeIso(startTime),
+      endTime: hasInvalidDates ? '' : toSafeIso(endTime),
+      brand: filters.brand || '',
+      seats: filters.seats || '',
+      transmission: filters.transmission || '',
+      fuelType: filters.fuelType || '',
+      minPrice: filters.minPrice || '',
+      maxPrice: filters.maxPrice || '',
+      status: statusTab !== 'ALL' ? statusTab : '',
+      sortBy
+    })
+      .then(response => {
+        if (!ignore) {
+          const data = response?.value || response?.data || response;
+          setError(null);
+          setVehicles(Array.isArray(data) ? data : (data?.items || []));
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        if (!ignore) {
+          console.error('Failed to search vehicles', err);
+          setError('Đã có lỗi xảy ra khi kết nối máy chủ. Vui lòng bấm "Thử lại".');
+          setVehicles([]);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [filters, hasInvalidDates, keyword, pickupLocation, sortBy, startTime, endTime, statusTab, toSafeIso]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (hasInvalidDates) return;
+    setLoading(true);
     fetchVehicles();
   };
 
@@ -414,7 +442,7 @@ const CarCatalogPage = () => {
                   </span>
                 ) : (
                   <span className="text-[11px] text-slate-500">
-                    💡 Thuê từ 3 ngày trở lên để nhận chiết khấu tiết kiệm
+                    Thuê từ 3 ngày trở lên để nhận chiết khấu tiết kiệm
                   </span>
                 )}
               </div>
@@ -756,7 +784,6 @@ const CarCatalogPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {sortedVehicles.map((item) => {
                   const car = item.vehicle;
-                  const isReady = car.status === 'READY';
                   const transmissionLabel = car.transmission === 'AUTO' ? 'Tự động' : 'Số sàn';
                   const fuelLabel = car.fuelType === 'ELECTRIC' ? 'Điện' : car.fuelType === 'DIESEL' ? 'Dầu' : 'Xăng';
 

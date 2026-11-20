@@ -41,10 +41,53 @@ namespace CarRental.API.Entities
         [Column("lock_reason")]
         public string? LockReason { get; set; }
 
+        [Column("kyc_status")]
+        [MaxLength(50)]
+        public string KycStatus { get; set; } = "PENDING"; // PENDING, VERIFIED, REJECTED
+
+        [Column("kyc_reviewed_at")]
+        public DateTime? KycReviewedAt { get; set; }
+
+        [Column("kyc_note")]
+        public string? KycNote { get; set; }
+
+        [Column("trust_score")]
+        public int TrustScore { get; set; } = 100;
+
+        [Column("id_card_number")]
+        [MaxLength(50)]
+        public string? IdCardNumber { get; set; }
+
+        [Column("driver_license_number")]
+        [MaxLength(50)]
+        public string? DriverLicenseNumber { get; set; }
+
+        [Column("driver_license_class")]
+        [MaxLength(20)]
+        public string? DriverLicenseClass { get; set; } = "B2";
+
+        [Column("driver_license_expiry")]
+        public DateTime? DriverLicenseExpiry { get; set; }
+
+        [Column("id_card_front_url")]
+        public string? IdCardFrontUrl { get; set; }
+
+        [Column("id_card_back_url")]
+        public string? IdCardBackUrl { get; set; }
+
+        [Column("driver_license_front_url")]
+        public string? DriverLicenseFrontUrl { get; set; }
+
+        [Column("driver_license_back_url")]
+        public string? DriverLicenseBackUrl { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("updated_at")]
         public DateTime? UpdatedAt { get; set; }
+
+        public virtual ICollection<CustomerViolation> Violations { get; set; } = new List<CustomerViolation>();
+        public virtual ICollection<AdditionalDriver> AdditionalDrivers { get; set; } = new List<AdditionalDriver>();
     }
 }

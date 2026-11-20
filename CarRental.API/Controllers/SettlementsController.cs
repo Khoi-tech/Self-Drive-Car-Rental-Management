@@ -4,7 +4,9 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CarRental.API.Data;
 using CarRental.API.DTOs.Settlement;
+using CarRental.API.Helpers;
 using CarRental.API.Services;
 
 namespace CarRental.API.Controllers
@@ -15,14 +17,16 @@ namespace CarRental.API.Controllers
     public class SettlementsController : ControllerBase
     {
         private readonly ISettlementService _service;
+        private readonly AppDbContext _context;
 
-        public SettlementsController(ISettlementService service)
+        public SettlementsController(ISettlementService service, AppDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         [HttpGet]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<IEnumerable<SettlementResponseDto>>> GetAll()
         {
             var list = await _service.GetAllAsync();
@@ -38,6 +42,15 @@ namespace CarRental.API.Controllers
             {
                 return NotFound(new { message = "Không tìm thấy phiếu quyết toán." });
             }
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(settlement.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             return Ok(settlement);
         }
 
@@ -45,6 +58,14 @@ namespace CarRental.API.Controllers
         [Authorize]
         public async Task<ActionResult<SettlementResponseDto>> GetByRequestId(Guid requestId)
         {
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(requestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             var settlement = await _service.GetByRequestIdAsync(requestId);
             if (settlement == null)
             {
@@ -54,7 +75,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("preview/{requestId}")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<PreviewSettlementDto>> PreviewSettlement(Guid requestId)
         {
             try
@@ -77,7 +98,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<SettlementResponseDto>> Create([FromBody] CreateSettlementDto dto)
         {
             try
@@ -100,7 +121,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-refund")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmRefund(Guid id, [FromBody] ConfirmRefundDto dto)
         {
             try
@@ -119,7 +140,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-traffic-fine-refund")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmTrafficFineRefund(Guid id, [FromBody] ConfirmTrafficFineRefundDto dto)
         {
             try
@@ -142,7 +163,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-additional-payment")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmAdditionalPayment(Guid id, [FromBody] ConfirmAdditionalPaymentDto dto)
         {
             try
@@ -164,6 +185,20 @@ namespace CarRental.API.Controllers
         [Authorize]
         public async Task<ActionResult> DisputeSettlement(Guid id, [FromBody] DisputeSettlementDto dto)
         {
+            var settlement = await _service.GetByIdAsync(id);
+            if (settlement == null)
+            {
+                return NotFound(new { message = "Không tìm thấy phiếu quyết toán." });
+            }
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(settlement.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             try
             {
                 var result = await _service.DisputeSettlementAsync(id, dto.Reason);
@@ -184,7 +219,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/resolve-dispute")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<SettlementResponseDto>> ResolveDispute(Guid id, [FromBody] ResolveDisputeDto dto)
         {
             try

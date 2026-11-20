@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CreditCard, 
   Wallet, 
@@ -18,98 +18,44 @@ import {
   Info
 } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
-
-const DEFAULT_TRANSACTIONS = [
-  {
-    id: 'TX-90214',
-    type: 'HOLD_DEPOSIT',
-    title: 'Cọc giữ xe siêu tốc 500k (Fast Hold)',
-    car: 'Porsche Taycan 4S (30H-999.99)',
-    amount: 500000,
-    isIncome: false,
-    method: 'VietQR Napas 247',
-    date: '02/11/2026 14:30',
-    status: 'SUCCESS',
-    statusLabel: 'Thành công',
-    refNo: 'MBB8291049281'
-  },
-  {
-    id: 'TX-89102',
-    type: 'RENTAL_PAYMENT',
-    title: 'Thanh toán tiền thuê xe 3 ngày',
-    car: 'Mercedes-Benz E300 AMG (51K-234.56)',
-    amount: 8400000,
-    isIncome: false,
-    method: 'Vietcombank Chuyển khoản',
-    date: '24/10/2026 09:15',
-    status: 'SUCCESS',
-    statusLabel: 'Thành công',
-    refNo: 'VCB4910291928'
-  },
-  {
-    id: 'TX-89103',
-    type: 'DEPOSIT_COLLATERAL',
-    title: 'Đặt cọc thế chân bàn giao xe',
-    car: 'Mercedes-Benz E300 AMG (51K-234.56)',
-    amount: 45000000,
-    isIncome: false,
-    isCollateralHold: true,
-    method: 'VietQR Escrow Phong tỏa',
-    date: '24/10/2026 09:40',
-    status: 'HELD',
-    statusLabel: 'Đang giữ cọc',
-    holdNote: 'Dự kiến giải tỏa sau 14 ngày đối soát phạt nguội',
-    refNo: 'ESC9012948123'
-  },
-  {
-    id: 'TX-88219',
-    type: 'DEPOSIT_REFUND',
-    title: 'Hoàn trả tiền cọc thế chân xe Porsche Taycan',
-    car: 'Porsche Taycan 4S (30H-999.99)',
-    amount: 30000000,
-    isIncome: true,
-    method: 'VietQR Napas 247 Hoàn cọc tự động',
-    date: '20/10/2026 15:20',
-    status: 'REFUNDED',
-    statusLabel: 'Đã hoàn cọc',
-    refNo: 'REF9021948120'
-  },
-  {
-    id: 'TX-87421',
-    type: 'DEPOSIT_REFUND',
-    title: 'Hoàn trả tiền cọc thế chân BMW 530i',
-    car: 'BMW 530i M Sport (51K-556.78)',
-    amount: 44800000,
-    isIncome: true,
-    method: 'VietQR Napas 247 Hoàn cọc tự động',
-    date: '18/10/2026 17:05',
-    status: 'REFUNDED',
-    statusLabel: 'Đã hoàn cọc',
-    refNo: 'REF8912039120'
-  },
-  {
-    id: 'TX-87422',
-    type: 'SURCHARGE',
-    title: 'Khấu trừ phụ phí vệ sinh nội thất',
-    car: 'BMW 530i M Sport (51K-556.78)',
-    amount: 200000,
-    isIncome: false,
-    method: 'Khấu trừ cọc thế chân',
-    date: '18/10/2026 17:00',
-    status: 'SETTLED',
-    statusLabel: 'Đã quyết toán',
-    refNo: 'SET7712903192'
-  }
-];
+import customerService from '../../../services/customerService';
 
 const PaymentLedgerSection = ({ requests = [] }) => {
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTx, setSelectedTx] = useState(null);
 
-  // Dynamic figures
-  let totalPaid = 8900000;
-  let depositHeld = 45000000;
-  let depositRefunded = 74800000;
-  let surcharges = 200000;
+  useEffect(() => {
+    const fetchLedger = async () => {
+      try {
+        setLoading(true);
+        const res = await customerService.getMyLedger();
+        setTransactions(res?.data || res || []);
+      } catch (err) {
+        console.error('Failed to fetch payment ledger:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLedger();
+  }, []);
+
+  // Dynamic figures computed from real database transactions
+  const totalPaid = transactions
+    .filter(t => t.type === 'RENTAL_PAYMENT' || t.type === 'HOLD_DEPOSIT')
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const depositHeld = transactions
+    .filter(t => t.isCollateralHold || (t.type === 'DEPOSIT_COLLATERAL' && t.status === 'HELD'))
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const depositRefunded = transactions
+    .filter(t => t.isIncome || t.type === 'DEPOSIT_REFUND')
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const surcharges = transactions
+    .filter(t => t.type === 'SURCHARGE')
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-8">
@@ -228,7 +174,14 @@ const PaymentLedgerSection = ({ requests = [] }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {DEFAULT_TRANSACTIONS.map((tx) => {
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                    Chưa có giao dịch hoặc khoản thanh toán nào được ghi nhận.
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((tx) => {
                 const isRefund = tx.isIncome;
                 const isHeld = tx.isCollateralHold;
 
@@ -288,7 +241,7 @@ const PaymentLedgerSection = ({ requests = [] }) => {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

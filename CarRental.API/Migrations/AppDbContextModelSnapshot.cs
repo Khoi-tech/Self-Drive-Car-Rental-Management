@@ -32,18 +32,32 @@ namespace CarRental.API.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("date_of_birth");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("full_name");
 
                     b.Property<string>("IdCardNumber")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("id_card_number");
 
+                    b.Property<string>("LicenseClass")
+                        .HasColumnType("text")
+                        .HasColumnName("license_class");
+
+                    b.Property<DateTime?>("LicenseExpiry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("license_expiry");
+
                     b.Property<string>("LicenseNumber")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("license_number");
 
@@ -52,15 +66,30 @@ namespace CarRental.API.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone_number");
 
-                    b.Property<Guid>("RentalRequestId")
+                    b.Property<string>("Relationship")
+                        .HasColumnType("text")
+                        .HasColumnName("relationship");
+
+                    b.Property<Guid?>("RentalRequestId")
                         .HasColumnType("uuid")
                         .HasColumnName("rental_request_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("additional_drivers", (string)null);
+                    b.HasIndex("UserId");
+
+                    b.ToTable("additional_drivers");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CarInsurance", b =>
@@ -134,7 +163,10 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("car_insurances", (string)null);
+                    b.HasIndex("ExpiryDate")
+                        .HasDatabaseName("ix_car_insurances_end_date");
+
+                    b.ToTable("car_insurances");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CompensationPolicy", b =>
@@ -176,7 +208,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("compensation_policies", (string)null);
+                    b.ToTable("compensation_policies");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.ContractTemplate", b =>
@@ -227,7 +259,7 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("contract_templates", (string)null);
+                    b.ToTable("contract_templates");
 
                     b.HasData(
                         new
@@ -241,6 +273,49 @@ namespace CarRental.API.Migrations
                             TemplateType = "DAILY",
                             Version = "v1.0"
                         });
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.CustomerViolation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Officer")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("officer");
+
+                    b.Property<int>("PointsChange")
+                        .HasColumnType("integer")
+                        .HasColumnName("points_change");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("customer_violations");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.HandoverProtocol", b =>
@@ -271,6 +346,14 @@ namespace CarRental.API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("customer_phone");
+
+                    b.Property<string>("CustomerSignature")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_signature");
+
+                    b.Property<string>("DamagePointsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("damage_points_json");
 
                     b.Property<string>("EvidencePhotoUrls")
                         .HasColumnType("text")
@@ -347,7 +430,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("handover_protocols", (string)null);
+                    b.ToTable("handover_protocols");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.IncidentReport", b =>
@@ -473,7 +556,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("ReplacementCarId");
 
-                    b.ToTable("incident_reports", (string)null);
+                    b.ToTable("incident_reports");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.MaintenanceRecord", b =>
@@ -556,7 +639,60 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("CarId");
 
-                    b.ToTable("maintenance_records", (string)null);
+                    b.ToTable("maintenance_records");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActionUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("action_url");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_read");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("notifications", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Payment", b =>
@@ -617,9 +753,15 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("ContractId");
 
-                    b.HasIndex("RentalRequestId");
+                    b.HasIndex("TransactionCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payments_transaction_code_unique")
+                        .HasFilter("transaction_code IS NOT NULL AND transaction_code <> ''");
 
-                    b.ToTable("payments", (string)null);
+                    b.HasIndex("RentalRequestId", "Type", "Status")
+                        .HasDatabaseName("ix_payments_rental_request_id_type_status");
+
+                    b.ToTable("payments");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.PricingPolicy", b =>
@@ -653,7 +795,48 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("VehicleId");
 
-                    b.ToTable("pricing_policies", (string)null);
+                    b.ToTable("pricing_policies");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("ReplacedByToken")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("replaced_by_token");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("token");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("refresh_tokens");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalCondition", b =>
@@ -684,7 +867,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("CarId")
                         .IsUnique();
 
-                    b.ToTable("rental_conditions", (string)null);
+                    b.ToTable("rental_conditions");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalContract", b =>
@@ -743,9 +926,10 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RequestId");
+                    b.HasIndex("RequestId")
+                        .HasDatabaseName("ix_rental_contracts_request_id");
 
-                    b.ToTable("rental_contracts", (string)null);
+                    b.ToTable("rental_contracts");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalExtension", b =>
@@ -815,7 +999,7 @@ namespace CarRental.API.Migrations
 
                     b.HasIndex("RentalRequestId");
 
-                    b.ToTable("rental_extensions", (string)null);
+                    b.ToTable("rental_extensions");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
@@ -824,6 +1008,12 @@ namespace CarRental.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("BookingType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("booking_type");
 
                     b.Property<Guid>("CarId")
                         .HasColumnType("uuid")
@@ -861,6 +1051,12 @@ namespace CarRental.API.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("deposit_amount");
 
+                    b.Property<string>("DepositMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("deposit_method");
+
                     b.Property<decimal>("DiscountPercent")
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("discount_percent");
@@ -868,6 +1064,15 @@ namespace CarRental.API.Migrations
                     b.Property<string>("DriverLicenseBackUrl")
                         .HasColumnType("text")
                         .HasColumnName("driver_license_back_url");
+
+                    b.Property<string>("DriverLicenseClass")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("driver_license_class");
+
+                    b.Property<DateTime?>("DriverLicenseExpiry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("driver_license_expiry");
 
                     b.Property<string>("DriverLicenseFrontUrl")
                         .HasColumnType("text")
@@ -891,6 +1096,14 @@ namespace CarRental.API.Migrations
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("estimated_total_fee");
 
+                    b.Property<decimal>("HoldDepositAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("hold_deposit_amount");
+
+                    b.Property<DateTime?>("HoldExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hold_expires_at");
+
                     b.Property<decimal>("HolidaySurchargePercent")
                         .HasColumnType("decimal(5,2)")
                         .HasColumnName("holiday_surcharge_percent");
@@ -902,6 +1115,10 @@ namespace CarRental.API.Migrations
                     b.Property<string>("IdCardFrontUrl")
                         .HasColumnType("text")
                         .HasColumnName("id_card_front_url");
+
+                    b.Property<bool>("IsSecurityDepositPaid")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_security_deposit_paid");
 
                     b.Property<string>("Notes")
                         .HasColumnType("text")
@@ -935,9 +1152,392 @@ namespace CarRental.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CarId");
+                    b.HasIndex("CustomerEmail", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_rental_requests_customer_email_created_at");
 
-                    b.ToTable("rental_requests", (string)null);
+                    b.HasIndex("CarId", "Status", "StartTime", "EndTime")
+                        .HasDatabaseName("ix_rental_requests_car_id_status_start_end");
+
+                    b.ToTable("rental_requests");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.RentalSettlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AdditionalAmountDue")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("additional_amount_due");
+
+                    b.Property<decimal>("BalanceAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("balance_amount");
+
+                    b.Property<decimal>("CleaningFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("cleaning_fee");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<decimal>("DamageFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("damage_fee");
+
+                    b.Property<decimal>("DepositAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("deposit_amount");
+
+                    b.Property<decimal>("ExtraKmFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("extra_km_fee");
+
+                    b.Property<decimal>("FuelFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("fuel_fee");
+
+                    b.Property<decimal>("LateHours")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("late_hours");
+
+                    b.Property<decimal>("LateReturnFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("late_return_fee");
+
+                    b.Property<decimal>("OtherFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("other_fee");
+
+                    b.Property<string>("OtherFeeNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("other_fee_notes");
+
+                    b.Property<string>("RefundAccountName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("refund_account_name");
+
+                    b.Property<string>("RefundAccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("refund_account_number");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("refund_amount");
+
+                    b.Property<string>("RefundBankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("refund_bank_name");
+
+                    b.Property<string>("RefundMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("refund_method");
+
+                    b.Property<string>("RefundProofUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("refund_proof_url");
+
+                    b.Property<string>("RefundStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("refund_status");
+
+                    b.Property<string>("RefundTransactionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("refund_transaction_code");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refunded_at");
+
+                    b.Property<decimal>("RentalFee")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("rental_fee");
+
+                    b.Property<Guid?>("RentalRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rental_request_id");
+
+                    b.Property<Guid?>("ReturnProtocolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("return_protocol_id");
+
+                    b.Property<DateTime?>("SettledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("settled_at");
+
+                    b.Property<string>("SettlementNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("settlement_number");
+
+                    b.Property<string>("SettlementType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("settlement_type");
+
+                    b.Property<string>("StaffNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("staff_notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalDeduction")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("total_deduction");
+
+                    b.Property<decimal>("TrafficFineActualDeduction")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("traffic_fine_actual_deduction");
+
+                    b.Property<decimal>("TrafficFineActualRefund")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("traffic_fine_actual_refund");
+
+                    b.Property<decimal>("TrafficFineHoldAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("traffic_fine_hold_amount");
+
+                    b.Property<string>("TrafficFineNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("traffic_fine_notes");
+
+                    b.Property<DateTime?>("TrafficFineRefundDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("traffic_fine_refund_date");
+
+                    b.Property<string>("TrafficFineRefundStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("traffic_fine_refund_status");
+
+                    b.Property<DateTime?>("TrafficFineRefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("traffic_fine_refunded_at");
+
+                    b.Property<string>("TrafficFineTransactionCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("traffic_fine_transaction_code");
+
+                    b.Property<string>("TrafficFineViolationProofUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("traffic_fine_violation_proof_url");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("RentalRequestId");
+
+                    b.HasIndex("ReturnProtocolId");
+
+                    b.ToTable("rental_settlements");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.ReturnProtocol", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessoriesChecklist")
+                        .HasColumnType("text")
+                        .HasColumnName("accessories_checklist");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("contract_id");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("customer_name");
+
+                    b.Property<string>("CustomerPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("customer_phone");
+
+                    b.Property<string>("CustomerSignature")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_signature");
+
+                    b.Property<string>("DamagePointsJson")
+                        .HasColumnType("text")
+                        .HasColumnName("damage_points_json");
+
+                    b.Property<int>("EndOdo")
+                        .HasColumnType("integer")
+                        .HasColumnName("end_km");
+
+                    b.Property<string>("EvidencePhotoUrls")
+                        .HasColumnType("text")
+                        .HasColumnName("evidence_photo_urls");
+
+                    b.Property<int>("ExcessKm")
+                        .HasColumnType("integer")
+                        .HasColumnName("excess_km");
+
+                    b.Property<string>("ExteriorCondition")
+                        .HasColumnType("text")
+                        .HasColumnName("exterior_condition");
+
+                    b.Property<int>("FuelDifference")
+                        .HasColumnType("integer")
+                        .HasColumnName("fuel_difference");
+
+                    b.Property<int>("InitialFuelLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("initial_fuel_level");
+
+                    b.Property<string>("InteriorCondition")
+                        .HasColumnType("text")
+                        .HasColumnName("interior_condition");
+
+                    b.Property<int?>("MaxKmAllowed")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_km_allowed");
+
+                    b.Property<string>("MissingAccessories")
+                        .HasColumnType("text")
+                        .HasColumnName("missing_accessories");
+
+                    b.Property<string>("NewDamagesNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("new_damages_notes");
+
+                    b.Property<string>("NextVehicleStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("next_vehicle_status");
+
+                    b.Property<string>("ProtocolNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("protocol_number");
+
+                    b.Property<Guid?>("RentalRequestId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rental_request_id");
+
+                    b.Property<DateTime>("ReturnDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_date");
+
+                    b.Property<int>("ReturnFuelLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("fuel_level");
+
+                    b.Property<Guid?>("StaffId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("staff_id");
+
+                    b.Property<string>("StaffName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("staff_name");
+
+                    b.Property<string>("StaffNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("staff_notes");
+
+                    b.Property<string>("StaffSignature")
+                        .HasColumnType("text")
+                        .HasColumnName("staff_signature");
+
+                    b.Property<int>("StartOdo")
+                        .HasColumnType("integer")
+                        .HasColumnName("start_km");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TireCondition")
+                        .HasColumnType("text")
+                        .HasColumnName("tire_condition");
+
+                    b.Property<int>("TotalKmDriven")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_km_driven");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("RentalRequestId");
+
+                    b.ToTable("return_protocols");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.SystemSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("DataType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("data_type");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("value");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("system_settings", (string)null);
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.User", b =>
@@ -951,6 +1551,28 @@ namespace CarRental.API.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("DriverLicenseBackUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("driver_license_back_url");
+
+                    b.Property<string>("DriverLicenseClass")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("driver_license_class");
+
+                    b.Property<DateTime?>("DriverLicenseExpiry")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("driver_license_expiry");
+
+                    b.Property<string>("DriverLicenseFrontUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("driver_license_front_url");
+
+                    b.Property<string>("DriverLicenseNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("driver_license_number");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -963,9 +1585,40 @@ namespace CarRental.API.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("full_name");
 
+                    b.Property<string>("IdCardBackUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("id_card_back_url");
+
+                    b.Property<string>("IdCardFrontUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("id_card_front_url");
+
+                    b.Property<string>("IdCardNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("id_card_number");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<string>("KycNote")
+                        .HasColumnType("text")
+                        .HasColumnName("kyc_note");
+
+                    b.Property<DateTime?>("KycReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("kyc_reviewed_at");
+
+                    b.Property<string>("KycStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("kyc_status");
+
+                    b.Property<string>("LockReason")
+                        .HasColumnType("text")
+                        .HasColumnName("lock_reason");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -984,6 +1637,10 @@ namespace CarRental.API.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("role");
 
+                    b.Property<int>("TrustScore")
+                        .HasColumnType("integer")
+                        .HasColumnName("trust_score");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -993,7 +1650,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("app_users", (string)null);
+                    b.ToTable("app_users");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>
@@ -1105,7 +1762,7 @@ namespace CarRental.API.Migrations
                     b.HasIndex("LicensePlate")
                         .IsUnique();
 
-                    b.ToTable("cars", (string)null);
+                    b.ToTable("cars");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.AdditionalDriver", b =>
@@ -1113,10 +1770,16 @@ namespace CarRental.API.Migrations
                     b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
                         .WithMany("AdditionalDrivers")
                         .HasForeignKey("RentalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("CarRental.API.Entities.User", "User")
+                        .WithMany("AdditionalDrivers")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("RentalRequest");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.CarInsurance", b =>
@@ -1128,6 +1791,17 @@ namespace CarRental.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.CustomerViolation", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.User", "User")
+                        .WithMany("Violations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.HandoverProtocol", b =>
@@ -1150,13 +1824,13 @@ namespace CarRental.API.Migrations
                     b.HasOne("CarRental.API.Entities.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("CarId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
                         .WithMany()
                         .HasForeignKey("RentalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("CarRental.API.Entities.Vehicle", "ReplacementVehicle")
@@ -1175,10 +1849,21 @@ namespace CarRental.API.Migrations
                     b.HasOne("CarRental.API.Entities.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("CarId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.Notification", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Payment", b =>
@@ -1207,6 +1892,17 @@ namespace CarRental.API.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("CarRental.API.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CarRental.API.Entities.RentalCondition", b =>
                 {
                     b.HasOne("CarRental.API.Entities.Vehicle", "Vehicle")
@@ -1230,7 +1926,7 @@ namespace CarRental.API.Migrations
                     b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
                         .WithMany()
                         .HasForeignKey("RentalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("RentalRequest");
@@ -1247,9 +1943,52 @@ namespace CarRental.API.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("CarRental.API.Entities.RentalSettlement", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.RentalContract", "RentalContract")
+                        .WithMany()
+                        .HasForeignKey("ContractId");
+
+                    b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
+                        .WithMany()
+                        .HasForeignKey("RentalRequestId");
+
+                    b.HasOne("CarRental.API.Entities.ReturnProtocol", "ReturnProtocol")
+                        .WithMany()
+                        .HasForeignKey("ReturnProtocolId");
+
+                    b.Navigation("RentalContract");
+
+                    b.Navigation("RentalRequest");
+
+                    b.Navigation("ReturnProtocol");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.ReturnProtocol", b =>
+                {
+                    b.HasOne("CarRental.API.Entities.RentalContract", "RentalContract")
+                        .WithMany()
+                        .HasForeignKey("ContractId");
+
+                    b.HasOne("CarRental.API.Entities.RentalRequest", "RentalRequest")
+                        .WithMany()
+                        .HasForeignKey("RentalRequestId");
+
+                    b.Navigation("RentalContract");
+
+                    b.Navigation("RentalRequest");
+                });
+
             modelBuilder.Entity("CarRental.API.Entities.RentalRequest", b =>
                 {
                     b.Navigation("AdditionalDrivers");
+                });
+
+            modelBuilder.Entity("CarRental.API.Entities.User", b =>
+                {
+                    b.Navigation("AdditionalDrivers");
+
+                    b.Navigation("Violations");
                 });
 
             modelBuilder.Entity("CarRental.API.Entities.Vehicle", b =>

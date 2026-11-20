@@ -35,7 +35,12 @@ class CarService {
           .timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data = decoded is List
+            ? decoded
+            : (decoded is Map<String, dynamic> && decoded['items'] is List
+                ? decoded['items'] as List<dynamic>
+                : []);
         return data.map((item) => CarModel.fromJson(item)).toList();
       } else {
         throw Exception('Lỗi nạp danh sách xe: ${response.statusCode}');

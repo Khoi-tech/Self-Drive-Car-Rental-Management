@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiConstants {
   static const String prefCustomBaseUrlKey = 'custom_api_base_url';
 
+  // Environment variable passed via --dart-define=API_BASE_URL=...
+  static const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+
   // Preset IP options for easy demo switching
   static const String defaultLocalhostUrl = 'http://localhost:5171';
   static const String defaultEmulatorUrl = 'http://10.0.2.2:5171';
@@ -12,6 +15,10 @@ class ApiConstants {
   static String _cachedBaseUrl = '';
 
   static String get defaultBaseUrl {
+    // 1. Compile-time environment variable defined via --dart-define (dev/staging/prod)
+    if (envBaseUrl.isNotEmpty) {
+      return envBaseUrl;
+    }
     if (kIsWeb) {
       return defaultLocalhostUrl;
     }
@@ -24,18 +31,27 @@ class ApiConstants {
   }
 
   static Future<String> getBaseUrl() async {
-    if (_cachedBaseUrl.isNotEmpty) return _cachedBaseUrl;
-    final prefs = await SharedPreferences.getInstance();
-    final customUrl = prefs.getString(prefCustomBaseUrlKey);
-    if (customUrl != null && customUrl.trim().isNotEmpty) {
-      _cachedBaseUrl = customUrl.trim();
-    } else {
-      _cachedBaseUrl = defaultBaseUrl;
+    // Prioritize compile-time env URL if specified
+    if (envBaseUrl.isNotEmpty) {
+      return envBaseUrl;
     }
+    if (_cachedBaseUrl.isNotEmpty) return _cachedBaseUrl;
+    // Allow runtime debug overriding only in debug mode
+    if (kDebugMode) {
+      final prefs = await SharedPreferences.getInstance();
+      final customUrl = prefs.getString(prefCustomBaseUrlKey);
+      if (customUrl != null && customUrl.trim().isNotEmpty) {
+        _cachedBaseUrl = customUrl.trim();
+        return _cachedBaseUrl;
+      }
+    }
+    _cachedBaseUrl = defaultBaseUrl;
     return _cachedBaseUrl;
   }
 
   static Future<void> setBaseUrl(String newUrl) async {
+    // Prevent base URL tampering in release builds
+    if (!kDebugMode) return;
     final prefs = await SharedPreferences.getInstance();
     final cleanUrl = newUrl.trim().replaceAll(RegExp(r'/+$'), '');
     await prefs.setString(prefCustomBaseUrlKey, cleanUrl);

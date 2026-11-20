@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -153,27 +154,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    IconButton(
-                      tooltip: 'Đổi máy chủ API',
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    if (kDebugMode)
+                      IconButton(
+                        tooltip: 'Đổi máy chủ API',
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                          ),
+                          child: const Icon(Icons.dns_rounded, size: 20, color: Color(0xFF2563EB)),
                         ),
-                        child: const Icon(Icons.dns_rounded, size: 20, color: Color(0xFF2563EB)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => const ServerConfigDialog(),
+                          ).then((_) {
+                            carProvider.loadCars();
+                            _loadMyRentals();
+                          });
+                        },
                       ),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => const ServerConfigDialog(),
-                        ).then((_) {
-                          carProvider.loadCars();
-                          _loadMyRentals();
-                        });
-                      },
-                    ),
                   ],
                 ),
               ),
@@ -395,16 +397,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Thử lại'),
                         ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => const ServerConfigDialog(),
-                            );
-                          },
-                          child: const Text('Kiểm tra IP máy chủ'),
-                        ),
+                        if (kDebugMode) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => const ServerConfigDialog(),
+                              );
+                            },
+                            child: const Text('Kiểm tra IP máy chủ'),
+                          ),
+                        ],
                       ],
                     ),
                   ),

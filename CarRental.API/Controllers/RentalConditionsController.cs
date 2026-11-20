@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.RentalCondition;
 using CarRental.API.Services;
@@ -20,6 +21,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetCondition(Guid vehicleId)
         {
             var vehicle = await _vehicleService.GetByIdAsync(vehicleId);
@@ -36,6 +38,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> CreateCondition(Guid vehicleId, [FromBody] CreateRentalConditionDto createDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -56,6 +59,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> UpdateCondition(Guid vehicleId, [FromBody] UpdateRentalConditionDto updateDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -73,6 +77,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> DeleteCondition(Guid vehicleId)
         {
             var vehicle = await _vehicleService.GetByIdAsync(vehicleId);

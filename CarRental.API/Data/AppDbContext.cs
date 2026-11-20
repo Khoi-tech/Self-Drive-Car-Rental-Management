@@ -26,6 +26,17 @@ namespace CarRental.API.Data
         public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; } = null!;
         public DbSet<ReturnProtocol> ReturnProtocols { get; set; } = null!;
         public DbSet<RentalSettlement> RentalSettlements { get; set; } = null!;
+        public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+        public DbSet<CustomerViolation> CustomerViolations { get; set; } = null!;
+        public DbSet<SystemSetting> SystemSettings { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
+
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            base.ConfigureConventions(configurationBuilder);
+            configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+            configurationBuilder.Properties<DateTime?>().HaveConversion<NullableUtcDateTimeConverter>();
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -71,6 +82,90 @@ namespace CarRental.API.Data
                 .HasForeignKey(ad => ad.RentalRequestId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Configure ON DELETE RESTRICT on audit/financial/history tables to prevent accidental data loss
+            modelBuilder.Entity<IncidentReport>()
+                .HasOne(i => i.Vehicle)
+                .WithMany()
+                .HasForeignKey(i => i.CarId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<IncidentReport>()
+                .HasOne(i => i.RentalRequest)
+                .WithMany()
+                .HasForeignKey(i => i.RentalRequestId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MaintenanceRecord>()
+                .HasOne(m => m.Vehicle)
+                .WithMany()
+                .HasForeignKey(m => m.CarId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RentalExtension>()
+                .HasOne(re => re.RentalRequest)
+                .WithMany()
+                .HasForeignKey(re => re.RentalRequestId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CustomerViolation>()
+                .HasOne(v => v.User)
+                .WithMany(u => u.Violations)
+                .HasForeignKey(v => v.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AdditionalDriver>()
+                .HasOne(ad => ad.User)
+                .WithMany(u => u.AdditionalDrivers)
+                .HasForeignKey(ad => ad.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Composite Indexes for high-throughput queries
+            modelBuilder.Entity<RentalRequest>()
+                .HasIndex(r => new { r.CarId, r.Status, r.StartTime, r.EndTime })
+                .HasDatabaseName("ix_rental_requests_car_id_status_start_end");
+
+            modelBuilder.Entity<RentalRequest>()
+                .HasIndex(r => new { r.CustomerEmail, r.CreatedAt })
+                .IsDescending(false, true)
+                .HasDatabaseName("ix_rental_requests_customer_email_created_at");
+
+            modelBuilder.Entity<RentalContract>()
+                .HasIndex(c => c.RequestId)
+                .HasDatabaseName("ix_rental_contracts_request_id");
+
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => p.TransactionCode)
+                .IsUnique()
+                .HasFilter("transaction_code IS NOT NULL AND transaction_code <> ''")
+                .HasDatabaseName("ix_payments_transaction_code_unique");
+
+            modelBuilder.Entity<Payment>()
+                .HasIndex(p => new { p.RentalRequestId, p.Type, p.Status })
+                .HasDatabaseName("ix_payments_rental_request_id_type_status");
+
+            modelBuilder.Entity<CarInsurance>()
+                .HasIndex(ci => ci.ExpiryDate)
+                .HasDatabaseName("ix_car_insurances_end_date");
+
+
+            // Configure SystemSettings
+            modelBuilder.Entity<SystemSetting>(entity =>
+            {
+                entity.ToTable("system_settings");
+                entity.HasKey(e => e.Key);
+            });
+
+            // Configure Notifications
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.ToTable("notifications");
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt });
+            });
 
             // Seed initial standard contract template
             modelBuilder.Entity<ContractTemplate>().HasData(

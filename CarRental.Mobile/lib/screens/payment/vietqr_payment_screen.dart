@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/payment_model.dart';
@@ -409,25 +410,52 @@ class _VietQrPaymentScreenState extends State<VietQrPaymentScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Confirm Button
-          ElevatedButton.icon(
-            onPressed: _isConfirming ? null : _handleConfirmPayment,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: const Color(0xFF10B981),
+          // Confirm Button (Sandbox Simulation in Debug Mode / Auto-Webhook listening in Release Mode)
+          if (kDebugMode) ...[
+            ElevatedButton.icon(
+              onPressed: _isConfirming ? null : _handleConfirmPayment,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF10B981),
+              ),
+              icon: _isConfirming
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.bolt_rounded),
+              label: Text(
+                _isConfirming ? 'Đang đối soát giao dịch...' : 'Tôi Đã Chuyển Tiền (Sandbox Simulation)',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
             ),
-            icon: _isConfirming
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.check_circle_outline_rounded),
-            label: Text(
-              _isConfirming ? 'Đang đối soát giao dịch...' : 'Tôi Đã Chuyển Tiền Thành Công',
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF60A5FA)),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Hệ thống đang tự động lắng nghe giao dịch chuyển khoản từ ngân hàng qua VietQR...',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
 
           // Return Home Option

@@ -9,7 +9,7 @@ namespace CarRental.API.Controllers
 {
     [ApiController]
     [Route("api/maintenance")]
-    [Authorize(Roles = "ADMIN,STAFF")]
+    [Authorize(Policy = "Operations")]
     public class MaintenanceController : ControllerBase
     {
         private readonly IMaintenanceService _maintenanceService;
@@ -72,6 +72,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _maintenanceService.DeleteAsync(id);

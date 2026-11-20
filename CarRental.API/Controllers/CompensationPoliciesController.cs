@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.CompensationPolicy;
 using CarRental.API.Services;
@@ -18,6 +19,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll()
         {
             var policies = await _compensationPolicyService.GetAllAsync();
@@ -25,6 +27,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(Guid id)
         {
             var policy = await _compensationPolicyService.GetByIdAsync(id);
@@ -34,6 +37,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Create([FromBody] CreateCompensationPolicyDto createDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -43,6 +47,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCompensationPolicyDto updateDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -54,6 +59,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPatch("{id}/status")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateCompensationPolicyStatusDto statusDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);

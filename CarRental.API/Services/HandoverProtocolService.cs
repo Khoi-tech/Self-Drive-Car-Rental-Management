@@ -180,40 +180,51 @@ namespace CarRental.API.Services
 
         public async Task<HandoverProtocolDto> ConfirmHandoverAsync(Guid id, HandoverConfirmDto dto)
         {
-            var protocol = await _context.HandoverProtocols
-                .Include(h => h.RentalRequest)
-                .ThenInclude(r => r!.Vehicle)
-                .FirstOrDefaultAsync(h => h.Id == id);
-
-            if (protocol == null)
-                throw new KeyNotFoundException("Không tìm thấy biên bản bàn giao xe.");
-
-            protocol.Status = "CONFIRMED";
-            if (!string.IsNullOrWhiteSpace(dto.StaffName)) protocol.StaffName = dto.StaffName;
-            if (!string.IsNullOrWhiteSpace(dto.StaffSignature)) protocol.StaffSignature = dto.StaffSignature;
-            if (!string.IsNullOrWhiteSpace(dto.CustomerSignature)) protocol.CustomerSignature = dto.CustomerSignature;
-            if (!string.IsNullOrWhiteSpace(dto.Notes)) protocol.StaffNotes = $"{protocol.StaffNotes}\n[Xác nhận bàn giao]: {dto.Notes}".Trim();
-            protocol.UpdatedAt = DateTime.UtcNow;
-
-            if (protocol.RentalRequest != null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                protocol.RentalRequest.Status = "ACTIVE"; // Kích hoạt đơn thuê xe
-                protocol.RentalRequest.IsSecurityDepositPaid = true; // Tiền cọc thế chân đã được thu đủ (tiền mặt tại chỗ hoặc đã chuyển khoản)
-                protocol.RentalRequest.UpdatedAt = DateTime.UtcNow;
+                var protocol = await _context.HandoverProtocols
+                    .Include(h => h.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                    .FirstOrDefaultAsync(h => h.Id == id);
 
-                if (protocol.RentalRequest.Vehicle != null)
+                if (protocol == null)
+                    throw new KeyNotFoundException("Không tìm thấy biên bản bàn giao xe.");
+
+                protocol.Status = "CONFIRMED";
+                if (!string.IsNullOrWhiteSpace(dto.StaffName)) protocol.StaffName = dto.StaffName;
+                if (!string.IsNullOrWhiteSpace(dto.StaffSignature)) protocol.StaffSignature = dto.StaffSignature;
+                if (!string.IsNullOrWhiteSpace(dto.CustomerSignature)) protocol.CustomerSignature = dto.CustomerSignature;
+                if (!string.IsNullOrWhiteSpace(dto.Notes)) protocol.StaffNotes = $"{protocol.StaffNotes}\n[Xác nhận bàn giao]: {dto.Notes}".Trim();
+                protocol.UpdatedAt = DateTime.UtcNow;
+
+                if (protocol.RentalRequest != null)
                 {
-                    protocol.RentalRequest.Vehicle.Status = VehicleStatus.RENTED;
-                    if (protocol.OdoAtHandover > protocol.RentalRequest.Vehicle.CurrentMileage)
-                    {
-                        protocol.RentalRequest.Vehicle.CurrentMileage = protocol.OdoAtHandover;
-                    }
-                    protocol.RentalRequest.Vehicle.UpdatedAt = DateTime.UtcNow;
-                }
-            }
+                    protocol.RentalRequest.Status = "ACTIVE"; // Kích hoạt đơn thuê xe
+                    protocol.RentalRequest.IsSecurityDepositPaid = true; // Tiền cọc thế chân đã được thu đủ (tiền mặt tại chỗ hoặc đã chuyển khoản)
+                    protocol.RentalRequest.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            return (await GetByIdAsync(protocol.Id))!;
+                    if (protocol.RentalRequest.Vehicle != null)
+                    {
+                        protocol.RentalRequest.Vehicle.Status = VehicleStatus.RENTED;
+                        if (protocol.OdoAtHandover > protocol.RentalRequest.Vehicle.CurrentMileage)
+                        {
+                            protocol.RentalRequest.Vehicle.CurrentMileage = protocol.OdoAtHandover;
+                        }
+                        protocol.RentalRequest.Vehicle.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (await GetByIdAsync(protocol.Id))!;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<bool> DeleteAsync(Guid id)

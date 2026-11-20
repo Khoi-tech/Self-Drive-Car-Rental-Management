@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace CarRental.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "ADMIN,STAFF")]
+    [Authorize(Policy = "Operations")]
     public class AnalyticsController : ControllerBase
     {
         private readonly IAnalyticsService _service;
@@ -19,16 +20,16 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("dashboard-overview")]
-        public async Task<ActionResult<DashboardOverviewDto>> GetDashboardOverview()
+        public async Task<ActionResult<DashboardOverviewDto>> GetDashboardOverview([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
-            var overview = await _service.GetDashboardOverviewAsync();
+            var overview = await _service.GetDashboardOverviewAsync(fromDate, toDate);
             return Ok(overview);
         }
 
         [HttpGet("fleet-utilization")]
-        public async Task<ActionResult<FleetUtilizationReportDto>> GetFleetUtilizationReport()
+        public async Task<ActionResult<FleetUtilizationReportDto>> GetFleetUtilizationReport([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
-            var report = await _service.GetFleetUtilizationReportAsync();
+            var report = await _service.GetFleetUtilizationReportAsync(fromDate, toDate);
             return Ok(report);
         }
     }

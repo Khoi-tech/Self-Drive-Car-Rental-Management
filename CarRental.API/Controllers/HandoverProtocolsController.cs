@@ -2,7 +2,9 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CarRental.API.Data;
 using CarRental.API.DTOs.Handover;
+using CarRental.API.Helpers;
 using CarRental.API.Services;
 
 namespace CarRental.API.Controllers
@@ -12,13 +14,16 @@ namespace CarRental.API.Controllers
     public class HandoverProtocolsController : ControllerBase
     {
         private readonly IHandoverProtocolService _protocolService;
+        private readonly AppDbContext _context;
 
-        public HandoverProtocolsController(IHandoverProtocolService protocolService)
+        public HandoverProtocolsController(IHandoverProtocolService protocolService, AppDbContext context)
         {
             _protocolService = protocolService;
+            _context = context;
         }
 
         [HttpGet]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> GetAll([FromQuery] string? status)
         {
             var list = await _protocolService.GetAllAsync(status);
@@ -26,23 +31,42 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetById(Guid id)
         {
             var item = await _protocolService.GetByIdAsync(id);
             if (item == null) return NotFound(new { message = "Không tìm thấy biên bản bàn giao." });
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(item.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             return Ok(item);
         }
 
         [HttpGet("request/{requestId}")]
+        [Authorize]
         public async Task<IActionResult> GetByRequestId(Guid requestId)
         {
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(requestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             var item = await _protocolService.GetByRequestIdAsync(requestId);
             if (item == null) return NotFound(new { message = "Chưa có biên bản bàn giao cho yêu cầu thuê này." });
             return Ok(item);
         }
 
         [HttpPost]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> Create([FromBody] CreateHandoverProtocolDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -59,7 +83,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateHandoverProtocolDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -79,6 +103,17 @@ namespace CarRental.API.Controllers
         [Authorize]
         public async Task<IActionResult> Confirm(Guid id, [FromBody] HandoverConfirmDto dto)
         {
+            var item = await _protocolService.GetByIdAsync(id);
+            if (item == null) return NotFound(new { message = "Không tìm thấy biên bản bàn giao." });
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(item.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             try
             {
                 var confirmed = await _protocolService.ConfirmHandoverAsync(id, dto);
@@ -91,6 +126,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("car/{carId:guid}/latest-damages")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetLatestDamagesByCar(Guid carId)
         {
             var json = await _protocolService.GetLatestDamagePointsByCarIdAsync(carId);
@@ -98,7 +134,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _protocolService.DeleteAsync(id);

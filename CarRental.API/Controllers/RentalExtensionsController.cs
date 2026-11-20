@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CarRental.API.Data;
 using CarRental.API.DTOs.Extensions;
+using CarRental.API.Helpers;
 using CarRental.API.Services;
 
 namespace CarRental.API.Controllers
@@ -13,13 +15,16 @@ namespace CarRental.API.Controllers
     public class RentalExtensionsController : ControllerBase
     {
         private readonly IRentalExtensionService _extensionService;
+        private readonly AppDbContext _context;
 
-        public RentalExtensionsController(IRentalExtensionService extensionService)
+        public RentalExtensionsController(IRentalExtensionService extensionService, AppDbContext context)
         {
             _extensionService = extensionService;
+            _context = context;
         }
 
         [HttpGet]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> GetAll([FromQuery] string? status)
         {
             var list = await _extensionService.GetAllAsync(status);
@@ -27,24 +32,52 @@ namespace CarRental.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> GetById(Guid id)
         {
             var item = await _extensionService.GetByIdAsync(id);
             if (item == null) return NotFound(new { message = "Không tìm thấy yêu cầu gia hạn." });
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(item.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             return Ok(item);
         }
 
         [HttpGet("request/{requestId}")]
+        [Authorize]
         public async Task<IActionResult> GetByRequestId(Guid requestId)
         {
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(requestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             var list = await _extensionService.GetByRequestIdAsync(requestId);
             return Ok(list);
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<IActionResult> Create([FromBody] CreateRentalExtensionDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(dto.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
 
             try
             {
@@ -58,7 +91,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/approve")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> Approve(Guid id, [FromBody] ProcessRentalExtensionDto dto)
         {
             try
@@ -76,7 +109,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/reject")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<IActionResult> Reject(Guid id, [FromBody] ProcessRentalExtensionDto dto)
         {
             try

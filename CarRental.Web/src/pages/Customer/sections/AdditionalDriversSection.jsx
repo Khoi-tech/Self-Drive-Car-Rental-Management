@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   UserPlus, 
@@ -17,27 +17,32 @@ import {
   Eye,
   Upload
 } from 'lucide-react';
-
-const INITIAL_DRIVERS = [
-  {
-    id: 'drv-01',
-    fullName: 'Trần Thị Bích Ngọc',
-    relationship: 'Vợ / Bạn đồng hành',
-    dateOfBirth: '20/11/1994',
-    phoneNumber: '0908 112 334',
-    idCardNumber: '079194008892',
-    licenseNumber: '790184492019',
-    licenseClass: 'B1',
-    licenseExpiry: '15/10/2029',
-    status: 'VERIFIED'
-  }
-];
+import additionalDriverService from '../../../services/additionalDriverService';
 
 const AdditionalDriversSection = () => {
-  const [drivers, setDrivers] = useState(INITIAL_DRIVERS);
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState(null);
   const [viewingLicense, setViewingLicense] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchDrivers = async () => {
+    try {
+      setLoading(true);
+      const res = await additionalDriverService.getMyDrivers();
+      setDrivers(res?.data || res || []);
+    } catch (err) {
+      console.error('Failed to fetch additional drivers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDrivers();
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -55,6 +60,7 @@ const AdditionalDriversSection = () => {
 
   const handleOpenAdd = () => {
     setEditingDriver(null);
+    setError(null);
     setFormData({
       fullName: '',
       relationship: 'Bạn đồng hành',
@@ -72,34 +78,49 @@ const AdditionalDriversSection = () => {
 
   const handleOpenEdit = (driver) => {
     setEditingDriver(driver);
+    setError(null);
     setFormData({ ...driver, frontLicenseUploaded: true, backLicenseUploaded: true });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa tài xế bổ sung này khỏi danh sách?')) {
-      setDrivers(prev => prev.filter(d => d.id !== id));
+      try {
+        await additionalDriverService.deleteDriver(id);
+        setDrivers(prev => prev.filter(d => d.id !== id));
+      } catch (err) {
+        console.error('Failed to delete driver:', err);
+        alert(err.response?.data?.message || 'Không thể xóa tài xế phụ.');
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.phoneNumber || !formData.idCardNumber || !formData.licenseNumber) {
-      alert('Vui lòng điền đầy đủ các trường thông tin bắt buộc.');
+    setError(null);
+    if (!formData.fullName?.trim() || !formData.phoneNumber?.trim() || !formData.idCardNumber?.trim() || !formData.licenseNumber?.trim()) {
+      setError('Vui lòng điền đầy đủ các trường thông tin bắt buộc.');
       return;
     }
 
-    if (editingDriver) {
-      setDrivers(prev => prev.map(d => d.id === editingDriver.id ? { ...formData, id: d.id, status: d.status } : d));
-    } else {
-      const newDriver = {
-        ...formData,
-        id: `drv-${Date.now()}`,
-        status: 'PENDING' // Chờ thẩm định
-      };
-      setDrivers(prev => [...prev, newDriver]);
+    try {
+      setSubmitting(true);
+      if (editingDriver) {
+        const res = await additionalDriverService.updateDriver(editingDriver.id, formData);
+        const updated = res?.data || res;
+        setDrivers(prev => prev.map(d => d.id === editingDriver.id ? updated : d));
+      } else {
+        const res = await additionalDriverService.createDriver(formData);
+        const created = res?.data || res;
+        setDrivers(prev => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Save driver failed:', err);
+      setError(err.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin tài xế phụ.');
+    } finally {
+      setSubmitting(false);
     }
-    setIsModalOpen(false);
   };
 
   return (
@@ -255,6 +276,12 @@ const AdditionalDriversSection = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{error}</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700 block">Họ và tên <span className="text-red-500">*</span></label>
@@ -379,9 +406,10 @@ const AdditionalDriversSection = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-lg font-bold shadow-xs cursor-pointer"
+                  disabled={submitting}
+                  className="px-5 py-2 bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white rounded-lg font-bold shadow-xs cursor-pointer"
                 >
-                  {editingDriver ? 'Cập nhật tài xế' : 'Gửi thẩm định'}
+                  {submitting ? 'Đang lưu...' : (editingDriver ? 'Cập nhật tài xế' : 'Gửi thẩm định')}
                 </button>
               </div>
             </form>

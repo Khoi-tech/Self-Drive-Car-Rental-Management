@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, 
   FileCheck, 
@@ -15,81 +15,46 @@ import {
   Filter
 } from 'lucide-react';
 import { formatDateTime } from '../../../utils/formatters';
-
-const DEFAULT_DOCUMENTS = [
-  {
-    id: 'DOC-CT-2026-0081',
-    type: 'CONTRACT',
-    typeName: 'Hợp đồng thuê xe tự lái điện tử',
-    title: 'Hợp đồng nguyên tắc & điều khoản giao xe Porsche Taycan 4S',
-    vehicleName: 'Porsche Taycan 4S',
-    licensePlate: '30H-999.99',
-    signedDate: '02/11/2026',
-    status: 'SIGNED_VALID',
-    statusLabel: 'Ký số hợp lệ',
-    fileSize: '1.4 MB',
-    isDownloadable: true
-  },
-  {
-    id: 'DOC-HO-2026-0045',
-    type: 'HANDOVER_PROTOCOL',
-    typeName: 'Biên bản giao xe (Handover Out)',
-    title: 'Biên bản bàn giao xe thực tế Mercedes-Benz E300 AMG',
-    vehicleName: 'Mercedes-Benz E300 AMG',
-    licensePlate: '51K-234.56',
-    signedDate: '24/10/2026',
-    status: 'VERIFIED',
-    statusLabel: 'Giao xe (Handover Out)',
-    fileSize: '2.8 MB',
-    isDownloadable: true
-  },
-  {
-    id: 'DOC-RT-2026-0039',
-    type: 'RETURN_PROTOCOL',
-    typeName: 'Biên bản nhận lại xe (Return In)',
-    title: 'Biên bản nhận lại xe & kiểm tra tình trạng BMW 530i M Sport',
-    vehicleName: 'BMW 530i M Sport',
-    licensePlate: '51K-556.78',
-    signedDate: '18/10/2026',
-    status: 'COMPLETED',
-    statusLabel: 'Nhận lại xe (Return In)',
-    fileSize: '3.1 MB',
-    isDownloadable: true
-  },
-  {
-    id: 'DOC-ST-2026-0022',
-    type: 'SETTLEMENT_RECEIPT',
-    typeName: 'Phiếu quyết toán & hoàn tiền cọc',
-    title: 'Biên bản thanh lý hợp đồng & quyết toán cọc thế chân BMW 530i',
-    vehicleName: 'BMW 530i M Sport',
-    licensePlate: '51K-556.78',
-    signedDate: '18/10/2026',
-    status: 'REFUNDED',
-    statusLabel: 'Đã hoàn cọc',
-    fileSize: '890 KB',
-    isDownloadable: true
-  }
-];
+import customerService from '../../../services/customerService';
 
 const DocumentsRepositorySection = ({ requests = [], onViewSettlement, onViewHandover }) => {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [vehicleFilter, setVehicleFilter] = useState('ALL');
 
-  // Distinct vehicles
-  const vehicleOptions = useMemo(() => {
-    const list = [
-      { id: 'ALL', label: 'Tất cả chuyến đi & dòng xe' },
-      { id: '30H-999.99', label: 'Porsche Taycan 4S (30H-999.99)' },
-      { id: '51K-234.56', label: 'Mercedes-Benz E300 AMG (51K-234.56)' },
-      { id: '51K-556.78', label: 'BMW 530i M Sport (51K-556.78)' }
-    ];
-    return list;
+  useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        setLoading(true);
+        const res = await customerService.getMyDocuments();
+        setDocuments(res?.data || res || []);
+      } catch (err) {
+        console.error('Failed to fetch my documents:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocs();
   }, []);
 
+  // Distinct vehicles
+  const vehicleOptions = useMemo(() => {
+    const list = [{ id: 'ALL', label: 'Tất cả chuyến đi & dòng xe' }];
+    const seen = new Set();
+    documents.forEach(d => {
+      if (d.licensePlate && d.licensePlate !== 'N/A' && !seen.has(d.licensePlate)) {
+        seen.add(d.licensePlate);
+        list.push({ id: d.licensePlate, label: `${d.vehicleName} (${d.licensePlate})` });
+      }
+    });
+    return list;
+  }, [documents]);
+
   const filteredDocs = useMemo(() => {
-    if (vehicleFilter === 'ALL') return DEFAULT_DOCUMENTS;
-    return DEFAULT_DOCUMENTS.filter(d => d.licensePlate === vehicleFilter);
-  }, [vehicleFilter]);
+    if (vehicleFilter === 'ALL') return documents;
+    return documents.filter(d => d.licensePlate === vehicleFilter);
+  }, [documents, vehicleFilter]);
 
   const handleDownload = (doc) => {
     alert(`Đang tải xuống tài liệu PDF: ${doc.typeName} - Mã: ${doc.id}...`);

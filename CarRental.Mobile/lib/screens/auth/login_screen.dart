@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -71,16 +72,17 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         title: const Text('Đăng nhập'),
         actions: [
-          IconButton(
-            tooltip: 'Cấu hình Server IP',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (_) => const ServerConfigDialog(),
-              );
-            },
-          ),
+          if (kDebugMode)
+            IconButton(
+              tooltip: 'Cấu hình Server IP',
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const ServerConfigDialog(),
+                );
+              },
+            ),
         ],
       ),
       body: SafeArea(

@@ -52,106 +52,117 @@ namespace CarRental.API.Services
 
         public async Task<ReturnProtocolResponseDto> CreateAsync(CreateReturnProtocolDto dto, Guid? staffId, string staffName)
         {
-            var request = await _context.RentalRequests
-                .Include(r => r.Vehicle)
-                .FirstOrDefaultAsync(r => r.Id == dto.RentalRequestId);
-
-            if (request == null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                throw new KeyNotFoundException("Không tìm thấy thông tin đơn thuê xe tương ứng.");
-            }
+                var request = await _context.RentalRequests
+                    .Include(r => r.Vehicle)
+                    .FirstOrDefaultAsync(r => r.Id == dto.RentalRequestId);
 
-            var contract = await _context.RentalContracts
-                .FirstOrDefaultAsync(c => c.RequestId == dto.RentalRequestId);
-
-            // Tìm biên bản bàn giao nhận xe ban đầu để đối chiếu
-            var handover = await _context.HandoverProtocols
-                .OrderByDescending(h => h.CreatedAt)
-                .FirstOrDefaultAsync(h => h.RentalRequestId == dto.RentalRequestId);
-
-            int startOdo = handover?.OdoAtHandover ?? request.Vehicle?.CurrentMileage ?? 0;
-            int initialFuelLevel = handover?.FuelLevel ?? 100;
-
-            if (dto.EndOdo < startOdo)
-            {
-                throw new InvalidOperationException($"Chỉ số ODO khi trả xe ({dto.EndOdo:N0} km) không thể nhỏ hơn ODO lúc nhận xe ({startOdo:N0} km).");
-            }
-
-            int totalKm = dto.EndOdo - startOdo;
-
-            // Giới hạn km từ hợp đồng hoặc theo ngày thuê * hạn mức xe
-            int? maxKm = contract?.MaxKm;
-            if (maxKm == null || maxKm <= 0)
-            {
-                if (request.Vehicle?.MileageLimit != null && request.Vehicle.MileageLimit > 0)
+                if (request == null)
                 {
-                    maxKm = request.Vehicle.MileageLimit.Value * Math.Max(1, request.TotalDays);
+                    throw new KeyNotFoundException("Không tìm thấy thông tin đơn thuê xe tương ứng.");
                 }
-            }
 
-            int excessKm = 0;
-            if (maxKm.HasValue && totalKm > maxKm.Value)
-            {
-                excessKm = totalKm - maxKm.Value;
-            }
+                var contract = await _context.RentalContracts
+                    .FirstOrDefaultAsync(c => c.RequestId == dto.RentalRequestId);
 
-            int fuelDiff = Math.Max(0, initialFuelLevel - dto.ReturnFuelLevel);
+                // Tìm biên bản bàn giao nhận xe ban đầu để đối chiếu
+                var handover = await _context.HandoverProtocols
+                    .OrderByDescending(h => h.CreatedAt)
+                    .FirstOrDefaultAsync(h => h.RentalRequestId == dto.RentalRequestId);
 
-            string protocolNumber = $"BBHT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+                int startOdo = handover?.OdoAtHandover ?? request.Vehicle?.CurrentMileage ?? 0;
+                int initialFuelLevel = handover?.FuelLevel ?? 100;
 
-            var protocol = new ReturnProtocol
-            {
-                Id = Guid.NewGuid(),
-                ProtocolNumber = protocolNumber,
-                RentalRequestId = dto.RentalRequestId,
-                ContractId = contract?.Id ?? dto.ContractId,
-                StaffId = staffId,
-                StaffName = string.IsNullOrWhiteSpace(staffName) ? "Nhân viên kiểm định VELORA" : staffName,
-                CustomerName = request.CustomerName,
-                CustomerPhone = request.CustomerPhone,
-                ReturnDate = dto.ReturnDate != default ? dto.ReturnDate : DateTime.UtcNow,
-                StartOdo = startOdo,
-                EndOdo = dto.EndOdo,
-                TotalKmDriven = totalKm,
-                MaxKmAllowed = maxKm,
-                ExcessKm = excessKm,
-                InitialFuelLevel = initialFuelLevel,
-                ReturnFuelLevel = dto.ReturnFuelLevel,
-                FuelDifference = fuelDiff,
-                ExteriorCondition = dto.ExteriorCondition ?? "Ngoại thất bình thường",
-                InteriorCondition = dto.InteriorCondition ?? "Nội thất bình thường",
-                TireCondition = dto.TireCondition ?? "Lốp xe bình thường",
-                NewDamagesNotes = dto.NewDamagesNotes,
-                DamagePointsJson = dto.DamagePointsJson,
-                AccessoriesChecklist = dto.AccessoriesChecklist,
-                MissingAccessories = dto.MissingAccessories,
-                EvidencePhotoUrls = dto.EvidencePhotoUrls,
-                StaffNotes = dto.StaffNotes,
-                StaffSignature = dto.StaffSignature,
-                CustomerSignature = dto.CustomerSignature,
-                NextVehicleStatus = dto.NextVehicleStatus ?? "READY",
-                Status = "COMPLETED",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.ReturnProtocols.Add(protocol);
-
-            // Cập nhật ODO xe
-            if (request.Vehicle != null)
-            {
-                if (dto.EndOdo > request.Vehicle.CurrentMileage)
+                if (dto.EndOdo < startOdo)
                 {
-                    request.Vehicle.CurrentMileage = dto.EndOdo;
+                    throw new InvalidOperationException($"Chỉ số ODO khi trả xe ({dto.EndOdo:N0} km) không thể nhỏ hơn ODO lúc nhận xe ({startOdo:N0} km).");
+                }
+
+                int totalKm = dto.EndOdo - startOdo;
+
+                // Giới hạn km từ hợp đồng hoặc theo ngày thuê * hạn mức xe
+                int? maxKm = contract?.MaxKm;
+                if (maxKm == null || maxKm <= 0)
+                {
+                    if (request.Vehicle?.MileageLimit != null && request.Vehicle.MileageLimit > 0)
+                    {
+                        maxKm = request.Vehicle.MileageLimit.Value * Math.Max(1, request.TotalDays);
+                    }
+                }
+
+                int excessKm = 0;
+                if (maxKm.HasValue && totalKm > maxKm.Value)
+                {
+                    excessKm = totalKm - maxKm.Value;
+                }
+
+                int fuelDiff = Math.Max(0, initialFuelLevel - dto.ReturnFuelLevel);
+
+                string protocolNumber = $"BBHT-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 4).ToUpper()}";
+
+                var protocol = new ReturnProtocol
+                {
+                    Id = Guid.NewGuid(),
+                    ProtocolNumber = protocolNumber,
+                    RentalRequestId = dto.RentalRequestId,
+                    ContractId = contract?.Id ?? dto.ContractId,
+                    StaffId = staffId,
+                    StaffName = string.IsNullOrWhiteSpace(staffName) ? "Nhân viên kiểm định VELORA" : staffName,
+                    CustomerName = request.CustomerName,
+                    CustomerPhone = request.CustomerPhone,
+                    ReturnDate = dto.ReturnDate != default ? dto.ReturnDate : DateTime.UtcNow,
+                    StartOdo = startOdo,
+                    EndOdo = dto.EndOdo,
+                    TotalKmDriven = totalKm,
+                    MaxKmAllowed = maxKm,
+                    ExcessKm = excessKm,
+                    InitialFuelLevel = initialFuelLevel,
+                    ReturnFuelLevel = dto.ReturnFuelLevel,
+                    FuelDifference = fuelDiff,
+                    ExteriorCondition = dto.ExteriorCondition ?? "Ngoại thất bình thường",
+                    InteriorCondition = dto.InteriorCondition ?? "Nội thất bình thường",
+                    TireCondition = dto.TireCondition ?? "Lốp xe bình thường",
+                    NewDamagesNotes = dto.NewDamagesNotes,
+                    DamagePointsJson = dto.DamagePointsJson,
+                    AccessoriesChecklist = dto.AccessoriesChecklist,
+                    MissingAccessories = dto.MissingAccessories,
+                    EvidencePhotoUrls = dto.EvidencePhotoUrls,
+                    StaffNotes = dto.StaffNotes,
+                    StaffSignature = dto.StaffSignature,
+                    CustomerSignature = dto.CustomerSignature,
+                    NextVehicleStatus = dto.NextVehicleStatus ?? "READY",
+                    Status = "COMPLETED",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.ReturnProtocols.Add(protocol);
+
+                // Cập nhật trạng thái xe sang INSPECTION và cập nhật ODO mới nhất
+                if (request.Vehicle != null)
+                {
+                    request.Vehicle.Status = VehicleStatus.INSPECTION;
+                    if (dto.EndOdo > request.Vehicle.CurrentMileage)
+                    {
+                        request.Vehicle.CurrentMileage = dto.EndOdo;
+                    }
                     request.Vehicle.UpdatedAt = DateTime.UtcNow;
                 }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Tải lại để map DTO đầy đủ
+                protocol.RentalRequest = request;
+                return MapToDto(protocol);
             }
-
-            await _context.SaveChangesAsync();
-
-            // Tải lại để map DTO đầy đủ
-            protocol.RentalRequest = request;
-            return MapToDto(protocol);
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         private static ReturnProtocolResponseDto MapToDto(ReturnProtocol entity)

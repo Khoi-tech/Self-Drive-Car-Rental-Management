@@ -16,43 +16,81 @@ import {
   ExternalLink,
   X,
   AlertTriangle,
-  QrCode
+  QrCode,
+  Save
 } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import customerService from '../../../services/customerService';
 
 const IdentityVerificationSection = ({ latestRequest = null }) => {
+  const { user, refreshUser } = useAuth();
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Persona B2C: Nguyễn Hoàng Minh
-  const idCardData = {
-    number: latestRequest?.customerIdCard || '079092004568',
-    fullName: 'NGUYỄN HOÀNG MINH',
-    dob: '15/08/1992',
-    gender: 'Nam',
-    nationality: 'Việt Nam',
-    issueDate: '10/05/2021',
-    expiryDate: '15/08/2032',
-    issuePlace: 'Cục Cảnh sát QLHC về TTXH',
-    status: 'VERIFIED'
+  // Real user data from DB (backed by app_users)
+  const fullName = user?.fullName || latestRequest?.customerName || 'KHÁCH HÀNG VELORA';
+  const idCardNumber = user?.idCardNumber || latestRequest?.customerIdCard || '079092004568';
+  const driverLicenseNumber = user?.driverLicenseNumber || latestRequest?.driverLicenseNumber || '790184920194';
+  const driverLicenseClass = user?.driverLicenseClass || latestRequest?.driverLicenseClass || 'B2';
+  
+  const licenseExpiryObj = user?.driverLicenseExpiry ? new Date(user.driverLicenseExpiry) : (latestRequest?.driverLicenseExpiry ? new Date(latestRequest.driverLicenseExpiry) : null);
+  const licenseExpiryFormatted = licenseExpiryObj ? licenseExpiryObj.toLocaleDateString('vi-VN') : '18/06/2030';
+  const isExpiringSoon = licenseExpiryObj ? licenseExpiryObj <= new Date(Date.now() + 30 * 24 * 3600 * 1000) : false;
+
+  const kycStatus = user?.kycStatus || (user?.idCardNumber ? 'VERIFIED' : 'PENDING');
+
+  const [formData, setFormData] = useState({
+    idCardNumber: user?.idCardNumber || '',
+    driverLicenseNumber: user?.driverLicenseNumber || '',
+    driverLicenseClass: user?.driverLicenseClass || 'B2',
+    driverLicenseExpiry: user?.driverLicenseExpiry ? user.driverLicenseExpiry.split('T')[0] : '',
+    idCardFrontUrl: user?.idCardFrontUrl || '',
+    idCardBackUrl: user?.idCardBackUrl || '',
+    driverLicenseFrontUrl: user?.driverLicenseFrontUrl || '',
+    driverLicenseBackUrl: user?.driverLicenseBackUrl || ''
+  });
+
+  const handleOpenModal = () => {
+    setError(null);
+    setFormData({
+      idCardNumber: user?.idCardNumber || latestRequest?.customerIdCard || '',
+      driverLicenseNumber: user?.driverLicenseNumber || latestRequest?.driverLicenseNumber || '',
+      driverLicenseClass: user?.driverLicenseClass || latestRequest?.driverLicenseClass || 'B2',
+      driverLicenseExpiry: user?.driverLicenseExpiry ? user.driverLicenseExpiry.split('T')[0] : '',
+      idCardFrontUrl: user?.idCardFrontUrl || '',
+      idCardBackUrl: user?.idCardBackUrl || '',
+      driverLicenseFrontUrl: user?.driverLicenseFrontUrl || '',
+      driverLicenseBackUrl: user?.driverLicenseBackUrl || ''
+    });
+    setIsModalOpen(true);
   };
 
-  // GPLX 12 chữ số hợp lệ
-  const licenseData = {
-    number: latestRequest?.driverLicenseNumber || '790184920194',
-    fullName: 'NGUYỄN HOÀNG MINH',
-    licenseClass: latestRequest?.driverLicenseClass || 'B2',
-    issueDate: '18/06/2020',
-    expiryDate: latestRequest?.driverLicenseExpiry ? new Date(latestRequest.driverLicenseExpiry).toLocaleDateString('vi-VN') : '18/06/2030',
-    status: 'VERIFIED',
-    issueAuthority: 'Sở Giao thông Vận tải TP. Hồ Chí Minh'
-  };
+  const handleKycSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.idCardNumber.trim() || !formData.driverLicenseNumber.trim()) {
+      setError('Vui lòng nhập đầy đủ số CCCD và số Giấy phép lái xe.');
+      return;
+    }
 
-  // Tính số ngày còn lại đến hạn GPLX
-  const isExpiringSoon = false; // Có thể bật test nếu < 30 ngày
-
-  const handleSimulateUpload = () => {
-    setUploadSuccess(true);
-    setTimeout(() => setUploadSuccess(false), 4000);
+    try {
+      setSubmitting(true);
+      setError(null);
+      await customerService.updateMyKyc(formData);
+      if (refreshUser) {
+        await refreshUser();
+      }
+      setUploadSuccess(true);
+      setIsModalOpen(false);
+      setTimeout(() => setUploadSuccess(false), 5000);
+    } catch (err) {
+      console.error('Update KYC failed:', err);
+      setError(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật hồ sơ KYC.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -71,9 +109,17 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5 shadow-2xs border border-emerald-200">
+          <span className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs border ${
+            kycStatus === 'VERIFIED'
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+              : kycStatus === 'REJECTED'
+              ? 'bg-red-100 text-red-800 border-red-200'
+              : 'bg-amber-100 text-amber-800 border-amber-200'
+          }`}>
             <ShieldCheck className="w-4 h-4 text-emerald-700" />
-            <span>Đã xác thực VNeID & Cổng GPLX</span>
+            <span>
+              {kycStatus === 'VERIFIED' ? 'Đã xác thực VNeID & Cổng GPLX' : (kycStatus === 'REJECTED' ? 'Cần bổ sung hồ sơ KYC' : 'Đang chờ thẩm định')}
+            </span>
           </span>
         </div>
       </div>
@@ -104,9 +150,13 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
               </div>
             </div>
 
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border flex items-center gap-1 ${
+              kycStatus === 'VERIFIED'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}>
               <CheckCircle2 className="w-3 h-3" />
-              ĐÃ XÁC MINH
+              {kycStatus === 'VERIFIED' ? 'ĐÃ XÁC MINH' : 'CHỜ DUYỆT'}
             </span>
           </div>
 
@@ -115,7 +165,6 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
             onClick={() => setSelectedImage({ title: 'Căn cước công dân gắn chip (Mặt trước)', isCCCD: true })}
             className="group relative rounded-xl p-4 bg-gradient-to-tr from-cyan-900 via-sky-800 to-indigo-900 text-white shadow-md border border-cyan-400/30 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg"
           >
-            {/* Hologram & Microchip decoration */}
             <div className="absolute -top-10 -right-10 w-36 h-36 bg-cyan-400/10 rounded-full blur-xl pointer-events-none"></div>
             
             <div className="flex items-start justify-between mb-3">
@@ -124,7 +173,6 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
                 <div className="text-[8px] text-cyan-100/80">Độc lập - Tự do - Hạnh phúc</div>
                 <div className="text-xs font-black tracking-wider text-white mt-1">CĂN CƯỚC CÔNG DÂN / CITIZEN IDENTITY CARD</div>
               </div>
-              {/* National Emblem & Gold Chip */}
               <div className="flex flex-col items-end gap-1">
                 <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-[10px] text-amber-300 font-bold border border-amber-300">★</div>
                 <div className="w-8 h-6 rounded-md bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 border border-yellow-200 shadow-inner flex items-center justify-center">
@@ -134,31 +182,28 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
             </div>
 
             <div className="flex gap-4 items-center my-2">
-              {/* Photo */}
               <div className="w-16 h-20 rounded-md bg-slate-800/80 border border-white/30 flex flex-col items-center justify-center text-center p-1 text-[9px] text-slate-300 shrink-0">
-                <span className="font-bold text-white text-xs">HM</span>
-                <span className="text-[8px] text-slate-400">Ảnh chân dung</span>
+                <span className="font-bold text-white text-xs">VELORA</span>
+                <span className="text-[8px] text-slate-400">Ảnh CCCD</span>
               </div>
 
-              {/* Data fields */}
               <div className="space-y-1 text-[11px] leading-tight">
                 <div>
                   <span className="text-cyan-200/80 text-[9px] block">Số / No.:</span>
-                  <span className="font-mono font-bold tracking-widest text-sm text-amber-300">{idCardData.number}</span>
+                  <span className="font-mono font-bold tracking-widest text-sm text-amber-300">{idCardNumber}</span>
                 </div>
                 <div>
                   <span className="text-cyan-200/80 text-[9px] block">Họ và tên / Full name:</span>
-                  <span className="font-bold uppercase tracking-wider text-white">{idCardData.fullName}</span>
+                  <span className="font-bold uppercase tracking-wider text-white">{fullName}</span>
                 </div>
                 <div className="flex gap-3 text-[10px]">
-                  <span>Ngày sinh: <strong className="text-cyan-100">{idCardData.dob}</strong></span>
-                  <span>Giới tính: <strong className="text-cyan-100">{idCardData.gender}</strong></span>
+                  <span>Quốc tịch: <strong className="text-cyan-100">Việt Nam</strong></span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[9px] text-cyan-200/80">
-              <span>Có giá trị đến / Date of exp: <strong className="text-white">{idCardData.expiryDate}</strong></span>
+              <span>Trạng thái: <strong className="text-white">{kycStatus}</strong></span>
               <span className="flex items-center gap-1 group-hover:text-white transition font-medium">
                 <Eye className="w-3 h-3" /> Nhấn để phóng to
               </span>
@@ -169,29 +214,29 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
           <div className="grid grid-cols-2 gap-3 py-3 px-4 bg-white rounded-lg border border-slate-200/80 text-xs">
             <div>
               <span className="text-[10px] text-slate-500 uppercase font-semibold block">Số định danh CCCD</span>
-              <span className="font-mono font-bold text-slate-900 tabular-nums">{idCardData.number}</span>
+              <span className="font-mono font-bold text-slate-900 tabular-nums">{idCardNumber}</span>
             </div>
             <div>
               <span className="text-[10px] text-slate-500 uppercase font-semibold block">Cơ quan cấp</span>
-              <span className="font-semibold text-slate-800">{idCardData.issuePlace}</span>
+              <span className="font-semibold text-slate-800">Cục Cảnh sát QLHC về TTXH</span>
             </div>
             <div className="pt-2 border-t border-slate-100">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Ngày cấp</span>
-              <span className="font-medium text-slate-800 tabular-nums">{idCardData.issueDate}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Chủ thẻ</span>
+              <span className="font-medium text-slate-800">{fullName}</span>
             </div>
             <div className="pt-2 border-t border-slate-100">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Hạn sử dụng</span>
-              <span className="font-medium text-slate-800 tabular-nums">{idCardData.expiryDate}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Tình trạng KYC</span>
+              <span className="font-bold text-emerald-700">{kycStatus}</span>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleSimulateUpload}
+            onClick={handleOpenModal}
             className="w-full py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5 text-slate-500" />
-            <span>Cập nhật ảnh CCCD mới (khi đổi thẻ)</span>
+            <span>Cập nhật thông tin & ảnh CCCD mới</span>
           </button>
         </div>
 
@@ -208,9 +253,13 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
               </div>
             </div>
 
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border flex items-center gap-1 ${
+              kycStatus === 'VERIFIED'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}>
               <CheckCircle2 className="w-3 h-3" />
-              ĐÃ XÁC MINH
+              {kycStatus === 'VERIFIED' ? 'ĐÃ XÁC MINH' : 'CHỜ DUYỆT'}
             </span>
           </div>
 
@@ -232,28 +281,27 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
 
             <div className="flex gap-4 items-center my-2">
               <div className="w-16 h-20 rounded-md bg-stone-800/90 border border-amber-300/30 flex flex-col items-center justify-center text-center p-1 text-[9px] text-stone-300 shrink-0">
-                <span className="font-bold text-amber-300 text-xs">HM</span>
+                <span className="font-bold text-amber-300 text-xs">VELORA</span>
                 <span className="text-[8px] text-stone-400">GPLX PET</span>
               </div>
 
               <div className="space-y-1 text-[11px] leading-tight">
                 <div>
                   <span className="text-amber-200/80 text-[9px] block">Số / No. (12 Chữ số):</span>
-                  <span className="font-mono font-bold tracking-widest text-sm text-yellow-300">{licenseData.number}</span>
+                  <span className="font-mono font-bold tracking-widest text-sm text-yellow-300">{driverLicenseNumber}</span>
                 </div>
                 <div>
                   <span className="text-amber-200/80 text-[9px] block">Họ tên / Full name:</span>
-                  <span className="font-bold uppercase tracking-wider text-white">{licenseData.fullName}</span>
+                  <span className="font-bold uppercase tracking-wider text-white">{fullName}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px]">
-                  <span>Hạng / Class: <strong className="text-amber-300 font-black text-xs px-1.5 py-0.2 bg-amber-400/20 rounded border border-amber-400/40">{licenseData.licenseClass}</strong></span>
-                  <span>Ngày cấp: <strong className="text-white">{licenseData.issueDate}</strong></span>
+                  <span>Hạng / Class: <strong className="text-amber-300 font-black text-xs px-1.5 py-0.2 bg-amber-400/20 rounded border border-amber-400/40">{driverLicenseClass}</strong></span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[9px] text-amber-200/80">
-              <span>Có giá trị đến / Expires: <strong className="text-white font-bold">{licenseData.expiryDate}</strong></span>
+              <span>Có giá trị đến / Expires: <strong className="text-white font-bold">{licenseExpiryFormatted}</strong></span>
               <span className="flex items-center gap-1 group-hover:text-white transition font-medium">
                 <Eye className="w-3 h-3" /> Nhấn để phóng to
               </span>
@@ -275,25 +323,25 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
           <div className="grid grid-cols-2 gap-3 py-3 px-4 bg-white rounded-lg border border-slate-200/80 text-xs">
             <div>
               <span className="text-[10px] text-slate-500 uppercase font-semibold block">Số GPLX (12 số)</span>
-              <span className="font-mono font-bold text-slate-900 tabular-nums">{licenseData.number}</span>
+              <span className="font-mono font-bold text-slate-900 tabular-nums">{driverLicenseNumber}</span>
             </div>
             <div>
               <span className="text-[10px] text-slate-500 uppercase font-semibold block">Hạng bằng lái</span>
-              <span className="font-black text-blue-900 text-sm">{licenseData.licenseClass} (Ô tô đến 9 chỗ)</span>
+              <span className="font-black text-blue-900 text-sm">{driverLicenseClass} (Ô tô đến 9 chỗ)</span>
             </div>
             <div className="pt-2 border-t border-slate-100">
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Ngày cấp</span>
-              <span className="font-medium text-slate-800 tabular-nums">{licenseData.issueDate}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-semibold block">Chủ sở hữu</span>
+              <span className="font-medium text-slate-800">{fullName}</span>
             </div>
             <div className="pt-2 border-t border-slate-100">
               <span className="text-[10px] text-slate-500 uppercase font-semibold block">Ngày hết hạn</span>
-              <span className="font-bold text-emerald-700 tabular-nums">{licenseData.expiryDate}</span>
+              <span className="font-bold text-emerald-700 tabular-nums">{licenseExpiryFormatted}</span>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleSimulateUpload}
+            onClick={handleOpenModal}
             className="w-full py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Upload className="w-3.5 h-3.5 text-slate-500" />
@@ -310,7 +358,7 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
           <span>Ma trận thẩm định điều kiện lái xe VELORA</span>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          Với hạng bằng <strong className="text-blue-950 font-bold">{licenseData.licenseClass}</strong> và thời hạn đến năm <strong className="text-blue-950">{licenseData.expiryDate}</strong>, hồ sơ của bạn đáp ứng tiêu chuẩn điều khiển:
+          Với hạng bằng <strong className="text-blue-950 font-bold">{driverLicenseClass}</strong> và thời hạn đến ngày <strong className="text-blue-950">{licenseExpiryFormatted}</strong>, hồ sơ của bạn đáp ứng tiêu chuẩn điều khiển:
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
@@ -335,6 +383,134 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
         </div>
       </div>
 
+      {/* KYC Update Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-scale-up">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-blue-900" />
+                <span>Cập nhật hồ sơ định danh CCCD & GPLX</span>
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleKycSubmit} className="space-y-4 text-xs">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 block text-xs">Số Căn cước công dân (12 số) *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={12}
+                    value={formData.idCardNumber}
+                    onChange={(e) => setFormData({ ...formData, idCardNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                    placeholder="VD: 079092004568"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-mono font-semibold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 block text-xs">Số Giấy phép lái xe *</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={12}
+                      value={formData.driverLicenseNumber}
+                      onChange={(e) => setFormData({ ...formData, driverLicenseNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                      placeholder="VD: 790184920194"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-mono font-semibold text-slate-900 focus:outline-none focus:border-blue-900"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 block text-xs">Hạng GPLX</label>
+                    <select
+                      value={formData.driverLicenseClass}
+                      onChange={(e) => setFormData({ ...formData, driverLicenseClass: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-blue-900"
+                    >
+                      <option value="B1">B1 (Số tự động)</option>
+                      <option value="B2">B2 (Số sàn & số tự động)</option>
+                      <option value="C">Hạng C</option>
+                      <option value="D">Hạng D</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700 block text-xs">Ngày hết hạn Giấy phép lái xe</label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setFullYear(d.getFullYear() + 5);
+                          setFormData({ ...formData, driverLicenseExpiry: d.toISOString().split('T')[0] });
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold"
+                      >
+                        +5 năm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setFullYear(d.getFullYear() + 10);
+                          setFormData({ ...formData, driverLicenseExpiry: d.toISOString().split('T')[0] });
+                        }}
+                        className="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-900 text-[9px] font-extrabold border border-blue-200"
+                      >
+                        +10 năm (B2)
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="date"
+                    value={formData.driverLicenseExpiry}
+                    onChange={(e) => setFormData({ ...formData, driverLicenseExpiry: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-900 focus:outline-none focus:border-blue-900"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-[11px] leading-relaxed">
+                ℹ️ Sau khi nhấn gửi, hồ sơ sẽ được tự động đồng bộ vào cơ sở dữ liệu VELORA và chuyển trạng thái <strong>CHỜ DUYỆT (PENDING)</strong> để chuyên viên pháp chế kiểm tra tính hợp lệ trước khi ký hợp đồng tiếp theo.
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2 bg-slate-900 hover:bg-blue-900 disabled:bg-slate-400 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{submitting ? 'Đang lưu...' : 'Gửi thẩm định'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Lightbox Modal for Specimen Cards */}
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -346,49 +522,16 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
               </button>
             </div>
             
-            <div className="p-4 bg-slate-900 rounded-xl flex items-center justify-center">
-              {selectedImage.isCCCD ? (
-                <div className="w-full rounded-xl p-5 bg-gradient-to-tr from-cyan-950 via-sky-900 to-indigo-950 text-white shadow-xl border border-cyan-400/40 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-cyan-200">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                      <div className="text-[9px] text-cyan-100/70">Độc lập - Tự do - Hạnh phúc</div>
-                      <div className="text-xs font-extrabold text-white mt-1">CĂN CƯỚC CÔNG DÂN</div>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-xs text-amber-300 font-bold">★</div>
-                  </div>
-                  <div className="space-y-1.5 py-2 font-mono text-xs">
-                    <div>Số: <strong className="text-amber-300 text-sm tracking-widest">{idCardData.number}</strong></div>
-                    <div>Họ và tên: <strong className="text-white text-sm">{idCardData.fullName}</strong></div>
-                    <div>Ngày sinh: <span className="text-cyan-100">{idCardData.dob}</span></div>
-                    <div>Nơi cấp: <span className="text-cyan-100">{idCardData.issuePlace}</span></div>
-                    <div>Hạn sử dụng: <span className="text-emerald-400 font-bold">{idCardData.expiryDate}</span></div>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full rounded-xl p-5 bg-gradient-to-tr from-amber-950 via-stone-900 to-amber-900 text-white shadow-xl border border-amber-500/40 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-amber-200">GIẤY PHÉP LÁI XE / DRIVING LICENCE</div>
-                      <div className="text-xs font-extrabold text-amber-300 mt-1">BỘ GIAO THÔNG VẬN TẢI VIỆT NAM</div>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-xs text-amber-300 font-bold">★</div>
-                  </div>
-                  <div className="space-y-1.5 py-2 font-mono text-xs">
-                    <div>Số GPLX (12 số): <strong className="text-yellow-300 text-sm tracking-widest">{licenseData.number}</strong></div>
-                    <div>Họ tên: <strong className="text-white text-sm">{licenseData.fullName}</strong></div>
-                    <div>Hạng: <strong className="text-amber-300 text-base">{licenseData.licenseClass}</strong></div>
-                    <div>Ngày cấp: <span className="text-amber-100">{licenseData.issueDate}</span></div>
-                    <div>Giá trị đến: <span className="text-emerald-400 font-bold">{licenseData.expiryDate}</span></div>
-                  </div>
-                </div>
-              )}
+            <div className="p-6 bg-slate-900 rounded-xl text-center text-white space-y-2">
+              <div className="text-sm font-bold">{selectedImage.isCCCD ? 'CĂN CƯỚC CÔNG DÂN GẮN CHIP' : 'GIẤY PHÉP LÁI XE'}</div>
+              <div className="font-mono text-xs text-amber-300">{selectedImage.isCCCD ? idCardNumber : driverLicenseNumber}</div>
+              <div className="text-xs uppercase">{fullName}</div>
             </div>
 
-            <div className="text-right">
+            <div className="flex justify-end">
               <button
                 onClick={() => setSelectedImage(null)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
               >
                 Đóng
               </button>
@@ -396,6 +539,7 @@ const IdentityVerificationSection = ({ latestRequest = null }) => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -4,7 +4,9 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CarRental.API.Data;
 using CarRental.API.DTOs.ReturnProtocol;
+using CarRental.API.Helpers;
 using CarRental.API.Services;
 
 namespace CarRental.API.Controllers
@@ -15,14 +17,16 @@ namespace CarRental.API.Controllers
     public class ReturnProtocolsController : ControllerBase
     {
         private readonly IReturnProtocolService _service;
+        private readonly AppDbContext _context;
 
-        public ReturnProtocolsController(IReturnProtocolService service)
+        public ReturnProtocolsController(IReturnProtocolService service, AppDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         [HttpGet]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<IEnumerable<ReturnProtocolResponseDto>>> GetAll()
         {
             var list = await _service.GetAllAsync();
@@ -38,6 +42,15 @@ namespace CarRental.API.Controllers
             {
                 return NotFound(new { message = "Không tìm thấy biên bản hoàn trả xe." });
             }
+
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(protocol.RentalRequestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             return Ok(protocol);
         }
 
@@ -45,6 +58,14 @@ namespace CarRental.API.Controllers
         [Authorize]
         public async Task<ActionResult<ReturnProtocolResponseDto>> GetByRequestId(Guid requestId)
         {
+            if (!User.IsOperations())
+            {
+                if (!await User.CanAccessRequestIdAsync(requestId, _context))
+                {
+                    return Forbid();
+                }
+            }
+
             var protocol = await _service.GetByRequestIdAsync(requestId);
             if (protocol == null)
             {
@@ -54,7 +75,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Operations")]
         public async Task<ActionResult<ReturnProtocolResponseDto>> Create([FromBody] CreateReturnProtocolDto dto)
         {
             try

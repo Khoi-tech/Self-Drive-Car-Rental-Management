@@ -46,6 +46,18 @@ const customerService = {
       console.error('Error adding violation/adjusting score:', error);
       throw error;
     }
+  },
+
+  getMyDocuments: async () => {
+    return await api.get('/customers/my-documents');
+  },
+
+  getMyLedger: async () => {
+    return await api.get('/customers/my-ledger');
+  },
+
+  updateMyKyc: async (kycData) => {
+    return await api.put('/customers/me/kyc', kycData);
   }
 };
 

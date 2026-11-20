@@ -2,7 +2,6 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using CarRental.API.DTOs.Insurance;
 using CarRental.API.Services;
 
@@ -10,6 +9,7 @@ namespace CarRental.API.Controllers
 {
     [ApiController]
     [Route("api/insurances")]
+    [Authorize(Policy = "Operations")]
     public class CarInsurancesController : ControllerBase
     {
         private readonly ICarInsuranceService _insuranceService;
@@ -18,7 +18,6 @@ namespace CarRental.API.Controllers
         {
             _insuranceService = insuranceService;
         }
-
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] Guid? carId, [FromQuery] string? status)
@@ -50,7 +49,6 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Create([FromBody] CreateCarInsuranceDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -67,7 +65,6 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCarInsuranceDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -84,7 +81,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "ADMIN,STAFF")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _insuranceService.DeleteAsync(id);

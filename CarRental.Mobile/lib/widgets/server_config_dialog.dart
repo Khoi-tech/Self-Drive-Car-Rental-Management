@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/constants/api_constants.dart';
 
@@ -47,6 +48,10 @@ class _ServerConfigDialogState extends State<ServerConfigDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (!kDebugMode) {
+      return const SizedBox.shrink();
+    }
+
     return AlertDialog(
       title: const Row(
         children: [

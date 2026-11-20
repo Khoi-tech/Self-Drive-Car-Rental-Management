@@ -29,6 +29,7 @@ import ReturnsPage from '../pages/Returns/ReturnsPage';
 import RentalExtensionsPage from '../pages/Extensions/RentalExtensionsPage';
 import IncidentsPage from '../pages/Incidents/IncidentsPage';
 import MaintenancePage from '../pages/Maintenance/MaintenancePage';
+import SystemSettingsPage from '../pages/Settings/SystemSettingsPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Placeholder component for pages not yet implemented
@@ -93,7 +94,7 @@ const AppRoutes = () => {
         <Route path="compensation" element={<CompensationPoliciesPage />} />
         <Route path="contracts" element={<ContractTemplatesPage />} />
         <Route path="customers" element={<CustomersManagementPage />} />
-        <Route path="settings" element={<PlaceholderPage title="Cài đặt" />} />
+        <Route path="settings" element={<SystemSettingsPage />} />
       </Route>
 
       {/* Catch-all */}

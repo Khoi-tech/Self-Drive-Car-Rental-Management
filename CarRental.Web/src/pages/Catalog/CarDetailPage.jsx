@@ -174,8 +174,24 @@ const CarDetailPage = () => {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Widget State
-  const [startTime, setStartTime] = useState(searchParams.get('startTime') || '');
-  const [endTime, setEndTime] = useState(searchParams.get('endTime') || '');
+  const [startTime, setStartTime] = useState(() => {
+    const fromQuery = searchParams.get('startTime');
+    if (fromQuery) return fromQuery;
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+    return getNowLocalInputStr(tomorrow);
+  });
+  const [endTime, setEndTime] = useState(() => {
+    const fromQuery = searchParams.get('endTime');
+    if (fromQuery) return fromQuery;
+    const now = new Date();
+    const returnDay = new Date(now);
+    returnDay.setDate(returnDay.getDate() + 3);
+    returnDay.setHours(18, 0, 0, 0);
+    return getNowLocalInputStr(returnDay);
+  });
   const [minNowStr, setMinNowStr] = useState(() => getNowLocalInputStr());
   const [preview, setPreview] = useState(null);
   const [calculating, setCalculating] = useState(false);
@@ -205,23 +221,6 @@ const CarDetailPage = () => {
     setBookingError('');
   };
 
-  // Default dates if missing
-  useEffect(() => {
-    if (!startTime || !endTime) {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(8, 0, 0, 0);
-
-      const returnDay = new Date(tomorrow);
-      returnDay.setDate(returnDay.getDate() + 2);
-      returnDay.setHours(18, 0, 0, 0);
-
-      if (!startTime) setStartTime(getNowLocalInputStr(tomorrow));
-      if (!endTime) setEndTime(getNowLocalInputStr(returnDay));
-    }
-  }, []);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -244,40 +243,45 @@ const CarDetailPage = () => {
     fetchData();
   }, [id]);
 
-  const calculatePreview = async () => {
-    if (!validateRentalDates(startTime, endTime).valid) {
-      setPreview(null);
-      return;
-    }
+  const isDatesOrVehicleInvalid = !validateRentalDates(startTime, endTime).valid || !vehicle;
+  const effectivePreview = isDatesOrVehicleInvalid ? null : preview;
+
+  useEffect(() => {
+    let ignore = false;
+    if (isDatesOrVehicleInvalid) return;
 
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const diffTime = end - start;
+    const diffTime = end.getTime() - start.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 0 || isNaN(diffDays)) {
-      setPreview(null);
-      return;
-    }
+    if (diffDays <= 0 || isNaN(diffDays)) return;
 
-    setCalculating(true);
-    try {
-      const response = await pricingService.previewPricing(id, diffDays);
-      setPreview(response.data || response);
-    } catch (err) {
-      console.error('Failed to preview price', err);
-    } finally {
-      setCalculating(false);
-    }
-  };
+    const timer = setTimeout(() => {
+      setCalculating(true);
+    }, 0);
 
-  useEffect(() => {
-    if (startTime && endTime && vehicle) {
-      calculatePreview();
-    } else {
-      setPreview(null);
-    }
-  }, [startTime, endTime, vehicle]);
+    pricingService.previewPricing(id, diffDays)
+      .then(res => {
+        clearTimeout(timer);
+        if (!ignore) {
+          setPreview(res.data || res);
+          setCalculating(false);
+        }
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        if (!ignore) {
+          console.error('Failed to preview price', err);
+          setCalculating(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [id, startTime, endTime, isDatesOrVehicleInvalid]);
 
   const handleBooking = (type = 'FAST_HOLD') => {
     if (isAccountSuspended) {
@@ -795,29 +799,29 @@ const CarDetailPage = () => {
                 <div className="py-4 text-center text-xs text-slate-500 font-medium">
                   Đang tính toán bảng giá tối ưu...
                 </div>
-              ) : preview ? (
+              ) : effectivePreview ? (
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-2.5 text-xs">
                   <div className="flex justify-between items-center text-slate-600">
-                    <span>Đơn giá ngày ({preview.rentalDays} ngày)</span>
+                    <span>Đơn giá ngày ({effectivePreview.rentalDays} ngày)</span>
                     <span className="tabular-nums font-semibold text-zinc-950">
-                      {formatCurrencyVND((preview.basePrice || vehicle.dailyRate) * preview.rentalDays)}
+                      {formatCurrencyVND((effectivePreview.basePrice || vehicle.dailyRate) * effectivePreview.rentalDays)}
                     </span>
                   </div>
 
-                  {preview.discountPercentage > 0 && (
+                  {effectivePreview.discountPercentage > 0 && (
                     <div className="flex justify-between items-center text-emerald-700 font-semibold">
-                      <span>Chiết khấu dài ngày ({preview.discountPercentage}%)</span>
+                      <span>Chiết khấu dài ngày ({effectivePreview.discountPercentage}%)</span>
                       <span className="tabular-nums">
-                        -{formatCurrencyVND(((preview.basePrice || vehicle.dailyRate) * preview.rentalDays) - preview.rentalPrice)}
+                        -{formatCurrencyVND(((effectivePreview.basePrice || vehicle.dailyRate) * effectivePreview.rentalDays) - effectivePreview.rentalPrice)}
                       </span>
                     </div>
                   )}
 
-                  {preview.holidaySurcharge > 0 && (
+                  {effectivePreview.holidaySurcharge > 0 && (
                     <div className="flex justify-between items-center text-amber-700 font-semibold">
-                      <span>Phụ phí lễ tết (+{preview.holidaySurcharge}%)</span>
+                      <span>Phụ phí lễ tết (+{effectivePreview.holidaySurcharge}%)</span>
                       <span className="tabular-nums">
-                        +{formatCurrencyVND((preview.basePrice || vehicle.dailyRate) * (preview.holidaySurcharge / 100))}
+                        +{formatCurrencyVND((effectivePreview.basePrice || vehicle.dailyRate) * (effectivePreview.holidaySurcharge / 100))}
                       </span>
                     </div>
                   )}
@@ -832,7 +836,7 @@ const CarDetailPage = () => {
                   <div className="pt-2.5 border-t border-slate-200 flex justify-between items-baseline">
                     <span className="font-bold text-zinc-950">Tổng tiền thuê xe</span>
                     <span className="text-xl font-extrabold text-blue-900 tabular-nums">
-                      {formatCurrencyVND(preview.rentalPrice)}
+                      {formatCurrencyVND(effectivePreview.rentalPrice)}
                     </span>
                   </div>
                 </div>
@@ -932,7 +936,7 @@ const CarDetailPage = () => {
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 tracking-wider uppercase cursor-pointer hover:shadow-md"
                   >
                     <Zap className="w-4 h-4 fill-white" />
-                    <span>⚡ Cọc Giữ Xe Siêu Tốc 500K</span>
+                    <span>Cọc Giữ Xe Siêu Tốc 500K</span>
                   </button>
                   <button
                     type="button"

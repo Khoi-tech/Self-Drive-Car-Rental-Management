@@ -12,7 +12,8 @@ import {
   Save, 
   CheckSquare, 
   Square,
-  AlertCircle
+  AlertCircle,
+  Wallet
 } from 'lucide-react';
 import handoverService from '../../services/handoverService';
 import { formatDateTime } from '../../utils/formatters';
@@ -415,18 +416,20 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
                     : 'bg-amber-50 border-amber-300 text-amber-950'
                 }`}>
-                  <div className="font-bold shrink-0 text-base">💵</div>
+                  <div className="shrink-0 mt-0.5">
+                    <Wallet className="w-5 h-5 text-emerald-700" />
+                  </div>
                   <div className="space-y-1 flex-1">
                     <div className="font-bold flex items-center justify-between">
-                      <span>Cọc thế chân TIỀN MẶT khi nhận xe:</span>
+                      <span>Cọc thế chân khi nhận xe:</span>
                       <span className="font-extrabold text-blue-900 bg-white px-2 py-0.5 rounded border border-slate-200 tabular-nums">
                         {(rentalRequest.depositAmount || 15000000).toLocaleString('vi-VN')} đ
                       </span>
                     </div>
                     <p className="text-[11px] leading-relaxed text-slate-700">
                       {rentalRequest.isSecurityDepositPaid 
-                        ? '✓ Tiền cọc thế chân bằng tiền mặt đã được ghi nhận hoàn tất.' 
-                        : 'Lưu ý nhân viên giao xe: Khách hàng chọn cọc tiền mặt khi nhận bàn giao xe. Vui lòng nhận và kiểm đếm đủ tiền cọc thế chân trước khi bàn giao xe. Hệ thống sẽ tự động cập nhật đã thu cọc khi lưu biên bản này.'}
+                        ? '✓ Tiền cọc thế chân đã được ghi nhận hoàn tất.' 
+                        : 'Lưu ý nhân viên giao xe: Khách hàng chọn hình thức cọc khi nhận bàn giao xe. Vui lòng nhận đủ tiền cọc thế chân (tiền mặt hoặc chuyển khoản) trước khi bàn giao xe. Hệ thống sẽ tự động cập nhật đã thu cọc khi lưu biên bản này.'}
                     </p>
                   </div>
                 </div>

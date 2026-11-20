@@ -12,10 +12,12 @@ namespace CarRental.API.Services
     public class RentalContractService : IRentalContractService
     {
         private readonly AppDbContext _context;
+        private readonly IStorageService _storageService;
 
-        public RentalContractService(AppDbContext context)
+        public RentalContractService(AppDbContext context, IStorageService storageService)
         {
             _context = context;
+            _storageService = storageService;
         }
 
         public async Task<RentalContractDto> GetOrCreateContractByRequestIdAsync(Guid requestId)
@@ -38,59 +40,37 @@ namespace CarRental.API.Services
 
             if (existingContract != null)
             {
-                return MapToDto(existingContract, request);
+                return await MapToDtoAsync(existingContract, request);
             }
 
             // If not existing, request must be PENDING, APPROVED or CONFIRMED
             if (request.Status != "PENDING" && request.Status != "APPROVED" && request.Status != "CONFIRMED")
             {
-                throw new InvalidOperationException($"Không thể tạo hợp đồng cho đơn thuê xe ở trạng thái '{request.Status}'.");
+                throw new InvalidOperationException($"Không thể tạo hợp đồng cho đơn thuê ở trạng thái '{request.Status}'.");
             }
 
-            // Load active contract template
+            // Find an active template or fallback
             var template = await _context.ContractTemplates
-                .Where(t => t.IsActive)
-                .OrderByDescending(t => t.CreatedAt)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(t => t.IsActive && (t.TemplateType == "STANDARD" || t.TemplateType == "DAILY"));
 
-            string rawContent = template?.Content ?? GetDefaultTemplateContent();
+            string templateContent = template?.Content ?? GetDefaultTemplateContent();
 
-            // Format values for placeholder replacement
-            string carModel = $"{request.Vehicle.Make} {request.Vehicle.Model} ({request.Vehicle.ManufactureYear})";
-            string licensePlate = request.Vehicle.LicensePlate;
-            string customerName = request.CustomerName.ToUpper();
-            string dailyRateFormatted = request.DailyRate.ToString("N0");
-            string depositFormatted = request.DepositAmount.ToString("N0");
-            string depositMethodText = string.Equals(request.DepositMethod, "CASH", StringComparison.OrdinalIgnoreCase)
-                ? "Bằng tiền mặt trực tiếp khi nhận bàn giao xe"
-                : "Chuyển khoản trực tuyến VietQR (Napas 24/7) [Ưu đãi: Giảm 5% tiền thuê + Tặng 50 km/ngày & Miễn phí rửa xe]";
-            string startDateFormatted = request.StartTime.ToString("dd/MM/yyyy HH:mm");
-            string endDateFormatted = request.EndTime.ToString("dd/MM/yyyy HH:mm");
-            string pickupLocation = request.PickupLocation;
+            // Calculate total km allowance (e.g., 300 km/day)
+            int totalDays = Math.Max(1, request.TotalDays);
+            int maxKm = totalDays * 300;
 
-            string renderedContent = rawContent
-                .Replace("{{CustomerName}}", customerName)
-                .Replace("{{CarModel}}", carModel)
-                .Replace("{{LicensePlate}}", licensePlate)
-                .Replace("{{DailyRate}}", dailyRateFormatted)
-                .Replace("{{DepositAmount}}", depositFormatted)
-                .Replace("{{DepositMethod}}", depositMethodText)
-                .Replace("{{StartDate}}", startDateFormatted)
-                .Replace("{{EndDate}}", endDateFormatted)
-                .Replace("{{PickupLocation}}", pickupLocation);
-
-            string contractNumber = $"HD-VELORA-{DateTime.UtcNow:yyyyMMdd}-{request.Id.ToString()[..6].ToUpper()}";
+            // Generate contract number: HD-{YYYYMMDD}-{XXXX}
+            string contractNumber = $"HD-{DateTime.UtcNow:yyyyMMdd}-{request.Id.ToString()[..4].ToUpper()}";
 
             var contract = new RentalContract
             {
                 Id = Guid.NewGuid(),
                 RequestId = request.Id,
-                RentalRequest = request,
                 ContractNumber = contractNumber,
                 TotalFee = request.EstimatedTotalFee,
                 DepositAmount = request.DepositAmount,
-                MaxKm = (request.Vehicle?.MileageLimit ?? 300) * request.TotalDays,
-                Content = renderedContent,
+                MaxKm = maxKm,
+                Content = templateContent,
                 Status = "WAITING_SIGNATURE",
                 CreatedAt = DateTime.UtcNow
             };
@@ -98,7 +78,7 @@ namespace CarRental.API.Services
             _context.RentalContracts.Add(contract);
             await _context.SaveChangesAsync();
 
-            return MapToDto(contract, request);
+            return await MapToDtoAsync(contract, request);
         }
 
         public async Task<RentalContractDto?> GetContractByIdAsync(Guid contractId)
@@ -110,7 +90,19 @@ namespace CarRental.API.Services
 
             if (contract == null) return null;
 
-            return MapToDto(contract, contract.RentalRequest);
+            return await MapToDtoAsync(contract, contract.RentalRequest);
+        }
+
+        public async Task<RentalContractDto?> GetContractByRequestIdAsync(Guid requestId)
+        {
+            var contract = await _context.RentalContracts
+                .Include(c => c.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                .FirstOrDefaultAsync(c => c.RequestId == requestId);
+
+            if (contract == null) return null;
+
+            return await MapToDtoAsync(contract, contract.RentalRequest);
         }
 
         public async Task<RentalContractDto> SignContractAsync(Guid contractId, SignContractRequestDto dto)
@@ -130,7 +122,28 @@ namespace CarRental.API.Services
                 throw new InvalidOperationException($"Hợp đồng hiện tại đang ở trạng thái '{contract.Status}', không thể ký lại.");
             }
 
-            contract.CustomerSignature = dto.Signature.Trim();
+            var sig = dto.Signature.Trim();
+            // Nếu chữ ký gửi lên dạng Base64 -> Upload lên Supabase Storage và chỉ lưu object path vào DB
+            if (sig.StartsWith("data:image/") || sig.Length > 256)
+            {
+                try
+                {
+                    contract.CustomerSignature = await _storageService.UploadBase64Async(
+                        sig,
+                        "sensitive-docs",
+                        "signatures",
+                        $"sig_contract_{contractId}");
+                }
+                catch
+                {
+                    contract.CustomerSignature = sig;
+                }
+            }
+            else
+            {
+                contract.CustomerSignature = sig;
+            }
+
             contract.CustomerSignedAt = DateTime.UtcNow;
             contract.Status = "SIGNED";
             contract.UpdatedAt = DateTime.UtcNow;
@@ -150,7 +163,7 @@ namespace CarRental.API.Services
 
             await _context.SaveChangesAsync();
 
-            return MapToDto(contract, contract.RentalRequest);
+            return await MapToDtoAsync(contract, contract.RentalRequest);
         }
 
         public async Task<List<RentalContractDto>> GetAllContractsAsync(string? status = null)
@@ -166,11 +179,19 @@ namespace CarRental.API.Services
             }
 
             var list = await query.OrderByDescending(c => c.CreatedAt).ToListAsync();
-            return list.Select(c => MapToDto(c, c.RentalRequest)).ToList();
+            var dtoList = new List<RentalContractDto>();
+            foreach (var c in list)
+            {
+                dtoList.Add(await MapToDtoAsync(c, c.RentalRequest));
+            }
+            return dtoList;
         }
 
-        private RentalContractDto MapToDto(RentalContract contract, RentalRequest? request)
+        private async Task<RentalContractDto> MapToDtoAsync(RentalContract contract, RentalRequest? request)
         {
+            // Tự động giải quyết chữ ký số: Sinh Signed URL nếu là object path, giữ nguyên nếu là Base64 cũ
+            string resolvedSignature = await _storageService.ResolveDocUrlAsync(contract.CustomerSignature, "sensitive-docs", 15);
+
             return new RentalContractDto
             {
                 Id = contract.Id,
@@ -182,7 +203,7 @@ namespace CarRental.API.Services
                 MaxKm = contract.MaxKm,
                 Content = contract.Content ?? string.Empty,
                 Status = contract.Status,
-                CustomerSignature = contract.CustomerSignature,
+                CustomerSignature = resolvedSignature,
                 CustomerSignedAt = contract.CustomerSignedAt,
                 CreatedAt = contract.CreatedAt ?? DateTime.UtcNow,
                 UpdatedAt = contract.UpdatedAt,
@@ -208,23 +229,25 @@ namespace CarRental.API.Services
         {
             return @"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
----o0o---
+---
+HỢP ĐỒNG CHO THUÊ XE TỰ LÁI
 
-HỢP ĐỒNG THUÊ XE Ô TÔ TỰ LÁI TIÊU CHUẨN
+Hôm nay, ngày ký kết hợp đồng điện tử tại hệ thống VELORA Car Rental.
+BÊN CHO THUÊ (BÊN A): CÔNG TY CỔ PHẦN DỊCH VỤ VẬN TẢI VELORA
+BÊN THUÊ (BÊN B): Khách hàng đăng ký trên ứng dụng/website VELORA.
 
-Hôm nay, ngày ký hợp đồng, các bên gồm:
+ĐIỀU 1: ĐỐI TƯỢNG VÀ THỜI HẠN THUÊ
+Bên A đồng ý cho Bên B thuê xe theo thông tin chi tiết được ghi nhận trong đơn đặt xe. Thời gian và địa điểm giao nhận xe thực hiện theo thỏa thuận trên hệ thống.
 
-BÊN CHO THUÊ (BÊN A): CÔNG TY TNHH DỊCH VỤ VẬN TẢI VELORA
-Hotline: 1900 6868 | Địa chỉ: {{PickupLocation}}
+ĐIỀU 2: GIÁ THUÊ VÀ PHƯƠNG THỨC THANH TOÁN
+- Tiền thuê xe và tiền cọc được xác định theo biểu giá niêm yết của Bên A.
+- Bên B thanh toán đầy đủ các khoản phí trước khi nhận xe theo đúng quy định.
 
-BÊN THUÊ XE (BÊN B):
-- Họ tên: {{CustomerName}}
-- Phương tiện thuê: {{CarModel}} - Biển kiểm soát: {{LicensePlate}}
-- Thời gian thuê: Từ {{StartDate}} đến {{EndDate}}
-- Đơn giá: {{DailyRate}} VNĐ/ngày
-- Tiền đặt cọc bảo đảm: {{DepositAmount}} VNĐ (Hình thức: {{DepositMethod}})
+ĐIỀU 3: QUYỀN VÀ NGHĨA VỤ CỦA CÁC BÊN
+- Bên A cam kết xe giao đủ điều kiện an toàn kỹ thuật, bảo hiểm theo quy định pháp luật.
+- Bên B cam kết sử dụng xe đúng mục đích, không vi phạm pháp luật giao thông đường bộ, bồi thường mọi tổn thất phát sinh do lỗi của Bên B.
 
-Hai bên cùng thống nhất tuân thủ các quy định vận hành và an toàn giao thông đường bộ.";
+Hai bên đã đọc, hiểu rõ và đồng ý xác nhận ký số điện tử trên hệ thống.";
         }
     }
 }

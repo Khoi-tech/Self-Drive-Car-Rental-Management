@@ -23,6 +23,10 @@ const authService = {
     return await api.get('/auth/me');
   },
 
+  changePassword: async ({ currentPassword, newPassword }) => {
+    return await api.post('/auth/change-password', { currentPassword, newPassword });
+  },
+
   logout: () => {
     localStorage.removeItem('velora_token');
     localStorage.removeItem('velora_user');

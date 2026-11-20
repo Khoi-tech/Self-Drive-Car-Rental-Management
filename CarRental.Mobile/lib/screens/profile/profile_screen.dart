@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/api_constants.dart';
@@ -70,18 +71,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Tài khoản của tôi'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () async {
-              final updated = await showDialog<bool>(
-                context: context,
-                builder: (_) => const ServerConfigDialog(),
-              );
-              if (updated == true) {
-                _loadServerUrl();
-              }
-            },
-          ),
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () async {
+                final updated = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => const ServerConfigDialog(),
+                );
+                if (updated == true) {
+                  _loadServerUrl();
+                }
+              },
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -170,31 +172,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Divider(height: 1),
               _buildListTile(Icons.verified_user_outlined, 'Trạng thái tài khoản', 'Đã xác thực CCCD & GPLX'),
             ]),
-            const SizedBox(height: 16),
-
-            // Server Connection Info Card
-            _buildInfoCard([
-              ListTile(
-                leading: const Icon(Icons.dns_rounded, color: Color(0xFF2563EB)),
-                title: const Text('Máy chủ Backend .NET 10', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  _currentServerUrl.isNotEmpty ? _currentServerUrl : 'Chưa thiết lập',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            if (kDebugMode) ...[
+              const SizedBox(height: 16),
+              // Server Connection Info Card
+              _buildInfoCard([
+                ListTile(
+                  leading: const Icon(Icons.dns_rounded, color: Color(0xFF2563EB)),
+                  title: const Text('Máy chủ Backend .NET 10', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    _currentServerUrl.isNotEmpty ? _currentServerUrl : 'Chưa thiết lập',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      final updated = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => const ServerConfigDialog(),
+                      );
+                      if (updated == true) {
+                        _loadServerUrl();
+                      }
+                    },
+                    child: const Text('Đổi IP', style: TextStyle(fontSize: 12)),
+                  ),
                 ),
-                trailing: TextButton(
-                  onPressed: () async {
-                    final updated = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => const ServerConfigDialog(),
-                    );
-                    if (updated == true) {
-                      _loadServerUrl();
-                    }
-                  },
-                  child: const Text('Đổi IP', style: TextStyle(fontSize: 12)),
-                ),
-              ),
-            ]),
+              ]),
+            ],
             const SizedBox(height: 24),
 
             // Logout Button

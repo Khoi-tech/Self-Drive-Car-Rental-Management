@@ -1,33 +1,46 @@
 import React, { useState } from 'react';
-import { KeyRound, CheckCircle2, X } from 'lucide-react';
+import { KeyRound, CheckCircle2, X, AlertCircle } from 'lucide-react';
+import authService from '../../../services/authService';
 
 const ChangePasswordModal = ({ isOpen, onClose }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
     if (newPassword !== confirmPassword) {
-      alert('Mật khẩu xác nhận không trùng khớp.');
+      setError('Mật khẩu xác nhận không trùng khớp.');
       return;
     }
     if (newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      setLoading(true);
+      await authService.changePassword({ currentPassword, newPassword });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
         onClose();
-      }, 1500);
-    }, 1000);
+      }, 1800);
+    } catch (err) {
+      console.error('Change password failed:', err);
+      const msg = err.response?.data?.message || err.message || 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -54,6 +67,12 @@ const ChangePasswordModal = ({ isOpen, onClose }) => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{error}</span>
+              </div>
+            )}
             <div className="space-y-1">
               <label className="font-bold text-slate-700 block">Mật khẩu hiện tại</label>
               <input

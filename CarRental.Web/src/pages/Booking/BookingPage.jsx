@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Users, 
@@ -14,7 +14,11 @@ import {
   Zap,
   Check,
   Lock,
-  Sparkles
+  Sparkles,
+  Wallet,
+  QrCode,
+  Info,
+  Calendar
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -59,16 +63,21 @@ const BookingPage = () => {
     notes: ''
   });
 
+  const [licenseExpiryDisplay, setLicenseExpiryDisplay] = useState('');
+  const datePickerRef = useRef(null);
+
   // Auto-prefill customer info if user is logged in
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+    const timer = setTimeout(() => {
       setFormData(prev => ({
         ...prev,
         customerName: prev.customerName || user.fullName || user.name || '',
         customerPhone: prev.customerPhone || user.phoneNumber || user.phone || '',
         customerEmail: prev.customerEmail || user.email || '',
       }));
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [user]);
 
   const [hasAdditionalDriver, setHasAdditionalDriver] = useState(false);
@@ -143,13 +152,109 @@ const BookingPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    let sanitized = value;
+
+    if (name === 'customerName') {
+      // Chỉ cho phép chữ cái (tiếng Việt có dấu, Latin) và khoảng trắng, tối đa 50 ký tự, viết hoa
+      sanitized = value
+        .replace(/[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\s]/g, '')
+        .slice(0, 50)
+        .toUpperCase();
+    } else if (name === 'customerPhone') {
+      // Chỉ cho phép chữ số, tối đa 10 số
+      sanitized = value.replace(/\D/g, '').slice(0, 10);
+    } else if (name === 'customerEmail') {
+      // Không cho khoảng trắng, tối đa 80 ký tự
+      sanitized = value.replace(/\s/g, '').slice(0, 80);
+    } else if (name === 'customerIdCard') {
+      // CCCD: chỉ chữ số, tối đa 12 số
+      sanitized = value.replace(/\D/g, '').slice(0, 12);
+    } else if (name === 'driverLicenseNumber') {
+      // GPLX: chỉ chữ số, tối đa 12 số
+      sanitized = value.replace(/\D/g, '').slice(0, 12);
+    } else if (name === 'notes') {
+      sanitized = value.slice(0, 500);
+    }
+
+    setFormData(prev => ({ ...prev, [name]: sanitized }));
     if (error) setError(null);
   };
 
   const handleAdditionalDriverChange = (e) => {
     const { name, value } = e.target;
-    setAdditionalDriver({ ...additionalDriver, [name]: value });
+    let sanitized = value;
+
+    if (name === 'fullName') {
+      sanitized = value
+        .replace(/[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựỳỵỷỹ\s]/g, '')
+        .slice(0, 50)
+        .toUpperCase();
+    } else if (name === 'phoneNumber') {
+      sanitized = value.replace(/\D/g, '').slice(0, 10);
+    } else if (name === 'idCardNumber') {
+      sanitized = value.replace(/\D/g, '').slice(0, 12);
+    } else if (name === 'licenseNumber') {
+      sanitized = value.replace(/\D/g, '').slice(0, 12);
+    }
+
+    setAdditionalDriver(prev => ({ ...prev, [name]: sanitized }));
+    if (error) setError(null);
+  };
+
+  // Xử lý nhập ngày hết hạn GPLX định dạng DD/MM/YYYY linh hoạt
+  const handleLicenseExpiryInputChange = (e) => {
+    const rawVal = e.target.value;
+    const digits = rawVal.replace(/\D/g, '').slice(0, 8);
+
+    let formatted = '';
+    if (digits.length <= 2) {
+      formatted = digits;
+    } else if (digits.length <= 4) {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    } else {
+      formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    }
+    setLicenseExpiryDisplay(formatted);
+
+    if (digits.length === 8) {
+      const d = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      const y = parseInt(digits.slice(4, 8), 10);
+
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2020 && y <= 2099) {
+        const daysInMonth = new Date(y, m, 0).getDate();
+        if (d <= daysInMonth) {
+          const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          setFormData(prev => ({ ...prev, driverLicenseExpiry: iso }));
+          if (error) setError(null);
+          return;
+        }
+      }
+    }
+    setFormData(prev => ({ ...prev, driverLicenseExpiry: '' }));
+  };
+
+  // Xử lý khi user chọn ngày từ native date picker
+  const handleNativeDateChange = (e) => {
+    const iso = e.target.value;
+    if (iso) {
+      const [y, m, d] = iso.split('-');
+      setFormData(prev => ({ ...prev, driverLicenseExpiry: iso }));
+      setLicenseExpiryDisplay(`${d}/${m}/${y}`);
+      if (error) setError(null);
+    }
+  };
+
+  // Nút chọn nhanh thời hạn GPLX (+3, +5, +10 năm)
+  const handleQuickSetExpiry = (years) => {
+    const target = new Date();
+    target.setFullYear(target.getFullYear() + years);
+    const y = target.getFullYear();
+    const m = String(target.getMonth() + 1).padStart(2, '0');
+    const d = String(target.getDate()).padStart(2, '0');
+    const iso = `${y}-${m}-${d}`;
+    setFormData(prev => ({ ...prev, driverLicenseExpiry: iso }));
+    setLicenseExpiryDisplay(`${d}/${m}/${y}`);
     if (error) setError(null);
   };
 
@@ -360,13 +465,16 @@ const BookingPage = () => {
                 <span className="text-slate-500">Hình thức đặt cọc:</span>
                 <span className="font-bold text-emerald-700">
                   {successResponse.depositMethod === 'CASH' || depositMethod === 'CASH'
-                    ? '💵 Cọc tiền mặt khi nhận xe (Chưa cần trả trước)'
-                    : '💳 Chuyển khoản VietQR'}
+                    ? 'Cọc khi nhận xe (Chưa cần trả trước)'
+                    : 'Chuyển khoản VietQR'}
                 </span>
               </div>
               {(successResponse.depositMethod === 'CASH' || depositMethod === 'CASH') && (
-                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-xs">
-                  💡 <strong>Không lo bị giữ tiền trước:</strong> Bạn đã chọn phương thức nộp cọc tiền mặt trực tiếp. Sau khi hồ sơ được duyệt và ký hợp đồng số, bạn chỉ cần bàn giao khoản cọc bằng tiền mặt khi kiểm tra và nhận xe tại điểm bàn giao.
+                <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-xs flex items-start gap-2">
+                  <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <strong>Không lo bị giữ tiền trước:</strong> Bạn đã chọn phương thức thanh toán cọc khi nhận xe. Sau khi hồ sơ được duyệt và ký hợp đồng số, bạn có thể linh hoạt chuyển khoản hoặc thanh toán tiền mặt khi kiểm tra và nhận xe tại điểm bàn giao.
+                  </div>
                 </div>
               )}
             </div>
@@ -497,7 +605,7 @@ const BookingPage = () => {
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-extrabold text-xs text-amber-950 flex items-center gap-1.5">
                       <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-                      ⚡ Cọc Giữ Xe Siêu Tốc 500K
+                      Cọc Giữ Xe Siêu Tốc 500K
                     </span>
                     <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-extrabold uppercase">
                       Khuyên dùng
@@ -520,8 +628,8 @@ const BookingPage = () => {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="font-extrabold text-xs text-blue-950 flex items-center gap-1.5">
-                      <Shield className="w-4 h-4 text-blue-900" />
-                      🛡️ Đặt Thuê Tiêu Chuẩn
+                      <ShieldCheck className="w-4 h-4 text-blue-900" />
+                      Đặt Thuê Tiêu Chuẩn
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -535,13 +643,13 @@ const BookingPage = () => {
                 <div className="pt-4 border-t border-slate-100 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <CreditCard className="w-4 h-4 text-emerald-600" />
+                      <CreditCard className="w-4 h-4 text-slate-700" />
                       Phương thức đặt cọc thế chân xe:
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Option 1: Cash at Handover */}
+                    {/* Option 1: Cash / Transfer at Handover */}
                     <button
                       type="button"
                       onClick={() => setDepositMethod('CASH')}
@@ -553,14 +661,15 @@ const BookingPage = () => {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
-                          💵 Cọc tiền mặt khi nhận xe
+                          <Wallet className="w-4 h-4 text-emerald-700" />
+                          Cọc khi nhận xe
                         </span>
                         <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
                           Khuyên dùng
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 leading-relaxed">
-                        <strong className="text-emerald-800">0đ thanh toán hôm nay!</strong> Bạn chỉ cần ký hợp đồng trước; khoản cọc thế chân sẽ được bàn giao trực tiếp bằng tiền mặt khi bạn nhận xe.
+                        <strong className="text-emerald-800">0đ thanh toán hôm nay!</strong> Bạn chỉ cần ký hợp đồng trước; khoản cọc thế chân sẽ được thanh toán trực tiếp bằng chuyển khoản hoặc tiền mặt khi bạn nhận bàn giao xe.
                       </p>
                     </button>
 
@@ -576,7 +685,8 @@ const BookingPage = () => {
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
-                          💳 Chuyển khoản VietQR (Napas 24/7)
+                          <QrCode className="w-4 h-4 text-blue-700" />
+                          Chuyển khoản VietQR (Napas 24/7)
                         </span>
                         <span className="text-[9px] bg-gradient-to-r from-blue-700 to-indigo-700 text-white px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1 shadow-xs">
                           <Sparkles className="w-2.5 h-2.5" />
@@ -591,9 +701,9 @@ const BookingPage = () => {
 
                   {depositMethod === 'CASH' && (
                     <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-start gap-2.5">
-                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       <div className="leading-relaxed">
-                        <strong>Tiện ích đặt xe trước ngày đi:</strong> Quý khách không lo bị giữ một khoản tiền lớn trong tài khoản. Chỉ cần nộp tiền mặt khi tận tay kiểm tra xe và ký biên bản giao nhận ODO/nhiên liệu.
+                        <strong>Tiện ích đặt xe trước ngày đi:</strong> Quý khách không lo bị giữ một khoản tiền lớn trong tài khoản. Khoản cọc thế chân được thanh toán linh hoạt bằng chuyển khoản hoặc tiền mặt khi bạn tận tay kiểm tra xe và ký biên bản giao nhận ODO/nhiên liệu.
                       </div>
                     </div>
                   )}
@@ -643,7 +753,7 @@ const BookingPage = () => {
                   <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg text-amber-900 text-xs flex items-start gap-2.5">
                     <Zap className="w-4 h-4 text-amber-600 shrink-0 fill-amber-600 mt-0.5" />
                     <div className="leading-relaxed">
-                      <strong>⚡ Chế độ Cọc giữ xe siêu tốc 500K đang bật:</strong>
+                      <strong>Chế độ Cọc giữ xe siêu tốc 500K đang bật:</strong>
                       <p className="text-[11px] text-amber-800 mt-0.5">
                         Quý khách chỉ cần điền <strong>Họ tên, Số điện thoại & Email</strong>. Các trường CCCD, GPLX và ảnh chụp có thể để trống và bổ sung sau trong mục <em>Hồ sơ cá nhân</em> trước khi nhận xe.
                       </p>
@@ -652,81 +762,117 @@ const BookingPage = () => {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Họ và tên: Chỉ chữ cái tiếng Việt/Latin, tối đa 50 ký tự */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Họ và tên <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Họ và tên <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        {formData.customerName.length}/50
+                      </span>
+                    </div>
                     <input
                       type="text"
                       name="customerName"
                       value={formData.customerName}
                       onChange={handleInputChange}
                       placeholder="NGUYEN VAN A"
+                      maxLength={50}
                       required
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
+                  {/* Số điện thoại: Chỉ số, tối đa 10 chữ số */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số điện thoại <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Số điện thoại <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-normal tabular-nums">
+                        {formData.customerPhone.length}/10 số
+                      </span>
+                    </div>
                     <input
                       type="tel"
                       name="customerPhone"
                       value={formData.customerPhone}
                       onChange={handleInputChange}
                       placeholder="0901234567"
+                      maxLength={10}
                       required
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
+                  {/* Địa chỉ Email: Bỏ khoảng trắng, tối đa 80 ký tự */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Địa chỉ Email <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Địa chỉ Email <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        Tối đa 80 ký tự
+                      </span>
+                    </div>
                     <input
                       type="email"
                       name="customerEmail"
                       value={formData.customerEmail}
                       onChange={handleInputChange}
                       placeholder="customer@example.com"
+                      maxLength={80}
                       required
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
+                  {/* Số CCCD / CMND: Chỉ số, tối đa 12 số */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số CCCD / CMND gắn chip {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Số CCCD / CMND gắn chip {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-normal tabular-nums">
+                        {formData.customerIdCard.length}/12 số
+                      </span>
+                    </div>
                     <input
                       type="text"
                       name="customerIdCard"
                       value={formData.customerIdCard}
                       onChange={handleInputChange}
-                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "079099xxxxxx"}
+                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "079099xxxxxx (12 số)"}
+                      maxLength={12}
                       required={!isFastHold}
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
+                  {/* Số Giấy phép lái xe: Chỉ số, tối đa 12 số */}
                   <div>
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Số Giấy phép lái xe {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Số Giấy phép lái xe {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-normal tabular-nums">
+                        {formData.driverLicenseNumber.length}/12 số
+                      </span>
+                    </div>
                     <input
                       type="text"
                       name="driverLicenseNumber"
                       value={formData.driverLicenseNumber}
                       onChange={handleInputChange}
-                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "790123456789"}
+                      placeholder={isFastHold ? "Có thể bổ sung sau..." : "790123456789 (12 số)"}
+                      maxLength={12}
                       required={!isFastHold}
                       className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                     />
                   </div>
 
+                  {/* Hạng Giấy phép lái xe */}
                   <div>
                     <label className="block text-xs font-bold text-zinc-900 mb-1">
                       Hạng Giấy phép lái xe {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Tùy chọn)</span>}
@@ -745,22 +891,107 @@ const BookingPage = () => {
                     </select>
                   </div>
 
+                  {/* Ngày hết hạn GPLX: Hỗ trợ gõ Ngày/Tháng/Năm (DD/MM/YYYY), nút Chọn Lịch & Chọn nhanh */}
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-zinc-900 mb-1">
-                      Ngày hết hạn GPLX {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
-                    </label>
-                    <input
-                      type="date"
-                      name="driverLicenseExpiry"
-                      value={formData.driverLicenseExpiry}
-                      onChange={handleInputChange}
-                      required={!isFastHold}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      * Theo quy định pháp luật, ngày hết hạn GPLX phải sau thời điểm trả xe ({endTimeStr ? new Date(endTimeStr).toLocaleDateString('vi-VN') : 'khi kết thúc thuê'}).
-                    </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-zinc-900">
+                        Ngày hết hạn GPLX {!isFastHold ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal text-[10px]">(Bổ sung sau)</span>}
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Nhập Ngày/Tháng/Năm (DD/MM/YYYY)
+                      </span>
+                    </div>
+
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        value={licenseExpiryDisplay}
+                        onChange={handleLicenseExpiryInputChange}
+                        placeholder="VD: 25/11/2030 (hoặc bấm nút Chọn lịch bên cạnh)"
+                        maxLength={10}
+                        required={!isFastHold}
+                        className={`w-full bg-slate-50 border rounded-md pl-3 pr-28 py-2 text-xs font-bold text-zinc-950 tabular-nums focus:outline-none focus:bg-white transition-colors ${
+                          formData.driverLicenseExpiry && endTimeStr && new Date(formData.driverLicenseExpiry) <= new Date(endTimeStr)
+                            ? 'border-red-400 focus:border-red-600 bg-red-50/40 text-red-900'
+                            : formData.driverLicenseExpiry
+                            ? 'border-emerald-500 focus:border-emerald-600 bg-emerald-50/20'
+                            : 'border-slate-300 focus:border-blue-900'
+                        }`}
+                      />
+
+                      {/* Native date picker trigger */}
+                      <div className="absolute right-1 flex items-center">
+                        <input
+                          type="date"
+                          ref={datePickerRef}
+                          onChange={handleNativeDateChange}
+                          value={formData.driverLicenseExpiry || ''}
+                          min={endTimeStr ? new Date(new Date(endTimeStr).setDate(new Date(endTimeStr).getDate() + 1)).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                          tabIndex={-1}
+                          className="sr-only"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            try {
+                              datePickerRef.current?.showPicker();
+                            } catch {
+                              datePickerRef.current?.focus();
+                            }
+                          }}
+                          className="px-2.5 py-1 bg-slate-200/90 hover:bg-slate-300 text-slate-700 hover:text-slate-950 rounded text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer mr-0.5"
+                          title="Bấm để mở lịch chọn ngày"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-blue-900" />
+                          <span className="text-[11px] font-bold">Chọn lịch</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <span className="text-[11px] text-slate-500 font-semibold mr-1">
+                        Chọn nhanh thời hạn:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickSetExpiry(3)}
+                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer"
+                      >
+                        +3 năm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickSetExpiry(5)}
+                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold border border-slate-200 transition cursor-pointer"
+                      >
+                        +5 năm (Hạng C/D)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickSetExpiry(10)}
+                        className="px-2.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-900 text-[10px] font-extrabold border border-blue-200 transition cursor-pointer shadow-2xs"
+                      >
+                        +10 năm (Chuẩn GPLX B2)
+                      </button>
+                    </div>
+
+                    {/* Realtime Feedback */}
+                    {formData.driverLicenseExpiry && endTimeStr && new Date(formData.driverLicenseExpiry) > new Date(endTimeStr) ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-bold mt-1.5 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Hợp lệ: GPLX còn hạn đến ngày {new Date(formData.driverLicenseExpiry).toLocaleDateString('vi-VN')} (sau thời điểm trả xe).</span>
+                      </div>
+                    ) : formData.driverLicenseExpiry && endTimeStr && new Date(formData.driverLicenseExpiry) <= new Date(endTimeStr) ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-red-700 font-bold mt-1.5 bg-red-50 px-2.5 py-1 rounded border border-red-200">
+                        <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                        <span>Không hợp lệ: GPLX hết hạn vào {new Date(formData.driverLicenseExpiry).toLocaleDateString('vi-VN')}, trước hoặc đúng ngày trả xe ({new Date(endTimeStr).toLocaleDateString('vi-VN')}).</span>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        * Theo quy định pháp luật, ngày hết hạn GPLX phải sau thời điểm trả xe ({endTimeStr ? new Date(endTimeStr).toLocaleDateString('vi-VN') : 'khi kết thúc thuê'}).
+                      </p>
+                    )}
                   </div>
 
                   {/* Realtime Warnings for Compatibility */}
@@ -771,17 +1002,6 @@ const BookingPage = () => {
                         <span className="font-bold">Không tương thích hộp số: </span>
                         Dòng xe <strong>{vehicle?.make} {vehicle?.model}</strong> là <strong>SỐ SÀN (MANUAL)</strong>. 
                         Người có GPLX hạng B1 số tự động không được phép điều khiển dòng xe này theo luật Giao thông Đường bộ.
-                      </div>
-                    </div>
-                  )}
-
-                  {formData.driverLicenseExpiry && new Date(formData.driverLicenseExpiry) <= new Date(endTimeStr) && (
-                    <div className="sm:col-span-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold">Cảnh báo hết hạn bằng lái: </span>
-                        GPLX của bạn hết hạn vào ngày <strong>{new Date(formData.driverLicenseExpiry).toLocaleDateString('vi-VN')}</strong>, 
-                        trước ngày kết thúc kỳ thuê ({new Date(endTimeStr).toLocaleDateString('vi-VN')}). Vui lòng kiểm tra lại.
                       </div>
                     </div>
                   )}
@@ -815,8 +1035,11 @@ const BookingPage = () => {
                 </div>
 
                 {isFastHold && (
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-slate-600 text-xs leading-relaxed">
-                    💡 <em>Quý khách có thể tải ảnh giấy tờ ngay nếu có sẵn, hoặc bỏ qua để hoàn tất thanh toán cọc giữ xe 500k trước và bổ sung sau trong mục <strong>Hồ sơ cá nhân</strong>.</em>
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-slate-600 text-xs leading-relaxed flex items-start gap-2">
+                    <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                    <div>
+                      <em>Quý khách có thể tải ảnh giấy tờ ngay nếu có sẵn, hoặc bỏ qua để hoàn tất thanh toán cọc giữ xe 500k trước và bổ sung sau trong mục <strong>Hồ sơ cá nhân</strong>.</em>
+                    </div>
                   </div>
                 )}
 
@@ -914,47 +1137,63 @@ const BookingPage = () => {
                 {hasAdditionalDriver && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Họ tên người lái phụ</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-zinc-900">Họ tên người lái phụ</label>
+                        <span className="text-[10px] text-slate-400 font-normal">{additionalDriver.fullName.length}/50</span>
+                      </div>
                       <input
                         type="text"
                         name="fullName"
                         value={additionalDriver.fullName}
                         onChange={handleAdditionalDriverChange}
                         placeholder="TRAN VAN B"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase"
+                        maxLength={50}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 uppercase focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số điện thoại</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-zinc-900">Số điện thoại lái phụ</label>
+                        <span className="text-[10px] text-slate-400 font-normal tabular-nums">{additionalDriver.phoneNumber.length}/10 số</span>
+                      </div>
                       <input
                         type="tel"
                         name="phoneNumber"
                         value={additionalDriver.phoneNumber}
                         onChange={handleAdditionalDriverChange}
                         placeholder="0987654321"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                        maxLength={10}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số CCCD lái phụ</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-zinc-900">Số CCCD lái phụ</label>
+                        <span className="text-[10px] text-slate-400 font-normal tabular-nums">{additionalDriver.idCardNumber.length}/12 số</span>
+                      </div>
                       <input
                         type="text"
                         name="idCardNumber"
                         value={additionalDriver.idCardNumber}
                         onChange={handleAdditionalDriverChange}
-                        placeholder="079099xxxxxx"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                        placeholder="079099xxxxxx (12 số)"
+                        maxLength={12}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-zinc-900 mb-1">Số GPLX lái phụ</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-zinc-900">Số GPLX lái phụ</label>
+                        <span className="text-[10px] text-slate-400 font-normal tabular-nums">{additionalDriver.licenseNumber.length}/12 số</span>
+                      </div>
                       <input
                         type="text"
                         name="licenseNumber"
                         value={additionalDriver.licenseNumber}
                         onChange={handleAdditionalDriverChange}
-                        placeholder="790123456789"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums"
+                        placeholder="790123456789 (12 số)"
+                        maxLength={12}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 tabular-nums focus:outline-none focus:border-blue-900 focus:bg-white transition-colors"
                       />
                     </div>
                   </div>
@@ -1150,7 +1389,7 @@ const BookingPage = () => {
                     ) : (
                       <>
                         <Zap className="w-4 h-4 fill-white" />
-                        <span>⚡ Tiến hành cọc giữ xe 500.000đ</span>
+                        <span>Tiến hành cọc giữ xe 500.000đ</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -1162,24 +1401,24 @@ const BookingPage = () => {
                     <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-emerald-700" />
+                          <Wallet className="w-4 h-4 text-emerald-700" />
                           Hình thức cọc:
                         </span>
-                        <span className="text-xs font-black text-emerald-800 uppercase">Tiền mặt khi nhận xe</span>
+                        <span className="text-xs font-black text-emerald-800 uppercase">Cọc khi nhận xe</span>
                       </div>
                       <div className="flex justify-between items-center pt-1.5 border-t border-emerald-200">
                         <span className="text-xs text-emerald-900 font-semibold">Thanh toán ngay lúc này:</span>
                         <span className="text-base font-black text-emerald-700 tabular-nums">0 đ</span>
                       </div>
                       <p className="text-[10px] text-emerald-800 leading-relaxed">
-                        * Tiền cọc thế chân ({formatCurrencyVND(vehicle?.depositAmount || 15000000)}) chỉ cần nộp tiền mặt trực tiếp khi bạn đến nhận xe và ký biên bản bàn giao.
+                        * Tiền cọc thế chân ({formatCurrencyVND(vehicle?.depositAmount || 15000000)}) có thể thanh toán linh hoạt bằng chuyển khoản hoặc tiền mặt khi bạn đến nhận xe và ký biên bản bàn giao.
                       </p>
                     </div>
                   ) : (
                     <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-blue-700" />
+                          <QrCode className="w-4 h-4 text-blue-700" />
                           Hình thức cọc:
                         </span>
                         <span className="text-xs font-black text-blue-800 uppercase">Chuyển khoản VietQR</span>
@@ -1220,7 +1459,7 @@ const BookingPage = () => {
                       <span>Đang gửi hồ sơ thẩm định...</span>
                     ) : depositMethod === 'CASH' ? (
                       <>
-                        <span>Gửi hồ sơ & Xác nhận cọc tiền mặt khi nhận xe</span>
+                        <span>Gửi hồ sơ & Xác nhận cọc khi nhận xe</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     ) : (

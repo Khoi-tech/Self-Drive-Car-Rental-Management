@@ -166,7 +166,7 @@ const ContractSignPage = () => {
             </div>
             <div className={`flex items-center gap-2 ${isDepositPaid || (isSigned && isCashDeposit) ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
               <Clock size={16} />
-              <span>{isCashDeposit ? '4. Cọc tiền mặt khi nhận xe' : '4. Thanh toán cọc'}</span>
+              <span>{isCashDeposit ? '4. Cọc khi nhận xe' : '4. Thanh toán cọc'}</span>
             </div>
           </div>
         </div>
@@ -234,7 +234,7 @@ const ContractSignPage = () => {
                   <li>Tổng chi phí thuê xe: <strong className="text-blue-900 font-bold tabular-nums">{formatCurrency(contract.totalFee)}</strong>.</li>
                   <li>Khoản tiền cọc thế chấp: <strong className="text-zinc-950 font-bold tabular-nums">{formatCurrency(contract.depositAmount || 15000000)}</strong>.</li>
                   {isCashDeposit ? (
-                    <li className="text-emerald-800 font-semibold">Hình thức đặt cọc: Bên B thực hiện nộp tiền cọc thế chấp bằng TIỀN MẶT trực tiếp cho đại diện Bên A tại thời điểm kiểm tra và nhận bàn giao xe.</li>
+                    <li className="text-emerald-800 font-semibold">Hình thức đặt cọc: Bên B thực hiện nộp tiền cọc thế chấp bằng chuyển khoản hoặc tiền mặt trực tiếp cho đại diện Bên A tại thời điểm kiểm tra và nhận bàn giao xe.</li>
                   ) : (
                     <li>Bên B có nghĩa vụ hoàn thành thanh toán tiền đặt cọc theo phương thức chuyển khoản VietQR để hợp đồng có hiệu lực giữ chỗ phương tiện.</li>
                   )}
@@ -341,7 +341,7 @@ const ContractSignPage = () => {
                   Hợp đồng điện tử đã được ký số thành công!
                 </div>
                 <div className="text-xs text-emerald-900 leading-relaxed">
-                  Đơn thuê của bạn đã được <strong>xác nhận giữ chỗ thành công</strong>. Khoản cọc thế chân <strong>{formatCurrency(contract.depositAmount || 15000000)}</strong> sẽ được bàn giao bằng <strong>TIỀN MẶT</strong> trực tiếp cho nhân viên khi bạn nhận xe tại điểm bàn giao ({contract.pickupLocation}). Bạn không cần chuyển khoản trước hôm nay!
+                  Đơn thuê của bạn đã được <strong>xác nhận giữ chỗ thành công</strong>. Khoản cọc thế chân <strong>{formatCurrency(contract.depositAmount || 15000000)}</strong> sẽ được thanh toán trực tiếp bằng chuyển khoản hoặc tiền mặt cho nhân viên khi bạn nhận xe tại điểm bàn giao ({contract.pickupLocation}). Bạn không cần chuyển khoản trước hôm nay!
                 </div>
               </div>
               <div className="flex items-center gap-2.5 shrink-0">

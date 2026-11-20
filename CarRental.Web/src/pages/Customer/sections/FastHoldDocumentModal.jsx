@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Sparkles,
   Camera,
-  RotateCcw
+  RotateCcw,
+  Calendar
 } from 'lucide-react';
 import rentalRequestService from '../../../services/rentalRequestService';
 
@@ -242,15 +243,19 @@ const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
             {/* Row 1: Số CCCD & Số GPLX */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <label className="font-bold text-slate-800 block">
-                  Số CCCD gắn chip (12 chữ số) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 block text-xs">
+                    Số CCCD gắn chip (12 số) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 tabular-nums">{(idCardNumber || '').length}/12</span>
+                </div>
                 <input
                   type="text"
                   name="customerIdCard"
                   value={idCardNumber}
+                  maxLength={12}
                   onChange={(e) => {
-                    setIdCardNumber(e.target.value);
+                    setIdCardNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
                     if (error) setError(null);
                   }}
                   placeholder="VD: 079092004568"
@@ -259,15 +264,19 @@ const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-800 block">
-                  Số Giấy phép lái xe <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 block text-xs">
+                    Số Giấy phép lái xe (12 số) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 tabular-nums">{(driverLicenseNumber || '').length}/12</span>
+                </div>
                 <input
                   type="text"
                   name="driverLicenseNumber"
                   value={driverLicenseNumber}
+                  maxLength={12}
                   onChange={(e) => {
-                    setDriverLicenseNumber(e.target.value);
+                    setDriverLicenseNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
                     if (error) setError(null);
                   }}
                   placeholder="VD: 790184920194"
@@ -279,7 +288,7 @@ const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
             {/* Row 2: Hạng bằng & Ngày hết hạn */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <label className="font-bold text-slate-800 block">Hạng Giấy phép lái xe</label>
+                <label className="font-bold text-slate-800 block text-xs">Hạng Giấy phép lái xe</label>
                 <select
                   name="driverLicenseClass"
                   value={driverLicenseClass}
@@ -295,7 +304,33 @@ const FastHoldDocumentModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-800 block">Ngày hết hạn GPLX</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 block text-xs">Ngày hết hạn GPLX</label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setFullYear(d.getFullYear() + 5);
+                        setDriverLicenseExpiry(d.toISOString().split('T')[0]);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold"
+                    >
+                      +5 năm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        d.setFullYear(d.getFullYear() + 10);
+                        setDriverLicenseExpiry(d.toISOString().split('T')[0]);
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-900 text-[9px] font-extrabold border border-blue-200"
+                    >
+                      +10 năm (B2)
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   name="driverLicenseExpiry"

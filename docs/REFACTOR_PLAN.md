@@ -178,32 +178,32 @@ flowchart TD
 
 ---
 
-### PHA 2: BACKEND CORE SERVICES & STATE MACHINE ENGINE
+### PHA 2: BACKEND CORE SERVICES & STATE MACHINE ENGINE — [HOÀN THÀNH]
 - **Mục tiêu:** Cài đặt toàn bộ quy tắc nghiệp vụ, giải thuật tính toán 3 bẫy thực tế và kiểm soát chuyển đổi trạng thái đồng bộ giữa `RentalRequest`, `RentalContract` và `Car`.
 - **Nội dung công việc:**
-  1. **Xử lý Bẫy 1 - Hao hụt nhiên liệu / pin (`SettlementService` & Protocol Services):**
+  1. [x] **Xử lý Bẫy 1 - Hao hụt nhiên liệu / pin (`SettlementService` & Protocol Services):**
      - Đọc cấu hình dung sai `FuelTolerancePercent` từ `system_settings`.
      - Tính phụ phí hao hụt xăng/pin chỉ dựa trên `deficit = handover_fuel_level - customer_return_fuel_level`.
      - Miễn trừ phụ phí nếu `deficit <= tolerance`.
      - Tự động ghi nhận `transit_fuel_drop = dispatch_fuel_level - handover_fuel_level`, nếu hao hụt bất thường (>15%) thì gắn cờ cảnh báo cho Manager.
-  2. **Xử lý Bẫy 2 - Sơ đồ 2D và Cơ chế Phân loại Marker (`HandoverProtocolService` & `ReturnProtocolService`):**
+  2. [x] **Xử lý Bẫy 2 - Sơ đồ 2D và Cơ chế Phân loại Marker (`HandoverProtocolService` & `ReturnProtocolService`):**
      - Khi xuất bãi (`IN_TRANSIT`): Kế thừa marker chưa sửa từ lần thuê trước vào `dispatch_damage_map` với stage `PRE_EXISTING`.
-     - Khi bàn giao khách (`COMPLETED`): So sánh marker mới trong `handover_damage_map` so với `dispatch_damage_map` $\rightarrow$ Đánh dấu `TRANSIT_DELIVERY`. Trong cùng transaction, tự động tạo bản ghi `incident_reports` nội bộ (`responsible_party = STAFF`, `customer_cost = 0`), không quy trách nhiệm cho khách.
+     - Khi bàn giao khách (`COMPLETED`): So sánh marker mới trong `handover_damage_map` so với `dispatch_damage_map` $\rightarrow$ Đánh dấu `TRANSIT_DELIVERY`. Trong cùng transaction, tự động tạo bản ghi `incident_reports` nội bộ (`incident_type = INTERNAL_TRANSIT`, `responsible_party = STAFF`, `customer_cost = 0`), không quy trách nhiệm cho khách.
      - Khi nhận lại xe (`ReturnProtocol`): Khóa toàn bộ marker từ lúc giao; chỉ marker mới phát sinh trong `return_damage_map` (`CUSTOMER_RENTAL`) mới chuyển sang `SettlementService` để tính khấu trừ theo `compensation_policies`.
-  3. **Xử lý Bẫy 3 - Audit ODO nội bộ 2 cấp độ (`HandoverProtocolService`):**
+  3. [x] **Xử lý Bẫy 3 - Audit ODO nội bộ 2 cấp độ (`HandoverProtocolService` & `ReturnProtocolService`):**
      - Tính `transit_km = handover_odo - dispatch_odo`.
      - Tính `max_allowed_km = (estimated_delivery_distance_km * 1.3) + 5` (hoặc lấy từ setting mặc định 50 km).
      - *Cấp 1 - Hard Block:* Nếu `handover_odo < dispatch_odo` hoặc `transit_km > max_allowed_km * 3` (hoặc > 300 km) $\rightarrow$ Trả lỗi HTTP 400 chặn lưu, bắt kiểm tra lại ảnh taplo.
      - *Cấp 2 - Soft Flag:* Nếu `transit_km > max_allowed_km` nhưng <= ngưỡng Hard Block $\rightarrow$ Cho phép giao xe và ký hợp đồng bình thường, nhưng bắt buộc nhập `transit_anomaly_note`, gán `has_transit_anomaly = true` và gửi thông báo cảnh báo về Dashboard của Manager.
      - Áp dụng logic đối xứng cho chiều xe về bãi trên `ReturnProtocolService`.
-  4. **Các ràng buộc chặt chẽ State Machine 10 bước:**
+  4. [x] **Các ràng buộc chặt chẽ State Machine 10 bước:**
      - **Chặn chuyển `DEPOSIT_PAID` nếu chưa `SIGNED`:** Hợp đồng bắt buộc phải qua trạng thái `SIGNED` trước khi ghi nhận cọc thành công.
      - **Nhánh hủy đơn trước khi giao xe:** Nếu khách hủy đơn sau khi ký hoặc từ chối đơn, chuyển `RentalRequest -> CANCELLED`, `RentalContract -> VOID`, và giải phóng `Car -> READY`.
-     - **Kiểm tra chống trùng lịch khi gia hạn (Bước 7):** Khi Staff duyệt gia hạn `RentalExtension`, bắt buộc kiểm tra `Exclusion Constraint` không trùng lịch đặt trước của xe trong khung giờ mở rộng mới.
-     - **Khóa cứng sau khi quyết toán:** Sau khi `RentalSettlement` chuyển sang trạng thái `PARTIALLY_SETTLED` hoặc `CLOSED`, khóa cứng không cho phép chỉnh sửa ngược `HandoverProtocol` và `ReturnProtocol`.
+     - **Kiểm tra chống trùng lịch khi gia hạn (Bước 7):** Khi Staff duyệt gia hạn `RentalExtension`, bắt buộc kiểm tra `Exclusion Constraint` không trùng lịch đặt trước của xe trong khung giờ mở rộng mới, bắt lỗi `23P01` trả HTTP 409 Conflict.
+     - **Khóa cứng sau khi quyết toán:** Sau khi `RentalSettlement` chuyển sang trạng thái `PARTIALLY_SETTLED`, `SETTLED` hoặc `CLOSED`, khóa cứng không cho phép chỉnh sửa ngược `HandoverProtocol` và `ReturnProtocol`.
      - **Quy trình hoàn quỹ phạt nguội (Bước 10):** Xác nhận hoàn 2.000.000đ sau 15–30 ngày bảo đảm tính `Idempotent` (chỉ bấm hoàn 1 lần duy nhất), cập nhật `RentalSettlement -> CLOSED`, `RentalContract -> COMPLETED`, `RentalRequest -> COMPLETED`.
-  5. **Sửa lỗi lệch số liệu Analytics Dashboard (`AnalyticsService`):**
-     - Chuẩn hóa điều kiện đếm xe hoạt động (`is_active = true`), đồng bộ số lượng xe giữa Sidebar, thẻ trạng thái và thẻ xe sẵn sàng.
+  5. [x] **Sửa lỗi lệch số liệu Analytics Dashboard (`AnalyticsService` & `AdminLayout.jsx`):**
+     - Chuẩn hóa điều kiện đếm xe hoạt động (`is_active = true && status != INACTIVE`), đồng bộ số lượng xe giữa Sidebar, thẻ trạng thái và thẻ xe sẵn sàng.
      - Sửa công thức tính tỷ lệ khai thác chính xác.
 - **Tiêu chí nghiệm thu (Acceptance Criteria):**
   - `dotnet build` đạt 0 errors, 0 warnings.
@@ -308,7 +308,7 @@ flowchart TD
 | :---: | :--- | :---: | :---: | :--- |
 | **Pha 0** | Chuẩn bị, Khảo sát & Thiết lập Nền tảng | **HOÀN THÀNH** | AI & User | Baseline sạch 0 errors/warnings, rà soát file thật |
 | **Pha 1** | Schema Database & Domain Entities | **HOÀN THÀNH** | AI & User | Bổ sung cột mới, backfill dữ liệu, seed settings |
-| **Pha 2** | Backend Core Services & State Machine | **ĐANG TIẾN HÀNH** | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
+| **Pha 2** | Backend Core Services & State Machine | **HOÀN THÀNH** | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
 | **Pha 3** | Phân quyền Ma trận 3 Role & Bảo mật IDOR | Chờ thực hiện | AI & User | Staff/Manager/Admin, claim JWT, chặn user khóa |
 | **Pha 4** | Cải tiến Giao diện Vận hành | Chờ thực hiện | AI & User | Sơ đồ 2D diff, form biên bản ODO/xăng |
 | **Pha 5** | Kiểm thử Tích hợp E2E & Nghiệm thu | Chờ thực hiện | AI & User | Script test 10 bước khép kín |

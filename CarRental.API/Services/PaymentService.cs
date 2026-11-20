@@ -117,41 +117,39 @@ namespace CarRental.API.Services
             payment.Status = "SUCCESS";
             payment.PaidAt = DateTime.UtcNow;
 
-            // 2. Update Contract status to DEPOSIT_PAID
-            if (payment.RentalContract != null)
-            {
-                payment.RentalContract.Status = "DEPOSIT_PAID";
-                payment.RentalContract.UpdatedAt = DateTime.UtcNow;
-            }
-            else if (payment.RentalRequestId.HasValue)
-            {
-                var contract = await _context.RentalContracts
-                    .FirstOrDefaultAsync(c => c.RequestId == payment.RentalRequestId.Value);
-                if (contract != null)
-                {
-                    contract.Status = "DEPOSIT_PAID";
-                    contract.UpdatedAt = DateTime.UtcNow;
-                }
-            }
-
             var defaultHoldDeposit = await _settingsService.GetSettingValueAsync("fast_hold_deposit_amount", 500000m);
             var defaultExpiryHours = await _settingsService.GetSettingValueAsync("fast_hold_expiry_hours", 4);
+            bool isFastHold = string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                || payment.Type == "FAST_HOLD"
+                || (payment.Amount == defaultHoldDeposit && payment.Type != "COLLATERAL");
 
-            // 3. Update RentalRequest status to CONFIRMED and handle Security Deposit flags
+            // 2. Update Contract status to DEPOSIT_PAID (Chặn nếu chưa SIGNED)
+            var contract = payment.RentalContract;
+            if (contract == null && payment.RentalRequestId.HasValue)
+            {
+                contract = await _context.RentalContracts
+                    .FirstOrDefaultAsync(c => c.RequestId == payment.RentalRequestId.Value);
+            }
+
+            if (contract != null && !isFastHold)
+            {
+                if (contract.Status != "SIGNED")
+                {
+                    throw new InvalidOperationException($"Không thể xác nhận cọc thế chân (DEPOSIT_PAID) khi hợp đồng chưa ở trạng thái SIGNED. Trạng thái hiện tại: {contract.Status}");
+                }
+                contract.Status = "DEPOSIT_PAID";
+                contract.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // 3. Update RentalRequest status
             if (payment.RentalRequest != null)
             {
-                if (payment.Type == "COLLATERAL")
-                {
-                    payment.RentalRequest.IsSecurityDepositPaid = true;
-                    payment.RentalRequest.Status = "CONFIRMED";
-                }
-                else if (string.Equals(payment.RentalRequest.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase) || payment.Amount == defaultHoldDeposit)
+                if (isFastHold)
                 {
                     payment.RentalRequest.HoldDepositAmount = defaultHoldDeposit;
                     payment.RentalRequest.HoldExpiresAt = (payment.PaidAt ?? DateTime.UtcNow).AddHours(defaultExpiryHours);
-                    // Fast Hold 500k deposit paid; full security deposit remains to be paid within expiry hours
                     payment.RentalRequest.IsSecurityDepositPaid = false;
-                    payment.RentalRequest.Status = "CONFIRMED";
+                    payment.RentalRequest.Status = "HOLD_CONFIRMED";
                 }
                 else
                 {
@@ -308,34 +306,34 @@ namespace CarRental.API.Services
                     : $"{payment.Note} [Webhook Ref: {refCode}]";
             }
 
-            if (payment.RentalContract != null)
+            bool isWebhookFastHold = string.Equals(payment.RentalRequest?.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase)
+                || payment.Type == "FAST_HOLD"
+                || (payment.Amount == 500000m && payment.Type != "COLLATERAL");
+
+            var webhookContract = payment.RentalContract;
+            if (webhookContract == null && payment.RentalRequestId.HasValue)
             {
-                payment.RentalContract.Status = "DEPOSIT_PAID";
-                payment.RentalContract.UpdatedAt = DateTime.UtcNow;
+                webhookContract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == payment.RentalRequestId.Value);
             }
-            else if (payment.RentalRequestId.HasValue)
+
+            if (webhookContract != null && !isWebhookFastHold)
             {
-                var contract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == payment.RentalRequestId.Value);
-                if (contract != null)
+                if (webhookContract.Status != "SIGNED")
                 {
-                    contract.Status = "DEPOSIT_PAID";
-                    contract.UpdatedAt = DateTime.UtcNow;
+                    throw new InvalidOperationException($"Không thể xác nhận cọc thế chân (DEPOSIT_PAID) khi hợp đồng chưa ở trạng thái SIGNED. Trạng thái hiện tại: {webhookContract.Status}");
                 }
+                webhookContract.Status = "DEPOSIT_PAID";
+                webhookContract.UpdatedAt = DateTime.UtcNow;
             }
 
             if (payment.RentalRequest != null)
             {
-                if (payment.Type == "COLLATERAL")
-                {
-                    payment.RentalRequest.IsSecurityDepositPaid = true;
-                    payment.RentalRequest.Status = "CONFIRMED";
-                }
-                else if (string.Equals(payment.RentalRequest.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase) || payment.Amount == 500000m)
+                if (isWebhookFastHold)
                 {
                     payment.RentalRequest.HoldDepositAmount = 500000m;
                     payment.RentalRequest.HoldExpiresAt = (payment.PaidAt ?? DateTime.UtcNow).AddHours(4);
                     payment.RentalRequest.IsSecurityDepositPaid = false;
-                    payment.RentalRequest.Status = "CONFIRMED";
+                    payment.RentalRequest.Status = "HOLD_CONFIRMED";
                 }
                 else
                 {

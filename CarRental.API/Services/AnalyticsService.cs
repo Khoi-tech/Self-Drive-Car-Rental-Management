@@ -32,7 +32,7 @@ namespace CarRental.API.Services
             // 1. Fleet status aggregation (Đẩy trực tiếp xuống PostgreSQL bằng GroupBy)
             var vehicleStatusCounts = await _context.Vehicles
                 .AsNoTracking()
-                .Where(v => v.IsActive)
+                .Where(v => v.IsActive && v.Status != VehicleStatus.INACTIVE)
                 .GroupBy(v => v.Status)
                 .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync();
@@ -44,8 +44,9 @@ namespace CarRental.API.Services
             int maintenanceVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.MAINTENANCE)?.Count ?? 0;
             int repairVehicles = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.REPAIR)?.Count ?? 0;
 
+            // Tỷ lệ khai thác xe lăn bánh khớp 100% với hiển thị (rentedVehicles / totalVehicles)
             decimal fleetUtilization = totalVehicles > 0
-                ? Math.Round(((decimal)(rentedVehicles + bookedVehicles) / totalVehicles) * 100m, 1)
+                ? Math.Round(((decimal)rentedVehicles / totalVehicles) * 100m, 1)
                 : 0m;
 
             // 2. Rental Request metrics (Lọc theo khoảng thời gian và GroupBy theo Status)
@@ -328,20 +329,27 @@ namespace CarRental.API.Services
                 .Select(g => new { CarId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.CarId, x => x.Count);
 
-            // 4. Lấy danh sách các xe đang hoạt động
-            var vehicles = await _context.Vehicles
+            // 4. Lấy thống kê trạng thái đội xe đang hoạt động đẩy xuống PostgreSQL
+            var vehicleStatusCounts = await _context.Vehicles
                 .AsNoTracking()
-                .Where(v => v.IsActive)
+                .Where(v => v.IsActive && v.Status != VehicleStatus.INACTIVE)
+                .GroupBy(v => v.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
                 .ToListAsync();
 
-            int totalFleet = vehicles.Count;
-            int rented = vehicles.Count(v => v.Status == VehicleStatus.RENTED);
-            int ready = vehicles.Count(v => v.Status == VehicleStatus.READY);
-            int inService = vehicles.Count(v => v.Status == VehicleStatus.MAINTENANCE || v.Status == VehicleStatus.REPAIR);
+            int totalFleet = vehicleStatusCounts.Sum(x => x.Count);
+            int rented = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.RENTED)?.Count ?? 0;
+            int ready = vehicleStatusCounts.FirstOrDefault(x => x.Status == VehicleStatus.READY)?.Count ?? 0;
+            int inService = vehicleStatusCounts.Where(x => x.Status == VehicleStatus.MAINTENANCE || x.Status == VehicleStatus.REPAIR).Sum(x => x.Count);
 
             decimal overallRate = totalFleet > 0
                 ? Math.Round(((decimal)rented / totalFleet) * 100m, 1)
                 : 0m;
+
+            var vehicles = await _context.Vehicles
+                .AsNoTracking()
+                .Where(v => v.IsActive && v.Status != VehicleStatus.INACTIVE)
+                .ToListAsync();
 
             var items = new List<VehicleUtilizationItemDto>();
 

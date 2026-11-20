@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using CarRental.API.Common;
 using CarRental.API.Data;
 using CarRental.API.DTOs.Extensions;
 using CarRental.API.Entities;
@@ -136,36 +137,52 @@ namespace CarRental.API.Services
             if (request == null)
                 throw new InvalidOperationException("Không tìm thấy đơn thuê liên kết.");
 
-            // Check if there is conflict with upcoming bookings
+            // Kiểm tra không trùng lịch đặt trước của xe trong khung giờ mở rộng
             bool hasConflict = await CheckConflictAsync(request.Id, request.CarId, extension.OldEndTime, extension.NewEndTime);
             if (hasConflict)
             {
-                throw new InvalidOperationException("Không thể duyệt gia hạn vì xe đã có khách hàng khác đặt trước trong khung giờ này.");
+                throw new ConflictException("Không thể duyệt gia hạn vì xe đã có khách hàng khác đặt trước trong khung giờ mở rộng này.");
             }
 
-            extension.Status = "APPROVED";
-            extension.StaffNotes = dto.StaffNotes;
-            extension.ProcessedByStaffName = dto.StaffName ?? "Nhân viên VELORA";
-            extension.ProcessedAt = DateTime.UtcNow;
-
-            // Update rental request duration & fee
-            request.EndTime = extension.NewEndTime;
-            request.TotalDays += extension.ExtendedDays;
-            request.EstimatedTotalFee += extension.AdditionalFee;
-            request.UpdatedAt = DateTime.UtcNow;
-
-            // Synchronize associated RentalContract if exists
-            var contract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == request.Id);
-            if (contract != null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                contract.TotalFee += extension.AdditionalFee;
-                var dailyKmAllowance = request.Vehicle?.MileageLimit ?? 300;
-                contract.MaxKm += extension.ExtendedDays * dailyKmAllowance;
-                contract.UpdatedAt = DateTime.UtcNow;
-            }
+                extension.Status = "APPROVED";
+                extension.StaffNotes = dto.StaffNotes;
+                extension.ProcessedByStaffName = dto.StaffName ?? "Nhân viên VELORA";
+                extension.ProcessedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            return (await GetByIdAsync(extension.Id))!;
+                // Cập nhật đơn thuê
+                request.EndTime = extension.NewEndTime;
+                request.TotalDays += extension.ExtendedDays;
+                request.EstimatedTotalFee += extension.AdditionalFee;
+                request.UpdatedAt = DateTime.UtcNow;
+
+                // Đồng bộ hợp đồng nếu có
+                var contract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == request.Id);
+                if (contract != null)
+                {
+                    contract.TotalFee += extension.AdditionalFee;
+                    var dailyKmAllowance = request.Vehicle?.MileageLimit ?? 300;
+                    contract.MaxKm += extension.ExtendedDays * dailyKmAllowance;
+                    contract.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (await GetByIdAsync(extension.Id))!;
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23P01")
+            {
+                await transaction.RollbackAsync();
+                throw new ConflictException("Xung đột lịch đặt xe (Lỗi ràng buộc loại trừ Exclusion Constraint 23P01). Xe đã được đặt trước trong khung giờ mở rộng này.", ex);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<RentalExtensionDto> RejectAsync(Guid id, ProcessRentalExtensionDto dto)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using CarRental.API.Data;
@@ -45,8 +46,17 @@ namespace CarRental.API.Services
 
             if (returnProtocol == null)
             {
-                throw new InvalidOperationException("Chưa có biên bản hoàn trả xe. Vui lòng lập biên bản kiểm tra trả xe (US-22) trước khi quyết toán.");
+                throw new InvalidOperationException("Chưa có biên bản hoàn trả xe. Vui lòng lập biên bản kiểm tra trả xe trước khi quyết toán.");
             }
+
+            var handover = await _context.HandoverProtocols
+                .OrderByDescending(h => h.CreatedAt)
+                .FirstOrDefaultAsync(h => h.RentalRequestId == requestId);
+
+            // Mốc ODO Single Source of Truth
+            int handoverOdo = handover?.HandoverOdo ?? handover?.OdoAtHandover ?? returnProtocol.StartOdo;
+            int customerReturnOdo = returnProtocol.CustomerReturnOdo > 0 ? returnProtocol.CustomerReturnOdo : returnProtocol.EndOdo;
+            int totalKmDriven = customerReturnOdo - handoverOdo;
 
             // 1. Phí km vượt
             decimal extraKmRate = request.Vehicle?.ExtraKmRate ?? 5000m;
@@ -61,37 +71,48 @@ namespace CarRental.API.Services
                 lateHours = (decimal)Math.Round(diff.TotalHours, 1);
                 if (lateHours >= 5.0m)
                 {
-                    // Trễ từ 5 giờ trở lên tính tròn 1 ngày thuê xe (hoặc số ngày trễ tương ứng)
                     int lateDays = (int)Math.Ceiling(lateHours / 24m);
                     lateReturnFee = lateDays * (request.DailyRate > 0 ? request.DailyRate : 1000000m);
                 }
                 else if (lateHours >= 1.0m)
                 {
-                    // Trễ 1 - 5 giờ: 100,000 VND / giờ
                     lateReturnFee = Math.Round(lateHours * 100000m, 0);
                 }
             }
 
-            // 3. Phí chênh lệch nhiên liệu (6,000 VND mỗi 1% chênh lệch, tương đương 150,000 VND / 25%)
+            // 3. Bẫy 1: Phí chênh lệch nhiên liệu có dung sai FuelTolerancePercent
+            decimal fuelTolerance = await _settingsService.GetSettingValueAsync("fuel_tolerance_percent", 3.0m);
+            decimal handoverFuel = handover?.HandoverFuelLevel ?? (decimal)(handover?.FuelLevel ?? 100);
+            decimal returnFuel = returnProtocol.CustomerReturnFuelLevel;
+            decimal fuelDeficit = Math.Max(0m, handoverFuel - returnFuel);
+
             decimal fuelFee = 0;
-            if (returnProtocol.FuelDifference > 0)
+            if (fuelDeficit > fuelTolerance)
             {
-                fuelFee = returnProtocol.FuelDifference * 6000m;
+                // Vượt dung sai: tính phí bù nhiên liệu (6,000 VND / 1% hao hụt)
+                fuelFee = fuelDeficit * 6000m;
             }
 
-            // 4. Chi phí hư hỏng từ sự cố chưa thanh toán hoặc hư hỏng mới ghi nhận
+            // 4. Bẫy 2: Chi phí bồi thường vết xước mới trên sơ đồ 2D (chỉ tính stage = CUSTOMER_RENTAL)
             decimal damageFee = 0;
             string? damageNotes = returnProtocol.NewDamagesNotes;
 
-            // Kế thừa phí hư hỏng từ các điểm đỏ mới (NEW) trên sơ đồ xe 2D
-            if (!string.IsNullOrWhiteSpace(returnProtocol.DamagePointsJson))
+            string damageMapJson = !string.IsNullOrWhiteSpace(returnProtocol.ReturnDamageMap)
+                ? returnProtocol.ReturnDamageMap
+                : returnProtocol.DamagePointsJson ?? "[]";
+
+            if (!string.IsNullOrWhiteSpace(damageMapJson))
             {
                 try
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(returnProtocol.DamagePointsJson);
+                    using var doc = JsonDocument.Parse(damageMapJson);
                     foreach (var element in doc.RootElement.EnumerateArray())
                     {
-                        if (element.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "NEW")
+                        string stage = element.TryGetProperty("stage", out var stageProp) ? stageProp.GetString() ?? "" : "";
+                        string type = element.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "" : "";
+
+                        // Chỉ tính marker do khách gây ra trong chuyến đi
+                        if (stage == "CUSTOMER_RENTAL" || (type == "NEW" && stage != "TRANSIT_DELIVERY" && stage != "PRE_EXISTING"))
                         {
                             if (element.TryGetProperty("fee", out var feeProp) && feeProp.TryGetDecimal(out var feeVal))
                             {
@@ -116,11 +137,11 @@ namespace CarRental.API.Services
                     : $"{damageNotes}; Bồi thường sự cố: {incSummary}";
             }
 
-            // 5. Phí vệ sinh nếu xe cần rửa / dọn nội thất
+            // 5. Phí vệ sinh nếu xe cần dọn nội thất / rửa
             decimal cleaningFee = 0;
-            if (returnProtocol.NextVehicleStatus == "CLEANING")
+            if (returnProtocol.NextVehicleStatus == "CLEANING" || returnProtocol.NextVehicleStatus == "MAINTENANCE")
             {
-                cleaningFee = 200000m; // 200,000đ dọn vệ sinh khoang xe
+                cleaningFee = 200000m;
             }
 
             decimal depositAmount = contract?.DepositAmount ?? request.DepositAmount;
@@ -146,6 +167,8 @@ namespace CarRental.API.Services
                 additionalDue = Math.Abs(balance);
             }
 
+            decimal defaultFineHold = await _settingsService.GetSettingValueAsync("traffic_fine_hold_amount", 2000000m);
+
             return new PreviewSettlementDto
             {
                 RentalRequestId = requestId,
@@ -157,27 +180,42 @@ namespace CarRental.API.Services
                 LicensePlate = request.Vehicle?.LicensePlate ?? string.Empty,
                 RentalFee = rentalFee,
                 DepositAmount = depositAmount,
-                StartOdo = returnProtocol.StartOdo,
-                EndOdo = returnProtocol.EndOdo,
-                TotalKmDriven = returnProtocol.TotalKmDriven,
+
+                // Single Source of Truth
+                HandoverOdo = handoverOdo,
+                CustomerReturnOdo = customerReturnOdo,
+                StartOdo = handoverOdo,
+                EndOdo = customerReturnOdo,
+                TotalKmDriven = totalKmDriven,
                 MaxKmAllowed = returnProtocol.MaxKmAllowed,
                 ExcessKm = returnProtocol.ExcessKm,
                 ExtraKmRate = extraKmRate,
                 ExtraKmFee = extraKmFee,
+
                 ScheduledEndTime = request.EndTime,
                 ActualReturnTime = returnProtocol.ReturnDate,
                 LateHours = lateHours,
                 LateReturnFee = lateReturnFee,
-                InitialFuelLevel = returnProtocol.InitialFuelLevel,
-                ReturnFuelLevel = returnProtocol.ReturnFuelLevel,
-                FuelDifference = returnProtocol.FuelDifference,
+
+                HandoverFuelLevel = handoverFuel,
+                CustomerReturnFuelLevel = returnFuel,
+                FuelTolerancePercent = fuelTolerance,
+                FuelDeficit = fuelDeficit,
+                InitialFuelLevel = (int)Math.Round(handoverFuel),
+                ReturnFuelLevel = (int)Math.Round(returnFuel),
+                FuelDifference = (int)Math.Round(fuelDeficit),
                 FuelFee = fuelFee,
+
                 DamageFee = damageFee,
                 DamageNotes = damageNotes,
+                DamagePointsJson = returnProtocol.ReturnDamageMap ?? returnProtocol.DamagePointsJson,
+                ReturnDamageMap = returnProtocol.ReturnDamageMap ?? returnProtocol.DamagePointsJson,
+                EvidencePhotoUrls = returnProtocol.EvidencePhotoUrls,
                 CleaningFee = cleaningFee,
                 OtherFee = 0,
                 TotalDeduction = totalDeduction,
                 BalanceAmount = balance,
+                TrafficFineHoldAmount = defaultFineHold,
                 SettlementType = settlementType,
                 RefundAmount = refundAmount,
                 AdditionalAmountDue = additionalDue
@@ -205,7 +243,11 @@ namespace CarRental.API.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefaultAsync(p => p.RentalRequestId == dto.RentalRequestId);
 
-                // Kiểm tra xem đã quyết toán chưa
+                if (returnProtocol == null || returnProtocol.Status != "COMPLETED")
+                {
+                    throw new InvalidOperationException("Bắt buộc phải có biên bản kiểm tra trả xe (ReturnProtocol) hoàn tất trước khi tạo quyết toán.");
+                }
+
                 var existingSettlement = await _context.RentalSettlements
                     .FirstOrDefaultAsync(s => s.RentalRequestId == dto.RentalRequestId);
 
@@ -285,7 +327,7 @@ namespace CarRental.API.Services
                         SettlementNumber = settlementNumber,
                         RentalRequestId = dto.RentalRequestId,
                         ContractId = contract?.Id ?? dto.ContractId,
-                        ReturnProtocolId = returnProtocol?.Id ?? dto.ReturnProtocolId,
+                        ReturnProtocolId = returnProtocol.Id,
                         RentalFee = dto.RentalFee,
                         DepositAmount = dto.DepositAmount,
                         ExtraKmFee = dto.ExtraKmFee,
@@ -310,7 +352,7 @@ namespace CarRental.API.Services
                         RefundAccountNumber = dto.RefundAccountNumber,
                         RefundAccountName = dto.RefundAccountName,
                         StaffNotes = dto.StaffNotes,
-                        Status = refundStatus == "NOT_APPLICABLE" ? "SETTLED" : "PENDING",
+                        Status = refundStatus == "NOT_APPLICABLE" ? "PARTIALLY_SETTLED" : "PENDING",
                         SettledAt = refundStatus == "NOT_APPLICABLE" ? DateTime.UtcNow : null,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
@@ -318,20 +360,20 @@ namespace CarRental.API.Services
                     _context.RentalSettlements.Add(settlement);
                 }
 
-                // Hoàn tất đơn thuê và hợp đồng
-                request.Status = dto.TrafficFineHoldAmount > 0 ? "HOLDING" : "COMPLETED";
+                // State Machine Step 9: RentalRequest -> SETTLED, RentalContract -> ACTIVE (chờ phạt nguội)
+                request.Status = "SETTLED";
                 request.UpdatedAt = DateTime.UtcNow;
 
                 if (contract != null)
                 {
-                    contract.Status = dto.TrafficFineHoldAmount > 0 ? "HOLDING" : "COMPLETED";
+                    contract.Status = "ACTIVE";
                     contract.UpdatedAt = DateTime.UtcNow;
                 }
 
-                // Cập nhật trạng thái xe sau trả xe
+                // Cập nhật trạng thái xe sau khi hoàn tất nghiệm thu trả xe
                 if (request.Vehicle != null)
                 {
-                    string nextStatus = returnProtocol?.NextVehicleStatus ?? "READY";
+                    string nextStatus = returnProtocol.NextVehicleStatus ?? "READY";
                     if (nextStatus == "REPAIR")
                     {
                         request.Vehicle.Status = VehicleStatus.REPAIR;
@@ -417,7 +459,9 @@ namespace CarRental.API.Services
                 if (!string.IsNullOrWhiteSpace(dto.RefundAccountNumber)) settlement.RefundAccountNumber = dto.RefundAccountNumber;
                 if (!string.IsNullOrWhiteSpace(dto.RefundAccountName)) settlement.RefundAccountName = dto.RefundAccountName;
                 settlement.RefundedAt = DateTime.UtcNow;
-                settlement.Status = "SETTLED";
+
+                // Trạng thái PARTIALLY_SETTLED (đã hoàn cọc chính, chỉ còn giữ quỹ phạt nguội)
+                settlement.Status = "PARTIALLY_SETTLED";
                 settlement.SettledAt = DateTime.UtcNow;
                 if (settlement.TrafficFineHoldAmount > 0 && (settlement.TrafficFineRefundStatus == "NONE" || string.IsNullOrEmpty(settlement.TrafficFineRefundStatus)))
                 {
@@ -427,7 +471,6 @@ namespace CarRental.API.Services
 
                 decimal immediateRefund = Math.Max(0, settlement.RefundAmount - (settlement.TrafficFineHoldAmount > 0 ? settlement.TrafficFineHoldAmount : 0));
 
-                // Lưu lịch sử thanh toán hoàn cọc Đợt 1 (Payment record)
                 var payment = new Payment
                 {
                     Id = Guid.NewGuid(),
@@ -448,20 +491,19 @@ namespace CarRental.API.Services
 
                 if (settlement.RentalRequest != null)
                 {
-                    settlement.RentalRequest.Status = settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING" ? "HOLDING" : "COMPLETED";
+                    settlement.RentalRequest.Status = "SETTLED";
                     settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
                 }
 
                 if (settlement.RentalContract != null)
                 {
-                    settlement.RentalContract.Status = settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING" ? "HOLDING" : "COMPLETED";
+                    settlement.RentalContract.Status = "ACTIVE";
                     settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // Real-time notification for customer
                 try
                 {
                     if (settlement.RentalRequest != null && !string.IsNullOrWhiteSpace(settlement.RentalRequest.CustomerEmail))
@@ -509,11 +551,10 @@ namespace CarRental.API.Services
                     throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
                 }
 
-                settlement.Status = "SETTLED";
+                settlement.Status = "PARTIALLY_SETTLED";
                 settlement.SettledAt = DateTime.UtcNow;
                 settlement.UpdatedAt = DateTime.UtcNow;
 
-                // Lưu lịch sử thanh toán bổ sung (Payment record)
                 var payment = new Payment
                 {
                     Id = Guid.NewGuid(),
@@ -530,10 +571,21 @@ namespace CarRental.API.Services
                 };
                 _context.Payments.Add(payment);
 
+                if (settlement.RentalRequest != null)
+                {
+                    settlement.RentalRequest.Status = "SETTLED";
+                    settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+                }
+
+                if (settlement.RentalContract != null)
+                {
+                    settlement.RentalContract.Status = "ACTIVE";
+                    settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
+                }
+
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // Real-time notification for customer
                 try
                 {
                     if (settlement.RentalRequest != null && !string.IsNullOrWhiteSpace(settlement.RentalRequest.CustomerEmail))
@@ -567,25 +619,37 @@ namespace CarRental.API.Services
 
         public async Task<SettlementResponseDto> ConfirmTrafficFineRefundAsync(Guid id, ConfirmTrafficFineRefundDto dto)
         {
+            var settlement = await _context.RentalSettlements
+                .Include(s => s.RentalRequest)
+                    .ThenInclude(r => r!.Vehicle)
+                .Include(s => s.RentalContract)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (settlement == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
+            }
+
+            // Ràng buộc Idempotent (chỉ hoàn 1 lần duy nhất)
+            if (settlement.TrafficFineRefundedAt != null || settlement.Status == "CLOSED" || settlement.TrafficFineRefundStatus == "REFUNDED")
+            {
+                throw new InvalidOperationException("Quỹ phạt nguội của phiếu quyết toán này đã được đối soát và xử lý tất toán trước đó (chỉ hoàn 1 lần duy nhất).");
+            }
+
+            if (settlement.TrafficFineHoldAmount <= 0)
+            {
+                throw new InvalidOperationException("Đơn này không có quỹ giữ cọc phạt nguội.");
+            }
+
+            // Ràng buộc số tiền hoàn không vượt quá số tiền tạm giữ
+            if (dto.ActualDeduction > settlement.TrafficFineHoldAmount)
+            {
+                throw new InvalidOperationException($"Số tiền khấu trừ vi phạm ({dto.ActualDeduction:N0}đ) không thể vượt quá số tiền quỹ phạt nguội đang tạm giữ ({settlement.TrafficFineHoldAmount:N0}đ).");
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var settlement = await _context.RentalSettlements
-                    .Include(s => s.RentalRequest)
-                        .ThenInclude(r => r!.Vehicle)
-                    .Include(s => s.RentalContract)
-                    .FirstOrDefaultAsync(s => s.Id == id);
-
-                if (settlement == null)
-                {
-                    throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
-                }
-
-                if (settlement.TrafficFineHoldAmount <= 0)
-                {
-                    throw new InvalidOperationException("Đơn này không có quỹ giữ cọc phạt nguội.");
-                }
-
                 decimal deduction = Math.Max(0, dto.ActualDeduction);
                 decimal actualRefund = Math.Max(0, settlement.TrafficFineHoldAmount - deduction);
 
@@ -596,6 +660,7 @@ namespace CarRental.API.Services
                 settlement.TrafficFineTransactionCode = dto.TransactionCode;
                 settlement.TrafficFineNotes = dto.ViolationNotes;
                 settlement.TrafficFineViolationProofUrl = dto.ViolationProofUrl;
+                settlement.Status = "CLOSED";
                 settlement.UpdatedAt = DateTime.UtcNow;
 
                 if (!string.IsNullOrWhiteSpace(dto.StaffNotes))
@@ -605,7 +670,6 @@ namespace CarRental.API.Services
                         : $"{settlement.StaffNotes}\n[ĐỐI SOÁT PHẠT NGUỘI]: {dto.StaffNotes}";
                 }
 
-                // Ghi nhận Payment hoàn cọc Đợt 2 (nếu có hoàn tiền)
                 if (actualRefund > 0)
                 {
                     var payment = new Payment
@@ -625,26 +689,30 @@ namespace CarRental.API.Services
                     _context.Payments.Add(payment);
                 }
 
+                // State Machine Step 10: RentalSettlement -> CLOSED, RentalContract -> COMPLETED, RentalRequest -> COMPLETED
                 if (settlement.RentalRequest != null)
                 {
-                    settlement.RentalRequest.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING")
-                        ? "HOLDING"
-                        : "COMPLETED";
+                    settlement.RentalRequest.Status = "COMPLETED";
                     settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
+
+                    if (settlement.RentalRequest.Vehicle != null &&
+                        settlement.RentalRequest.Vehicle.Status != VehicleStatus.REPAIR &&
+                        settlement.RentalRequest.Vehicle.Status != VehicleStatus.MAINTENANCE)
+                    {
+                        settlement.RentalRequest.Vehicle.Status = VehicleStatus.READY;
+                        settlement.RentalRequest.Vehicle.UpdatedAt = DateTime.UtcNow;
+                    }
                 }
 
                 if (settlement.RentalContract != null)
                 {
-                    settlement.RentalContract.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING")
-                        ? "HOLDING"
-                        : "COMPLETED";
+                    settlement.RentalContract.Status = "COMPLETED";
                     settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // Real-time notification for customer
                 try
                 {
                     if (settlement.RentalRequest != null && !string.IsNullOrWhiteSpace(settlement.RentalRequest.CustomerEmail))
@@ -733,12 +801,11 @@ namespace CarRental.API.Services
                 _ => dto.ResolutionAction
             };
 
-            settlement.Status = "SETTLED";
+            settlement.Status = "PARTIALLY_SETTLED";
             settlement.StaffNotes = string.IsNullOrWhiteSpace(settlement.StaffNotes)
                 ? $"[PHÂN XỬ QUẢN TRỊ VIÊN {DateTime.UtcNow:dd/MM/yyyy HH:mm} - {adminName}]: {actionText}. Lý do: {dto.ResolutionNotes}"
                 : $"{settlement.StaffNotes}\n[PHÂN XỬ QUẢN TRỊ VIÊN {DateTime.UtcNow:dd/MM/yyyy HH:mm} - {adminName}]: {actionText}. Lý do: {dto.ResolutionNotes}";
 
-            // Nếu có hoàn thêm tiền cho khách
             if (adjustedAmount > 0)
             {
                 settlement.RefundAmount += adjustedAmount;
@@ -765,13 +832,13 @@ namespace CarRental.API.Services
 
             if (settlement.RentalRequest != null)
             {
-                settlement.RentalRequest.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING") ? "HOLDING" : "COMPLETED";
+                settlement.RentalRequest.Status = "SETTLED";
                 settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
             }
 
             if (settlement.RentalContract != null)
             {
-                settlement.RentalContract.Status = (settlement.TrafficFineHoldAmount > 0 && settlement.TrafficFineRefundStatus == "HOLDING") ? "HOLDING" : "COMPLETED";
+                settlement.RentalContract.Status = "ACTIVE";
                 settlement.RentalContract.UpdatedAt = DateTime.UtcNow;
             }
 

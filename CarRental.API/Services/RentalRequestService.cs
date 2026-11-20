@@ -372,13 +372,53 @@ namespace CarRental.API.Services
                     throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
                 }
 
-                if (request.Status != "PENDING")
+                if (request.Status != "PENDING" && request.Status != "HOLD_CONFIRMED")
                 {
-                    throw new InvalidOperationException($"Chỉ có thể duyệt yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                    throw new InvalidOperationException($"Chỉ có thể duyệt yêu cầu ở trạng thái PENDING hoặc HOLD_CONFIRMED. Trạng thái hiện tại: {request.Status}");
                 }
 
                 request.Status = "APPROVED";
                 request.UpdatedAt = DateTime.UtcNow;
+
+                // Khóa xe sang BOOKED
+                if (request.Vehicle != null)
+                {
+                    request.Vehicle.Status = VehicleStatus.BOOKED;
+                    request.Vehicle.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Tự động sinh RentalContract ở trạng thái PENDING_SIGNATURE trong cùng Database Transaction
+                var contract = await _context.RentalContracts.FirstOrDefaultAsync(c => c.RequestId == request.Id);
+                if (contract == null)
+                {
+                    var template = await _context.ContractTemplates
+                        .FirstOrDefaultAsync(t => t.IsActive && (t.TemplateType == "STANDARD" || t.TemplateType == "DAILY"));
+
+                    string templateContent = template?.Content ?? "HỢP ĐỒNG CHO THUÊ XE TỰ LÁI VELORA";
+                    int totalDays = Math.Max(1, request.TotalDays);
+                    int maxKm = totalDays * (request.Vehicle?.MileageLimit ?? 300);
+                    string contractNumber = $"HD-{DateTime.UtcNow:yyyyMMdd}-{request.Id.ToString()[..4].ToUpper()}";
+
+                    contract = new RentalContract
+                    {
+                        Id = Guid.NewGuid(),
+                        RequestId = request.Id,
+                        ContractNumber = contractNumber,
+                        TotalFee = request.EstimatedTotalFee,
+                        DepositAmount = request.DepositAmount,
+                        MaxKm = maxKm,
+                        Content = templateContent,
+                        Status = "PENDING_SIGNATURE",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _context.RentalContracts.Add(contract);
+                }
+                else
+                {
+                    contract.Status = "PENDING_SIGNATURE";
+                    contract.UpdatedAt = DateTime.UtcNow;
+                }
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -430,22 +470,53 @@ namespace CarRental.API.Services
                     throw new InvalidOperationException("Không tìm thấy yêu cầu thuê xe.");
                 }
 
-                if (request.Status != "PENDING")
+                if (request.Status != "PENDING" && request.Status != "HOLD_CONFIRMED" && request.Status != "PENDING_HOLD_PAYMENT")
                 {
-                    throw new InvalidOperationException($"Chỉ có thể từ chối yêu cầu ở trạng thái PENDING. Trạng thái hiện tại: {request.Status}");
+                    throw new InvalidOperationException($"Chỉ có thể từ chối yêu cầu ở trạng thái PENDING hoặc HOLD_CONFIRMED. Trạng thái hiện tại: {request.Status}");
                 }
 
                 request.Status = "REJECTED";
                 request.RejectReason = reason.Trim();
                 request.UpdatedAt = DateTime.UtcNow;
 
-                // Also cancel associated contract if any exists
+                // Giải phóng xe về READY
+                if (request.Vehicle != null)
+                {
+                    bool hasOtherActive = await _context.RentalRequests
+                        .AnyAsync(r => r.CarId == request.CarId && r.Id != request.Id && (r.Status == "CONFIRMED" || r.Status == "ACTIVE"));
+                    if (!hasOtherActive)
+                    {
+                        request.Vehicle.Status = VehicleStatus.READY;
+                        request.Vehicle.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+
+                // Chuyển hợp đồng sang VOID nếu đã tạo
                 var contract = await _context.RentalContracts
                     .FirstOrDefaultAsync(c => c.RequestId == request.Id);
                 if (contract != null)
                 {
-                    contract.Status = "CANCELLED";
+                    contract.Status = "VOID";
                     contract.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Nếu khách đã nộp cọc giữ xe 500k (Fast Hold), tạo phiếu hoàn lại cọc
+                if (request.HoldDepositAmount > 0)
+                {
+                    var refundPayment = new Payment
+                    {
+                        Id = Guid.NewGuid(),
+                        ContractId = contract?.Id,
+                        RentalRequestId = request.Id,
+                        Amount = request.HoldDepositAmount,
+                        Type = "REFUND",
+                        Status = "SUCCESS",
+                        PaymentMethod = "VIETQR",
+                        PaidAt = DateTime.UtcNow,
+                        Note = $"Hoàn tiền cọc giữ xe 500k do đơn bị từ chối: {request.RejectReason}",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Payments.Add(refundPayment);
                 }
 
                 await _context.SaveChangesAsync();
@@ -555,12 +626,12 @@ namespace CarRental.API.Services
                     }
                 }
 
-                // Also cancel associated contract if exists
+                // Chuyển hợp đồng liên kết sang VOID
                 var requestContract = await _context.RentalContracts
                     .FirstOrDefaultAsync(c => c.RequestId == request.Id);
                 if (requestContract != null)
                 {
-                    requestContract.Status = "CANCELLED";
+                    requestContract.Status = "VOID";
                     requestContract.UpdatedAt = DateTime.UtcNow;
                 }
 

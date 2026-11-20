@@ -96,4 +96,13 @@ namespace CarRental.API.Entities
         WEATHER,
         THEFT_VANDALISM
     }
+
+    public enum RentalSettlementStatus
+    {
+        PENDING,
+        DISPUTED,
+        PARTIALLY_SETTLED,
+        CLOSED,
+        SETTLED
+    }
 }

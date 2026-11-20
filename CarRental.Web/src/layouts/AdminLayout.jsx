@@ -61,7 +61,7 @@ const AdminLayout = () => {
     {
       groupTitle: 'QUẢN LÝ ĐỘI XE',
       items: [
-        { name: 'Danh sách xe (27)', path: '/admin/vehicles', icon: <Car size={17} /> },
+        { name: 'Danh sách xe', path: '/admin/vehicles', icon: <Car size={17} /> },
         { name: 'Bảo dưỡng xe', path: '/admin/maintenance', icon: <Wrench size={17} /> },
         { name: 'Hồ sơ Bảo hiểm', path: '/admin/insurances', icon: <ShieldCheck size={17} /> },
       ]

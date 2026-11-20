@@ -14,7 +14,20 @@ namespace CarRental.API.DTOs.ReturnProtocol
 
         public DateTime ReturnDate { get; set; } = DateTime.UtcNow;
 
-        [Required]
+        // Mốc ODO mới
+        public int? CustomerReturnOdo { get; set; }
+        public int? YardCheckinOdo { get; set; }
+
+        // Mốc nhiên liệu mới
+        public decimal? CustomerReturnFuelLevel { get; set; }
+        public decimal? YardCheckinFuelLevel { get; set; }
+        public string? ReturnDashPhotoUrl { get; set; }
+
+        // Audit chiều về & Sơ đồ 2D mới
+        public string? ReturnAnomalyNote { get; set; }
+        public string? ReturnDamageMap { get; set; }
+
+        // Cột cũ để tương thích ngược
         [JsonConverter(typeof(FlexibleIntConverter))]
         public int EndOdo { get; set; }
 

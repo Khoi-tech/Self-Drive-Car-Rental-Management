@@ -20,6 +20,25 @@ namespace CarRental.API.DTOs.Handover
         public Guid? StaffId { get; set; }
         public string CustomerName { get; set; } = null!;
         public string CustomerPhone { get; set; } = null!;
+
+        // ODO mốc xuất bãi & bàn giao khách
+        public int? DispatchOdo { get; set; }
+        public int HandoverOdo { get; set; }
+
+        // Nhiên liệu mốc xuất bãi & bàn giao khách
+        public decimal? DispatchFuelLevel { get; set; }
+        public decimal HandoverFuelLevel { get; set; } = 100;
+        public string? HandoverDashPhotoUrl { get; set; }
+
+        // Audit cảnh báo ODO trung chuyển
+        public bool HasTransitAnomaly { get; set; }
+        public string? TransitAnomalyNote { get; set; }
+
+        // Sơ đồ xước 2D phân tầng
+        public string? DispatchDamageMap { get; set; }
+        public string? HandoverDamageMap { get; set; }
+
+        // Cột cũ để duy trì tương thích ngược
         public int OdoAtHandover { get; set; }
         public string FuelLevel { get; set; } = "100%";
         public string ExteriorCondition { get; set; } = null!;
@@ -32,7 +51,7 @@ namespace CarRental.API.DTOs.Handover
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
         public string? CustomerSignature { get; set; }
-        public string Status { get; set; } = "PENDING_CUSTOMER";
+        public string Status { get; set; } = "IN_TRANSIT";
         public DateTime? CreatedAt { get; set; }
     }
 
@@ -40,6 +59,22 @@ namespace CarRental.API.DTOs.Handover
     {
         public Guid RentalRequestId { get; set; }
         public string? StaffName { get; set; }
+
+        // ODO mốc mới
+        public int? DispatchOdo { get; set; }
+        public int? HandoverOdo { get; set; }
+
+        // Nhiên liệu mốc mới
+        public decimal? DispatchFuelLevel { get; set; }
+        public decimal? HandoverFuelLevel { get; set; }
+        public string? HandoverDashPhotoUrl { get; set; }
+
+        // Audit ODO & sơ đồ 2D
+        public string? TransitAnomalyNote { get; set; }
+        public string? DispatchDamageMap { get; set; }
+        public string? HandoverDamageMap { get; set; }
+
+        // Trường cũ tương thích
         public int OdoAtHandover { get; set; }
         public string FuelLevel { get; set; } = "100%";
         public string ExteriorCondition { get; set; } = "Ngoại thất sạch sẽ, không biến dạng kết cấu";
@@ -52,10 +87,20 @@ namespace CarRental.API.DTOs.Handover
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
         public string? CustomerSignature { get; set; }
+        public string? Status { get; set; }
     }
 
     public class UpdateHandoverProtocolDto
     {
+        public int? DispatchOdo { get; set; }
+        public int? HandoverOdo { get; set; }
+        public decimal? DispatchFuelLevel { get; set; }
+        public decimal? HandoverFuelLevel { get; set; }
+        public string? HandoverDashPhotoUrl { get; set; }
+        public string? TransitAnomalyNote { get; set; }
+        public string? DispatchDamageMap { get; set; }
+        public string? HandoverDamageMap { get; set; }
+
         public int OdoAtHandover { get; set; }
         public string FuelLevel { get; set; } = "100%";
         public string ExteriorCondition { get; set; } = null!;
@@ -68,6 +113,6 @@ namespace CarRental.API.DTOs.Handover
         public string? StaffNotes { get; set; }
         public string? StaffSignature { get; set; }
         public string? CustomerSignature { get; set; }
-        public string Status { get; set; } = "PENDING_CUSTOMER";
+        public string Status { get; set; } = "IN_TRANSIT";
     }
 }

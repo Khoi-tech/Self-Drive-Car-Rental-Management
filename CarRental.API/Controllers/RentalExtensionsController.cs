@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CarRental.API.Common;
 using CarRental.API.Data;
 using CarRental.API.DTOs.Extensions;
 using CarRental.API.Helpers;
@@ -101,6 +102,10 @@ namespace CarRental.API.Controllers
 
                 var approved = await _extensionService.ApproveAsync(id, dto);
                 return Ok(new { message = "Đã phê duyệt gia hạn đơn thuê thành công.", data = approved });
+            }
+            catch (ConflictException ex)
+            {
+                return Conflict(new { message = ex.Message });
             }
             catch (Exception ex)
             {

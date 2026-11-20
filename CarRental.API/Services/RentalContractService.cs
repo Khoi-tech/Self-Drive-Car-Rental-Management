@@ -117,7 +117,7 @@ namespace CarRental.API.Services
                 throw new InvalidOperationException("Không tìm thấy hợp đồng thuê xe.");
             }
 
-            if (contract.Status != "WAITING_SIGNATURE")
+            if (contract.Status != "WAITING_SIGNATURE" && contract.Status != "PENDING_SIGNATURE")
             {
                 throw new InvalidOperationException($"Hợp đồng hiện tại đang ở trạng thái '{contract.Status}', không thể ký lại.");
             }

@@ -16,6 +16,9 @@ namespace CarRental.API.DTOs.Settlement
         public decimal RentalFee { get; set; }
         public decimal DepositAmount { get; set; }
 
+        // Mốc ODO
+        public int HandoverOdo { get; set; }
+        public int CustomerReturnOdo { get; set; }
         public int StartOdo { get; set; }
         public int EndOdo { get; set; }
         public int TotalKmDriven { get; set; }
@@ -29,6 +32,11 @@ namespace CarRental.API.DTOs.Settlement
         public decimal LateHours { get; set; }
         public decimal LateReturnFee { get; set; }
 
+        // Nhiên liệu & Dung sai
+        public decimal HandoverFuelLevel { get; set; } = 100;
+        public decimal CustomerReturnFuelLevel { get; set; } = 100;
+        public decimal FuelTolerancePercent { get; set; } = 3.0m;
+        public decimal FuelDeficit { get; set; } = 0;
         public int InitialFuelLevel { get; set; }
         public int ReturnFuelLevel { get; set; }
         public int FuelDifference { get; set; }
@@ -37,6 +45,7 @@ namespace CarRental.API.DTOs.Settlement
         public decimal DamageFee { get; set; }
         public string? DamageNotes { get; set; }
         public string? DamagePointsJson { get; set; }
+        public string? ReturnDamageMap { get; set; }
         public string? EvidencePhotoUrls { get; set; }
 
         public decimal CleaningFee { get; set; }
@@ -45,6 +54,8 @@ namespace CarRental.API.DTOs.Settlement
 
         public decimal TotalDeduction { get; set; }
         public decimal BalanceAmount { get; set; } // DepositAmount - TotalDeduction
+
+        public decimal TrafficFineHoldAmount { get; set; } = 2000000m;
 
         public string SettlementType { get; set; } = "REFUND_TO_CUSTOMER"; // REFUND_TO_CUSTOMER, ADDITIONAL_PAYMENT_REQUIRED, EVEN
         public decimal RefundAmount { get; set; }

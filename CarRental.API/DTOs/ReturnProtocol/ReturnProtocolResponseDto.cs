@@ -17,6 +17,22 @@ namespace CarRental.API.DTOs.ReturnProtocol
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
         public DateTime ReturnDate { get; set; }
+
+        // Mốc ODO mới
+        public int CustomerReturnOdo { get; set; }
+        public int? YardCheckinOdo { get; set; }
+
+        // Mốc nhiên liệu mới
+        public decimal CustomerReturnFuelLevel { get; set; }
+        public decimal? YardCheckinFuelLevel { get; set; }
+        public string? ReturnDashPhotoUrl { get; set; }
+
+        // Audit chiều về & Sơ đồ 2D mới
+        public bool HasReturnAnomaly { get; set; }
+        public string? ReturnAnomalyNote { get; set; }
+        public string? ReturnDamageMap { get; set; }
+
+        // Cột cũ để tương thích ngược
         public int StartOdo { get; set; }
         public int EndOdo { get; set; }
         public int TotalKmDriven { get; set; }

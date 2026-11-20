@@ -37,7 +37,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create([FromBody] CreateCompensationPolicyDto createDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -47,7 +47,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCompensationPolicyDto updateDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -59,7 +59,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPatch("{id}/status")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateCompensationPolicyStatusDto statusDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);

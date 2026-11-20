@@ -4,6 +4,7 @@ import { ArrowLeft, Edit2, RefreshCw, AlertCircle, Car, Power, ChevronDown, X, C
 import vehicleService from '../../services/vehicleService';
 import { formatCurrencyVND, getVehicleStatusDisplay, getTransmissionDisplay, getFuelTypeDisplay } from '../../utils/formatters';
 import { parseVehicleImages, handleImageError } from '../../utils/imageGalleryHelper';
+import { useAuth } from '../../context/AuthContext';
 
 const VEHICLE_STATUSES = [
   { value: 'READY', label: 'Sẵn sàng' },
@@ -25,6 +26,7 @@ const InfoRow = ({ label, value }) => (
 const VehicleDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isManagement, isAdmin } = useAuth();
   const [vehicle, setVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -174,24 +176,30 @@ const VehicleDetailPage = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => navigate(`/admin/vehicles/${id}/edit`)}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition shadow-sm"
-          >
-            <Edit2 size={14} className="mr-1.5 text-slate-500" /> Chỉnh sửa
-          </button>
-          <button
-            onClick={openStatusModal}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-[#0F172A] rounded-md hover:bg-[#1D4ED8] transition shadow-sm"
-          >
-            <ChevronDown size={14} className="mr-1.5" /> Đổi trạng thái
-          </button>
-          <button
-            onClick={() => setShowDeactivateModal(true)}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 transition"
-          >
-            <Power size={14} className="mr-1.5 text-rose-500" /> Ngừng hoạt động
-          </button>
+          {isManagement && (
+            <>
+              <button
+                onClick={() => navigate(`/admin/vehicles/${id}/edit`)}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition shadow-sm"
+              >
+                <Edit2 size={14} className="mr-1.5 text-slate-500" /> Chỉnh sửa
+              </button>
+              <button
+                onClick={openStatusModal}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-white bg-[#0F172A] rounded-md hover:bg-[#1D4ED8] transition shadow-sm"
+              >
+                <ChevronDown size={14} className="mr-1.5" /> Đổi trạng thái
+              </button>
+            </>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => setShowDeactivateModal(true)}
+              className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded-md hover:bg-rose-50 transition"
+            >
+              <Power size={14} className="mr-1.5 text-rose-500" /> Ngừng hoạt động
+            </button>
+          )}
         </div>
       </div>
 

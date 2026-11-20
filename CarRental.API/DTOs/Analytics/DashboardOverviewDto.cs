@@ -5,10 +5,10 @@ namespace CarRental.API.DTOs.Analytics
 {
     public class DashboardOverviewDto
     {
-        // KPI Summary
-        public decimal TotalRevenue { get; set; }
-        public decimal ThisMonthRevenue { get; set; }
-        public decimal RevenueGrowthPercent { get; set; }
+        // KPI Summary (Chỉ trả về số liệu tài chính cho MANAGER và ADMIN; STAFF nhận null)
+        public decimal? TotalRevenue { get; set; }
+        public decimal? ThisMonthRevenue { get; set; }
+        public decimal? RevenueGrowthPercent { get; set; }
 
         public int TotalVehicles { get; set; }
         public int AvailableVehicles { get; set; }
@@ -32,14 +32,39 @@ namespace CarRental.API.DTOs.Analytics
         public int CancelledRequests { get; set; }
         public int TotalExtensions { get; set; }
         public int InsuranceClaimsCount { get; set; }
-        public decimal TotalCompensationCollected { get; set; }
-        public decimal TotalRepairCost { get; set; }
-        public decimal RiskRecoveryRatio { get; set; }
+        public decimal? TotalCompensationCollected { get; set; }
+        public decimal? TotalRepairCost { get; set; }
+        public decimal? RiskRecoveryRatio { get; set; }
 
         // Top Cars & Recent Activities
         public List<TopVehicleItemDto> TopVehicles { get; set; } = new List<TopVehicleItemDto>();
-        public List<MonthlyRevenueItemDto> MonthlyRevenue { get; set; } = new List<MonthlyRevenueItemDto>();
+        public List<MonthlyRevenueItemDto>? MonthlyRevenue { get; set; }
         public List<RecentActivityItemDto> RecentActivities { get; set; } = new List<RecentActivityItemDto>();
+
+        // Phase 3: Cảnh báo hậu kiểm trung chuyển dành cho MANAGER / ADMIN
+        public TransitAnomalySummaryDto? TransitAnomalies { get; set; }
+    }
+
+    public class TransitAnomalySummaryDto
+    {
+        public int TotalTransitAnomalies { get; set; }
+        public int HandoverAnomaliesCount { get; set; }
+        public int ReturnAnomaliesCount { get; set; }
+        public int InternalTransitIncidentsCount { get; set; }
+        public List<TransitAnomalyItemDto> RecentAnomalies { get; set; } = new List<TransitAnomalyItemDto>();
+    }
+
+    public class TransitAnomalyItemDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty; // HANDOVER_ANOMALY, RETURN_ANOMALY, INTERNAL_TRANSIT_SCRATCH
+        public Guid RentalRequestId { get; set; }
+        public string VehicleName { get; set; } = string.Empty;
+        public string LicensePlate { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public string? StaffName { get; set; }
+        public int OdoDifference { get; set; }
     }
 
     public class TopVehicleItemDto
@@ -49,7 +74,7 @@ namespace CarRental.API.DTOs.Analytics
         public string Model { get; set; } = string.Empty;
         public string LicensePlate { get; set; } = string.Empty;
         public int RentalCount { get; set; }
-        public decimal TotalRevenue { get; set; }
+        public decimal? TotalRevenue { get; set; }
         public string? ImageUrl { get; set; }
     }
 

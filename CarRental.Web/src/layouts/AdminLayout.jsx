@@ -78,9 +78,28 @@ const AdminLayout = () => {
     }
   ];
 
+  const userRole = user?.role || 'STAFF';
+
+  // Lọc menu theo ma trận 3 role (STAFF, MANAGER, ADMIN)
+  const filteredNavGroups = navGroups.map(group => {
+    if (group.groupTitle === 'CẤU HÌNH CHÍNH SÁCH') {
+      if (userRole === 'STAFF') {
+        return null; // STAFF ẩn hoàn toàn Cấu hình chính sách & Hệ thống
+      }
+      if (userRole === 'MANAGER') {
+        // MANAGER: Chỉ xem Bảng giá & Điều kiện thuê, ẩn Biểu phí, Hợp đồng, Cài đặt
+        return {
+          ...group,
+          items: group.items.filter(item => item.path === '/admin/pricing' || item.path === '/admin/policies')
+        };
+      }
+    }
+    return group;
+  }).filter(Boolean);
+
   // Helper to get active title for breadcrumbs
   const getActiveTitle = () => {
-    for (const group of navGroups) {
+    for (const group of filteredNavGroups) {
       for (const item of group.items) {
         if (item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path)) {
           return item.name;
@@ -119,7 +138,7 @@ const AdminLayout = () => {
 
         {/* Navigation Groups */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          {navGroups.map((group) => (
+          {filteredNavGroups.map((group) => (
             <div key={group.groupTitle} className="space-y-1">
               {isSidebarOpen && (
                 <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">

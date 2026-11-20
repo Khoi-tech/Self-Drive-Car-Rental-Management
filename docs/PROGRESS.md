@@ -3,7 +3,7 @@
 > **Dự án:** VELORA — Nền tảng Cho Thuê Xe Tự Lái Cao Cấp  
 > **Nhánh Git:** `refactor/velora-clean-workflow`  
 > **Bắt đầu:** 20/11/2026  
-> **Cập nhật lần cuối:** 20/11/2026 (Hoàn thành Pha 2 $\rightarrow$ Chuẩn bị Pha 3)
+> **Cập nhật lần cuối:** 20/11/2026 (Hoàn thành Pha 3 $\rightarrow$ Chuẩn bị Pha 4)
 
 ---
 
@@ -14,7 +14,7 @@
 | **0** | Chuẩn bị, Khảo sát & Thiết lập Nền tảng | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **1** | Cơ sở Dữ liệu & Domain Entities | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **2** | Backend Core Services & State Machine | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
-| **3** | Phân quyền Ma trận 3 Role (STAFF / MANAGER / ADMIN) & IDOR | — | — | CHỜ THỰC HIỆN |
+| **3** | Phân quyền Ma trận 3 Role (STAFF / MANAGER / ADMIN) & IDOR | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **4** | Cải tiến Giao diện Vận hành (UI/UX Canvas & Protocol) | — | — | CHỜ THỰC HIỆN |
 | **5** | Kiểm thử Tích hợp E2E & Nghiệm thu Tổng thể | — | — | CHỜ THỰC HIỆN |
 
@@ -105,26 +105,73 @@
 
 ---
 
-## 3. Danh Mục File & Endpoint Thay Đổi (Phase 2 Artifacts)
+### PHA 3: PHÂN QUYỀN MA TRẬN 3 ROLE (STAFF / MANAGER / ADMIN) & BẢO MẬT IDOR — [x] HOÀN THÀNH
+- [x] **Hotfix Bước 10 (`SettlementService.ConfirmTrafficFineRefundAsync`):**
+  - Gỡ bỏ hoàn toàn việc gán `Car.Status = READY` khi hoàn phạt nguội sau 15–30 ngày.
+- [x] **Chuẩn hóa Authorization Policies (`Program.cs`):**
+  - `Operations`: `STAFF`, `MANAGER`, `ADMIN`.
+  - `Management`: `MANAGER`, `ADMIN`.
+  - `AdminOnly`: `ADMIN`.
+- [x] **Rà soát & Khóa phân quyền toàn bộ Controllers theo Ma trận 3 Role:**
+  - `VehiclesController`: GET công khai; POST/PUT/PATCH status $\rightarrow$ `Management`; DELETE $\rightarrow$ `AdminOnly`.
+  - `PricingPoliciesController` & `RentalConditionsController`: GET công khai; POST/PUT/DELETE $\rightarrow$ `Management`.
+  - `CompensationPoliciesController` & `ContractTemplatesController`: GET công khai; POST/PUT/PATCH/DELETE $\rightarrow$ `AdminOnly`.
+  - `SystemSettingsController`: Toàn bộ controller $\rightarrow$ `AdminOnly`.
+  - `SettlementsController`: GET list / preview / POST tạo bảng kê $\rightarrow$ `Operations`; `confirm-refund`, `confirm-traffic-fine-refund`, `confirm-additional-payment`, `resolve-dispute` $\rightarrow$ `Management`.
+  - `CustomersController`: GET danh sách $\rightarrow$ `Operations`; `PUT status` (khóa/mở khóa), `PUT kyc-status`, `POST violations` $\rightarrow$ `Management`; chặn sửa tài khoản nội bộ nếu caller không phải ADMIN.
+  - `CarInsurancesController`: POST/PUT/DELETE $\rightarrow$ `Management`.
+  - Các Controller vận hành (`RentalRequests`, `RentalContracts`, `Payments`, `HandoverProtocols`, `ReturnProtocols`, `RentalExtensions`, `IncidentReports`): Khóa toàn bộ endpoint danh sách tổng và thao tác nội bộ bằng `Operations`.
+- [x] **Vá triệt để lỗ hổng IDOR & Chặn tài khoản bị khóa:**
+  - `SecurityExtensions.cs`: Trích xuất `UserId` từ Claim `ClaimTypes.NameIdentifier` / `sub`, truy vấn DB kiểm tra `dbUser.IsActive` và so khớp quyền sở hữu `RentalRequest` theo `userId` (hoặc email/sđt chuẩn hóa). Chặn 100% IDOR từ query/body.
+  - `UserActiveStatusMiddleware`: Chặn lập tức mọi request từ tài khoản `is_active = false` bằng HTTP 403 Forbidden.
+- [x] **Phân tách số liệu Analytics theo vai trò Backend:**
+  - `IAnalyticsService` & `AnalyticsService`: Nhận cờ `bool isStaffOnly = false`.
+  - Nếu `STAFF`: Trả `null` cho `TotalRevenue`, `ThisMonthRevenue`, `RevenueGrowthPercent`, `MonthlyRevenue`; ẩn số tiền trong hoạt động gần đây và báo cáo xe.
+  - Nếu `MANAGER` / `ADMIN`: Trả đầy đủ doanh thu + thống kê hậu kiểm `TransitAnomalies` (Tổng số bất thường, giao xe, nhận xe, sự cố trung chuyển, và danh sách cảnh báo chi tiết).
+- [x] **Phân tách giao diện & Ẩn thao tác vượt quyền trên Frontend (`CarRental.Web`):**
+  - `AuthContext.jsx`: Bổ sung các cờ tiện ích `isBackoffice`, `isOperations`, `isManagement`, `isAdmin`, `isManager`, `isStaff`.
+  - `ProtectedRoute.jsx`: Hỗ trợ `allowedRoles` chặn truy cập URL trực tiếp và hiển thị thông báo 403.
+  - `AppRoutes.jsx`: Khóa route quản lý giá, chính sách và hệ thống theo vai trò.
+  - `AdminLayout.jsx`: Ẩn menu "Cấu hình chính sách" và "Hệ thống & Nhân sự" với STAFF; lọc các menu con cho MANAGER.
+  - `SettlementModal.jsx`: STAFF bị ẩn các nút Xác nhận hoàn cọc, Hoàn quỹ phạt nguội, Giải quyết khiếu nại (thay bằng banner cảnh báo quyền hạn Quản lý).
+  - `CustomersManagementPage.jsx`: STAFF bị ẩn nút Khóa tài khoản, Phê duyệt/Từ chối KYC, Ghi nhận vi phạm/Điều chỉnh điểm.
+  - `VehiclesPage.jsx` & `VehicleDetailPage.jsx`: STAFF bị ẩn nút "Thêm xe mới", "Chỉnh sửa", "Đổi trạng thái"; chỉ ADMIN thấy "Ngừng hoạt động".
+  - `DashboardPage.jsx`:
+    * `STAFF`: "Bảng Điều Phối Vận Hành" với 4 thẻ vận hành, lối tắt 4 nghiệp vụ điều phối, Top xe theo lượt thuê, ẩn hoàn toàn doanh thu và biểu đồ doanh thu 6 tháng.
+    * `MANAGER` / `ADMIN`: Dashboard doanh thu đầy đủ + Khu vực Cảnh báo Hậu kiểm Trung chuyển (Transit Anomalies).
+- [x] **Xác minh Biên dịch:**
+  - Backend: `dotnet build` đạt **0 Warning(s), 0 Error(s)**.
+  - Frontend: `npm run build` đạt **0 errors**.
 
-### Entities & DTOs:
-1. `CarRental.API/Entities/Enums.cs`: Bổ sung `RentalSettlementStatus` (`PENDING`, `DISPUTED`, `PARTIALLY_SETTLED`, `CLOSED`, `SETTLED`).
-2. `CarRental.API/DTOs/Handover/HandoverProtocolDto.cs`: Cập nhật `HandoverProtocolDto`, `CreateHandoverProtocolDto`, `UpdateHandoverProtocolDto` hỗ trợ các mốc ODO mới, Nhiên liệu decimal, Audit Anomaly, và Sơ đồ xước 2D.
-3. `CarRental.API/DTOs/Handover/HandoverConfirmDto.cs`: Mở rộng DTO xác nhận bàn giao nhận các mốc thực tế và ảnh taplo.
-4. `CarRental.API/DTOs/ReturnProtocol/CreateReturnProtocolDto.cs`: Hỗ trợ `CustomerReturnOdo`, `YardCheckinOdo`, `CustomerReturnFuelLevel`, `YardCheckinFuelLevel`, `ReturnAnomalyNote`, `ReturnDamageMap`.
-5. `CarRental.API/DTOs/ReturnProtocol/ReturnProtocolResponseDto.cs`: Bổ sung đầy đủ các trường mới đối xứng.
-6. `CarRental.API/DTOs/Settlement/PreviewSettlementDto.cs`: Bổ sung `FuelTolerancePercent`, `FuelDeficit`, `HandoverFuelLevel`, `CustomerReturnFuelLevel`, `TrafficFineHoldAmount`.
+---
 
-### Services & Controllers:
-7. `CarRental.API/Services/HandoverProtocolService.cs`: Cài đặt Bẫy 1, Bẫy 2 (diff marker & tạo Incident Report nội bộ), Bẫy 3 (audit ODO 2 cấp độ), khóa cứng khi Settlement đã chốt, đồng bộ trạng thái 3 bảng (`ACTIVE`, `ACTIVE`, `RENTED`).
-8. `CarRental.API/Services/ReturnProtocolService.cs`: Cài đặt Single Source of Truth, Bẫy 2 (khóa marker cũ, marker mới `CUSTOMER_RENTAL`), Bẫy 3 chiều về, tính quãng đường loại trừ trung chuyển, đồng bộ trạng thái (`RETURNED`, `INSPECTION`/`REPAIR`).
-9. `CarRental.API/Services/SettlementService.cs`: Tính phụ phí nhiên liệu có dung sai `FuelTolerancePercent`, chỉ tính bồi thường cho marker `CUSTOMER_RENTAL`, luồng quyết toán Step 9 (`PARTIALLY_SETTLED`, `SETTLED`), và hoàn phạt nguội Step 10 Idempotent (`CLOSED`, `COMPLETED`, `COMPLETED`).
-10. `CarRental.API/Services/RentalRequestService.cs`: Hoàn thiện Step 3 duyệt đơn tự động sinh hợp đồng `PENDING_SIGNATURE` trong cùng Transaction; nhánh Hủy/Từ chối chuyển `RentalContract -> VOID` và giải phóng `Car -> READY`.
-11. `CarRental.API/Services/PaymentService.cs`: Bắt buộc hợp đồng phải `SIGNED` trước khi chuyển sang `DEPOSIT_PAID`.
-12. `CarRental.API/Services/RentalExtensionService.cs`: Kiểm tra chống trùng lịch, bọc Database Transaction, bắt lỗi `23P01` ném `ConflictException`.
-13. `CarRental.API/Controllers/RentalExtensionsController.cs`: Bắt `ConflictException` trả HTTP 409 Conflict.
-14. `CarRental.API/Services/AnalyticsService.cs`: Chuẩn hóa lọc `is_active = true && status != INACTIVE`, tính toán tỷ lệ khai thác xe lăn bánh khớp 100%, đẩy aggregate xuống PostgreSQL.
-15. `CarRental.Web/src/layouts/AdminLayout.jsx`: Xóa số cứng `(27)` khỏi menu Danh sách xe.
+## 3. Danh Mục File & Endpoint Thay Đổi (Phase 3 Artifacts)
+
+### Backend:
+1. `CarRental.API/Program.cs`: Bổ sung Authorization Policy `AdminOnly` (`ADMIN`).
+2. `CarRental.API/Helpers/SecurityExtensions.cs`: Tăng cường `CanAccessRequestIdAsync` chống IDOR, kiểm tra `dbUser.IsActive`.
+3. `CarRental.API/Controllers/VehiclesController.cs`: Gắn `AdminOnly` cho DELETE xe.
+4. `CarRental.API/Controllers/CompensationPoliciesController.cs`: Gắn `AdminOnly` cho POST/PUT/PATCH.
+5. `CarRental.API/Controllers/ContractTemplatesController.cs`: Gắn `AdminOnly` cho POST/PUT/PATCH/DELETE.
+6. `CarRental.API/Controllers/SystemSettingsController.cs`: Gắn `AdminOnly` cho toàn bộ Controller.
+7. `CarRental.API/Controllers/SettlementsController.cs`: Gắn `Management` cho confirm-refund, confirm-traffic-fine-refund, confirm-additional-payment, resolve-dispute.
+8. `CarRental.API/Controllers/CustomersController.cs`: Gắn `Management` cho update-kyc, add-violation, toggle-status; chặn sửa tài khoản nội bộ nếu không phải ADMIN.
+9. `CarRental.API/Controllers/CarInsurancesController.cs`: Gắn `Management` cho POST/PUT.
+10. `CarRental.API/Controllers/AnalyticsController.cs`: Kiểm tra role và truyền `isStaffOnly` vào `AnalyticsService`.
+11. `CarRental.API/Services/AnalyticsService.cs`: Ẩn doanh thu với `STAFF`, tổng hợp `TransitAnomalies` cho `MANAGER`/`ADMIN`.
+12. `CarRental.API/DTOs/Analytics/DashboardOverviewDto.cs`: Bổ sung DTOs `TransitAnomalySummaryDto`, `TransitAnomalyItemDto`, nullable revenue fields.
+13. `CarRental.API/Services/SettlementService.cs`: Hotfix Bước 10 không đổi `Car.Status = READY`.
+
+### Frontend:
+14. `CarRental.Web/src/context/AuthContext.jsx`: Thêm helper getters theo 3 role.
+15. `CarRental.Web/src/routes/ProtectedRoute.jsx`: Thêm kiểm tra `allowedRoles` và giao diện cảnh báo 403.
+16. `CarRental.Web/src/routes/AppRoutes.jsx`: Bảo vệ các route quản lý giá, chính sách, hệ thống.
+17. `CarRental.Web/src/layouts/AdminLayout.jsx`: Lọc menu điều hướng theo role.
+18. `CarRental.Web/src/components/operations/SettlementModal.jsx`: Ẩn thao tác hoàn cọc/giải quyết tranh chấp cho STAFF.
+19. `CarRental.Web/src/pages/Customers/CustomersManagementPage.jsx`: Ẩn thao tác KYC duyệt, khóa tài khoản, ghi vi phạm cho STAFF.
+20. `CarRental.Web/src/pages/Vehicles/VehiclesPage.jsx`: Ẩn Thêm xe mới, Sửa, Đổi trạng thái, Ngừng hoạt động theo role.
+21. `CarRental.Web/src/pages/Vehicles/VehicleDetailPage.jsx`: Ẩn Chỉnh sửa, Đổi trạng thái, Ngừng hoạt động theo role.
+22. `CarRental.Web/src/pages/Dashboard/DashboardPage.jsx`: Phân tách "Bảng Điều Phối Vận Hành" cho STAFF và Dashboard Doanh thu + Cảnh báo Hậu kiểm Trung chuyển cho Quản lý.
 
 ---
 
@@ -132,4 +179,5 @@
 
 - **20/11/2026 10:36:** Hoàn tất Pha 0: Rà soát baseline `dotnet build` và `npm run build` (0 errors, 0 warnings). Commit `506a571`.
 - **20/11/2026 10:42:** Hoàn tất Pha 1: Nâng cấp Enums, Entities, Migration SQL `20261120_UpgradeWorkflowAndDiffMarkers.sql`, backfill dữ liệu, seed settings. Commit `688ce80`.
-- **20/11/2026 11:04:** Hoàn tất Pha 2: Cài đặt State Machine 10 bước tập trung, 3 bẫy nghiệp vụ (Nhiên liệu tolerance, Sơ đồ xước diff & incident nội bộ, Audit ODO 2 cấp độ 2 chiều), khóa cứng sau Settlement, chống trùng lịch gia hạn (HTTP 409), và sửa triệt để lệch số liệu Analytics. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors.
+- **20/11/2026 11:04:** Hoàn tất Pha 2: Cài đặt State Machine 10 bước tập trung, 3 bẫy nghiệp vụ (Nhiên liệu tolerance, Sơ đồ xước diff & incident nội bộ, Audit ODO 2 cấp độ 2 chiều), khóa cứng sau Settlement, chống trùng lịch gia hạn (HTTP 409), và sửa triệt để lệch số liệu Analytics. Commit `ca43051`.
+- **20/11/2026 11:35:** Hoàn tất Pha 3: Hotfix Bước 10 (không đổi Car -> READY khi hoàn phạt nguội), chuẩn hóa Ma trận 3 Role (STAFF / MANAGER / ADMIN), vá triệt để lỗ hổng IDOR, phân tách dữ liệu Backend Analytics & Dashboard theo role, ẩn hoàn toàn các nút thao tác vượt quyền trên Frontend. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors.

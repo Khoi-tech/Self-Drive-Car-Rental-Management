@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CarRental.API.DTOs.Analytics;
+using CarRental.API.Helpers;
 using CarRental.API.Services;
 
 namespace CarRental.API.Controllers
@@ -22,14 +23,16 @@ namespace CarRental.API.Controllers
         [HttpGet("dashboard-overview")]
         public async Task<ActionResult<DashboardOverviewDto>> GetDashboardOverview([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
-            var overview = await _service.GetDashboardOverviewAsync(fromDate, toDate);
+            bool isStaffOnly = !User.IsManagement();
+            var overview = await _service.GetDashboardOverviewAsync(fromDate, toDate, isStaffOnly);
             return Ok(overview);
         }
 
         [HttpGet("fleet-utilization")]
         public async Task<ActionResult<FleetUtilizationReportDto>> GetFleetUtilizationReport([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)
         {
-            var report = await _service.GetFleetUtilizationReportAsync(fromDate, toDate);
+            bool isStaffOnly = !User.IsManagement();
+            var report = await _service.GetFleetUtilizationReportAsync(fromDate, toDate, isStaffOnly);
             return Ok(report);
         }
     }

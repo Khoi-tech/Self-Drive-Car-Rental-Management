@@ -107,13 +107,26 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
   };
 
+  const role = user?.role || '';
+  const isBackoffice = ['STAFF', 'MANAGER', 'ADMIN'].includes(role);
+  const isOperations = isBackoffice;
+  const isManagement = ['MANAGER', 'ADMIN'].includes(role);
+  const isAdmin = role === 'ADMIN';
+  const isManager = role === 'MANAGER';
+  const isStaff = role === 'STAFF';
+
   const value = {
     user,
     token,
     loading,
+    role,
     isAuthenticated: Boolean(token && user),
-    isAdmin: user?.role === 'STAFF' || user?.role === 'MANAGER' || user?.role === 'ADMIN',
-    isStaff: user?.role === 'STAFF' || user?.role === 'MANAGER' || user?.role === 'ADMIN',
+    isBackoffice,
+    isOperations,
+    isManagement,
+    isAdmin,
+    isManager,
+    isStaff,
     login,
     register,
     logout,

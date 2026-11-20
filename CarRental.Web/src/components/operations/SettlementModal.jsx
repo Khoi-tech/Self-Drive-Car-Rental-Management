@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import settlementService from '../../services/settlementService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 
@@ -40,6 +41,7 @@ const POPULAR_BANKS = [
 ];
 
 const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
+  const { isManagement } = useAuth();
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -620,24 +622,30 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                       />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleResolveDispute}
-                      disabled={disputeLoading}
-                      className="w-full bg-rose-700 hover:bg-rose-800 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {disputeLoading ? (
-                        <>
-                          <RefreshCw size={14} className="animate-spin" />
-                          <span>Đang cập nhật phân xử...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 size={15} />
-                          <span>Xác Nhận Kết Luận Phân Xử & Đóng Khiếu Nại</span>
-                        </>
-                      )}
-                    </button>
+                    {!isManagement ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold text-center">
+                        Quyền hạn Nhân viên (STAFF): Thao tác phân xử khiếu nại yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleResolveDispute}
+                        disabled={disputeLoading}
+                        className="w-full bg-rose-700 hover:bg-rose-800 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {disputeLoading ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            <span>Đang cập nhật phân xử...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={15} />
+                            <span>Xác Nhận Kết Luận Phân Xử & Đóng Khiếu Nại</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -957,24 +965,30 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                             />
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={handleConfirmRound2Refund}
-                            disabled={round2Loading}
-                            className="w-full bg-indigo-700 hover:bg-indigo-800 disabled:bg-slate-400 text-white font-bold text-xs py-3 px-4 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            {round2Loading ? (
-                              <>
-                                <RefreshCw size={14} className="animate-spin" />
-                                <span>Đang chốt quyết toán Đợt 2...</span>
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 size={16} />
-                                <span>Xác Nhận Đã Chuyển Hoàn Cọc Đợt 2 & Kết Thúc</span>
-                              </>
-                            )}
-                          </button>
+                          {!isManagement ? (
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold text-center">
+                              Quyền hạn Nhân viên (STAFF): Thao tác hoàn quỹ phạt nguội Đợt 2 yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleConfirmRound2Refund}
+                              disabled={round2Loading}
+                              className="w-full bg-indigo-700 hover:bg-indigo-800 disabled:bg-slate-400 text-white font-bold text-xs py-3 px-4 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              {round2Loading ? (
+                                <>
+                                  <RefreshCw size={14} className="animate-spin" />
+                                  <span>Đang chốt quyết toán Đợt 2...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 size={16} />
+                                  <span>Xác Nhận Đã Chuyển Hoàn Cọc Đợt 2 & Kết Thúc</span>
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
 
                       </div>
@@ -1346,6 +1360,10 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     >
                       {loading ? 'Đang khởi tạo...' : 'Xác lập phiếu quyết toán & Sinh mã QR'}
                     </button>
+                  ) : !isManagement ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs font-semibold text-center leading-relaxed">
+                      Quyền hạn Nhân viên (STAFF): Bảng kê dự toán đã được khởi tạo. Thao tác xác nhận hoàn cọc / thu phụ phí yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN) phê duyệt.
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {isRefund ? (

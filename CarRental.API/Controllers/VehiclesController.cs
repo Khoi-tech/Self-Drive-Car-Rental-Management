@@ -122,7 +122,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id:guid}")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> DeleteVehicle(Guid id)
         {
             var success = await _vehicleService.DeleteAsync(id);

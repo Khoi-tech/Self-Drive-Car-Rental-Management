@@ -85,16 +85,16 @@ const AppRoutes = () => {
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="insurances" element={<InsurancesPage />} />
         <Route path="vehicles" element={<VehiclesPage />} />
-        <Route path="vehicles/create" element={<CreateVehiclePage />} />
+        <Route path="vehicles/create" element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}><CreateVehiclePage /></ProtectedRoute>} />
         <Route path="vehicles/:id" element={<VehicleDetailPage />} />
-        <Route path="vehicles/:id/edit" element={<EditVehiclePage />} />
-        <Route path="pricing" element={<PricingPage />} />
-        <Route path="pricing/:vehicleId" element={<PricingDetailPage />} />
-        <Route path="policies" element={<PoliciesPage />} />
-        <Route path="compensation" element={<CompensationPoliciesPage />} />
-        <Route path="contracts" element={<ContractTemplatesPage />} />
+        <Route path="vehicles/:id/edit" element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}><EditVehiclePage /></ProtectedRoute>} />
+        <Route path="pricing" element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}><PricingPage /></ProtectedRoute>} />
+        <Route path="pricing/:vehicleId" element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}><PricingDetailPage /></ProtectedRoute>} />
+        <Route path="policies" element={<ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}><PoliciesPage /></ProtectedRoute>} />
+        <Route path="compensation" element={<ProtectedRoute allowedRoles={['ADMIN']}><CompensationPoliciesPage /></ProtectedRoute>} />
+        <Route path="contracts" element={<ProtectedRoute allowedRoles={['ADMIN']}><ContractTemplatesPage /></ProtectedRoute>} />
         <Route path="customers" element={<CustomersManagementPage />} />
-        <Route path="settings" element={<SystemSettingsPage />} />
+        <Route path="settings" element={<ProtectedRoute allowedRoles={['ADMIN']}><SystemSettingsPage /></ProtectedRoute>} />
       </Route>
 
       {/* Catch-all */}

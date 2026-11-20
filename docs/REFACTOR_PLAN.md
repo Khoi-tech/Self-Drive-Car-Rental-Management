@@ -211,36 +211,48 @@ flowchart TD
 
 ---
 
-### PHA 3: PHÂN QUYỀN MA TRẬN 3 ROLE (STAFF, MANAGER, ADMIN) & BẢO MẬT IDOR
+### PHA 3: PHÂN QUYỀN MA TRẬN 3 ROLE (STAFF, MANAGER, ADMIN) & BẢO MẬT IDOR — [HOÀN THÀNH]
 - **Mục tiêu:** Tách bạch triệt để trách nhiệm vận hành, kiểm soát chéo, bảo mật thông tin tài chính và triệt tiêu lỗ hổng IDOR.
 - **Nội dung công việc:**
-  1. **Triệt tiêu lỗ hổng IDOR (Insecure Direct Object References):**
-     - Trên các API nhạy cảm của khách hàng (`POST /api/contracts/{id}/sign`, `POST /api/rental-requests/{id}/cancel`, `POST /api/settlements/{id}/dispute`, `GET /api/rental-requests/my-requests`):
-       - Tuyệt đối không tin cậy `userId` do client gửi lên trong Request Body/Query.
-       - Trích xuất `UserId` trực tiếp từ Claim của JWT Token đã xác thực (`User.FindFirstValue(ClaimTypes.NameIdentifier)`).
-       - Đối chiếu `contract.RentalRequest.UserId == currentUserId`. Nếu không khớp, trả ngay HTTP 403 Forbidden.
-  2. **Chặn tài khoản bị khóa (`is_active = false`):**
-     - Tăng cường `UserActiveStatusMiddleware` và kiểm tra ở tầng Service để đảm bảo người dùng bị khóa không thể thực hiện bất kỳ thao tác tạo đơn, ký hợp đồng hay thanh toán nào.
-  3. **Backend Authorization Policies (`Program.cs` & Controllers):**
-     - Cấu hình Policy chặt chẽ:
-       * `Operations`: STAFF, MANAGER, ADMIN (duyệt đơn, bàn giao, thu xe, ghi nhận sự cố, tạo dự toán nháp preview).
-       * `Management`: MANAGER, ADMIN (xem doanh thu, hậu kiểm ODO/xước, duyệt/từ chối KYC, khóa tài khoản, giải quyết khiếu nại `resolve-dispute`, xác nhận hoàn cọc và hoàn quỹ phạt nguội).
-       * `AdminOnly`: ADMIN (toàn quyền, xóa xe, sửa biểu phí bồi thường, sửa mẫu hợp đồng, phân quyền nhân sự, cấu hình `/admin/settings`).
-     - Gắn Policy lên Controllers:
-       * `RentalSettlementsController`: Khóa `confirm-refund`, `confirm-traffic-fine-refund`, `resolve-dispute` chỉ cho `Management`.
-       * `AnalyticsController`: Ẩn endpoint doanh thu đối với STAFF.
-       * `PricingController`, `PoliciesController`, `SettingsController`: Khóa theo đúng ma trận.
-  4. **Frontend UI Permission Enforcement (`AdminLayout.jsx` & Protected Routes):**
-     - Ẩn hoàn toàn menu "CẤU HÌNH CHÍNH SÁCH" khi người dùng đăng nhập có role `STAFF`.
-     - Thay thế số lượng xe cứng `Danh sách xe (27)` trên sidebar bằng số liệu đếm động từ API.
-     - Cấu hình Route Guard chặn STAFF truy cập trực tiếp bằng URL vào `/admin/settings`, `/admin/pricing`, v.v.
-  5. **Dashboard theo vai trò (`DashboardPage.jsx`):**
-     - Với `STAFF`: Hiển thị "Bảng điều phối vận hành" (chỉ gồm: Đơn chờ duyệt, Xe sẵn sàng bàn giao, Xe trả trễ, Cảnh báo ODO/sự cố). Ẩn hoàn toàn thẻ "Tổng doanh thu" và biểu đồ doanh thu tài chính 6 tháng.
-     - Với `MANAGER` & `ADMIN`: Hiển thị đầy đủ tổng quan tài chính, doanh thu, hiệu suất khai thác đội xe, và tab Hậu kiểm cảnh báo ODO trung chuyển.
+  1. [x] **Hotfix Bước 10 (`SettlementService.ConfirmTrafficFineRefundAsync`):**
+     - Loại bỏ việc chuyển `Car.Status` thành `READY` khi hoàn quỹ phạt nguội (bước này diễn ra sau 15–30 ngày, xe lúc này có thể đang `BOOKED` hoặc `RENTED` cho khách khác). `Car -> READY` chỉ thực hiện ở Bước 9 hoặc khi hoàn tất bảo dưỡng/sửa chữa.
+  2. [x] **Triệt tiêu lỗ hổng IDOR (Insecure Direct Object References):**
+     - Chuẩn hóa `SecurityExtensions.cs` trích xuất `UserId` trực tiếp từ Claim JWT (`ClaimTypes.NameIdentifier` / `sub`), xác minh trạng thái tài khoản `IsActive`, và kiểm tra quyền sở hữu bản ghi `RentalRequest` / `RentalContract` / `HandoverProtocol` / `ReturnProtocol` / `RentalSettlement` / `IncidentReport` mà không tin cậy `userId`, `email` hoặc `phoneNumber` từ client.
+     - Khách hàng không thể can thiệp hay xem dữ liệu của khách hàng khác (trừ khi caller mang role nội bộ `Operations`).
+  3. [x] **Chặn tài khoản bị khóa (`is_active = false`):**
+     - Đảm bảo `UserActiveStatusMiddleware` chặn lập tức mọi request đã xác thực có `is_active = false` bằng HTTP 403 Forbidden.
+  4. [x] **Backend Authorization Policies (`Program.cs` & 18 Controllers):**
+     - Chuẩn hóa 3 Policy:
+       * `Operations`: STAFF, MANAGER, ADMIN.
+       * `Management`: MANAGER, ADMIN.
+       * `AdminOnly`: ADMIN.
+     - Gắn Policy chặt chẽ trên toàn bộ Controllers:
+       * `VehiclesController`: GET công khai; POST/PUT/PATCH status $\rightarrow$ `Management`; DELETE $\rightarrow$ `AdminOnly`.
+       * `PricingPoliciesController` & `RentalConditionsController`: GET công khai; POST/PUT/DELETE $\rightarrow$ `Management`.
+       * `CompensationPoliciesController` & `ContractTemplatesController`: GET công khai; POST/PUT/PATCH/DELETE $\rightarrow$ `AdminOnly`.
+       * `SystemSettingsController`: Controller $\rightarrow$ `AdminOnly`.
+       * `SettlementsController`: GET list / preview / POST tạo bảng kê $\rightarrow$ `Operations`; `confirm-refund`, `confirm-traffic-fine-refund`, `confirm-additional-payment`, `resolve-dispute` $\rightarrow$ `Management`; `dispute` và xem chi tiết của khách $\rightarrow$ Authenticated + kiểm tra chính chủ IDOR.
+       * `CustomersController`: GET danh sách $\rightarrow$ `Operations`; `PUT status` (khóa/mở khóa), `PUT kyc-status`, `POST violations` $\rightarrow$ `Management`; chặn sửa tài khoản nội bộ nếu caller không phải ADMIN.
+       * `CarInsurancesController`: POST/PUT/DELETE $\rightarrow$ `Management`. `MaintenanceController`: `Operations`.
+       * Khóa toàn bộ endpoint danh sách tổng và thao tác nội bộ của các Controller vận hành (`RentalRequests`, `RentalContracts`, `Payments`, `HandoverProtocols`, `ReturnProtocols`, `RentalExtensions`, `IncidentReports`) bằng `Operations`.
+  5. [x] **Phân tách số liệu Analytics theo vai trò (`AnalyticsService` & `AnalyticsController`):**
+     - Caller role `STAFF`: Ẩn hoàn toàn doanh thu (trả `null` cho `TotalRevenue`, `ThisMonthRevenue`, `RevenueGrowthPercent`, `MonthlyRevenue`; ẩn số tiền trong hoạt động gần đây và báo cáo khai thác đội xe).
+     - Caller role `MANAGER`/`ADMIN`: Trả đầy đủ doanh thu + thống kê cảnh báo hậu kiểm trung chuyển (`TransitAnomalies`: `totalTransitAnomalies`, `handoverAnomaliesCount`, `returnAnomaliesCount`, `internalTransitIncidentsCount`, danh sách `recentAnomalies`).
+  6. [x] **Frontend UI Role-Based Enforcement & Protection (`CarRental.Web`):**
+     - `AuthContext.jsx`: Bổ sung `isBackoffice`, `isOperations`, `isManagement`, `isAdmin`, `isManager`, `isStaff`.
+     - `ProtectedRoute.jsx`: Hỗ trợ `allowedRoles` chặn truy cập trực tiếp bằng URL và hiển thị màn hình 403 cảnh báo quyền hạn.
+     - `AppRoutes.jsx`: Khóa route `/admin/pricing`, `/admin/policies`, `vehicles/create`, `vehicles/:id/edit` (`MANAGER`, `ADMIN`); khóa `/admin/compensation`, `/admin/contracts`, `/admin/settings` (`ADMIN`).
+     - `AdminLayout.jsx`: Ẩn menu "CẤU HÌNH CHÍNH SÁCH" & "HỆ THỐNG & NHÂN SỰ" với `STAFF`; `MANAGER` chỉ thấy Bảng giá & Điều kiện thuê; `ADMIN` thấy toàn bộ.
+     - `SettlementModal.jsx`: Ẩn các nút Xác nhận hoàn cọc, Hoàn quỹ phạt nguội, Giải quyết khiếu nại với `STAFF`, hiển thị thông báo phân quyền quản lý.
+     - `CustomersManagementPage.jsx`: Ẩn nút Khóa tài khoản, Phê duyệt/Từ chối KYC, Ghi nhận vi phạm/Điều chỉnh điểm với `STAFF`.
+     - `VehiclesPage.jsx` & `VehicleDetailPage.jsx`: Ẩn nút "Thêm xe mới", "Chỉnh sửa", "Đổi trạng thái" với `STAFF`; chỉ `ADMIN` mới thấy "Ngừng hoạt động".
+     - `DashboardPage.jsx`: Phân tách hoàn toàn:
+       * `STAFF`: Hiển thị "Bảng Điều Phối Vận Hành" (4 thẻ: Đơn chờ duyệt, Xe sẵn sàng giao, Xe trả trễ, Sự cố & khiếu nại), Lối tắt 4 nghiệp vụ trọng tâm, Top xe thuê nhiều nhất (lượt thuê), ẩn hoàn toàn doanh thu và biểu đồ doanh thu tài chính 6 tháng.
+       * `MANAGER` / `ADMIN`: Hiển thị đầy đủ tổng quan doanh thu, biểu đồ 6 tháng, khu vực Cảnh báo hậu kiểm trung chuyển (Transit Anomalies).
 - **Tiêu chí nghiệm thu (Acceptance Criteria):**
-  - Thử nghiệm tài khoản STAFF: Không xem được doanh thu, không chỉnh được chính sách, không bấm được hoàn cọc.
-  - Đảm bảo an toàn IDOR: Khách A không thể ký thay hay khiếu nại thay hợp đồng của Khách B.
-  - Cả Backend và Frontend biên dịch sạch 0 errors, 0 warnings.
+  - Tài khoản STAFF không xem được doanh thu, không sửa được chính sách, không bấm được các nút quản lý tài chính / KYC / khóa xe.
+  - Chống triệt để IDOR giữa các tài khoản khách hàng.
+  - Cả Backend và Frontend biên dịch sạch: `dotnet build` đạt 0 errors, 0 warnings; `npm run build` đạt 0 errors.
 
 ---
 

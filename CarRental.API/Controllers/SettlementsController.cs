@@ -121,7 +121,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-refund")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmRefund(Guid id, [FromBody] ConfirmRefundDto dto)
         {
             try
@@ -140,7 +140,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-traffic-fine-refund")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmTrafficFineRefund(Guid id, [FromBody] ConfirmTrafficFineRefundDto dto)
         {
             try
@@ -163,7 +163,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/confirm-additional-payment")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<ActionResult<SettlementResponseDto>> ConfirmAdditionalPayment(Guid id, [FromBody] ConfirmAdditionalPaymentDto dto)
         {
             try
@@ -219,7 +219,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/resolve-dispute")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<ActionResult<SettlementResponseDto>> ResolveDispute(Guid id, [FromBody] ResolveDisputeDto dto)
         {
             try

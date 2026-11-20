@@ -44,9 +44,19 @@ namespace CarRental.API.Helpers
             return user.IsInRole("ADMIN");
         }
 
-        public static bool CanAccessRequest(this ClaimsPrincipal user, RentalRequest request)
+        public static bool CanAccessRequest(this ClaimsPrincipal user, RentalRequest request, User? dbUser = null)
         {
             if (user.IsOperations()) return true;
+
+            if (dbUser != null)
+            {
+                if (!dbUser.IsActive) return false;
+                var dbEmail = dbUser.Email?.Trim();
+                var dbPhone = dbUser.PhoneNumber?.Trim();
+                if (!string.IsNullOrWhiteSpace(dbEmail) && string.Equals(request.CustomerEmail?.Trim(), dbEmail, StringComparison.OrdinalIgnoreCase)) return true;
+                if (!string.IsNullOrWhiteSpace(dbPhone) && string.Equals(request.CustomerPhone?.Trim(), dbPhone, StringComparison.OrdinalIgnoreCase)) return true;
+                return false;
+            }
 
             var email = user.GetUserEmail();
             if (!string.IsNullOrWhiteSpace(email) &&
@@ -63,14 +73,22 @@ namespace CarRental.API.Helpers
             if (!requestId.HasValue || requestId.Value == Guid.Empty) return false;
             if (user.IsOperations()) return true;
 
-            var email = user.GetUserEmail();
-            if (string.IsNullOrWhiteSpace(email)) return false;
+            var userId = user.GetUserId();
+            if (!userId.HasValue) return false;
 
-            var normalizedEmail = email.Trim().ToLowerInvariant();
+            // Vá triệt để IDOR: Trích xuất UserId trực tiếp từ JWT Claim (ClaimTypes.NameIdentifier)
+            // và đối chiếu với bản ghi User đã xác minh trong PostgreSQL
+            var dbUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId.Value);
+            if (dbUser == null || !dbUser.IsActive) return false;
+
+            var normalizedEmail = dbUser.Email?.Trim().ToLowerInvariant();
+            var phone = dbUser.PhoneNumber?.Trim();
 
             return await db.RentalRequests
                 .AsNoTracking()
-                .AnyAsync(r => r.Id == requestId.Value && r.CustomerEmail.ToLower() == normalizedEmail);
+                .AnyAsync(r => r.Id == requestId.Value && 
+                    ((normalizedEmail != null && r.CustomerEmail.ToLower() == normalizedEmail) ||
+                     (phone != null && r.CustomerPhone == phone)));
         }
     }
 }

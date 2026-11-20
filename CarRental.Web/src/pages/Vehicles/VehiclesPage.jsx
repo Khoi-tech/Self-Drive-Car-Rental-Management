@@ -3,6 +3,7 @@ import { Search, Plus, Filter, MoreVertical, Edit2, Eye, RefreshCw, AlertCircle,
 import { useNavigate } from 'react-router-dom';
 import vehicleService from '../../services/vehicleService';
 import { formatCurrencyVND, getVehicleStatusDisplay, getTransmissionDisplay } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 const VEHICLE_STATUSES = [
   { value: 'READY', label: 'Sẵn sàng' },
@@ -16,6 +17,7 @@ const VEHICLE_STATUSES = [
 
 const VehiclesPage = () => {
   const navigate = useNavigate();
+  const { isManagement, isAdmin } = useAuth();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -162,13 +164,15 @@ const VehiclesPage = () => {
           <h1 className="text-2xl font-bold text-zinc-900">Quản lý xe</h1>
           <p className="text-zinc-500 mt-1">Quản lý danh sách phương tiện và trạng thái hoạt động.</p>
         </div>
-        <button 
-          onClick={handleCreateNew}
-          className="inline-flex items-center justify-center px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 transition-colors"
-        >
-          <Plus size={18} className="mr-2" />
-          Thêm xe mới
-        </button>
+        {isManagement && (
+          <button 
+            onClick={handleCreateNew}
+            className="inline-flex items-center justify-center px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-md hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 transition-colors"
+          >
+            <Plus size={18} className="mr-2" />
+            Thêm xe mới
+          </button>
+        )}
       </div>
 
       {/* Success message */}
@@ -290,40 +294,48 @@ const VehiclesPage = () => {
                           >
                             <Eye size={18} />
                           </button>
-                          <button
-                            onClick={() => handleEdit(vehicle.id)}
-                            className="text-zinc-400 hover:text-blue-600 transition-colors"
-                            title="Chỉnh sửa"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <div className="relative" ref={activeMenuId === vehicle.id ? menuRef : null}>
+                          {isManagement && (
                             <button
-                              onClick={() => toggleMenu(vehicle.id)}
-                              className="text-zinc-400 hover:text-zinc-900 transition-colors"
-                              title="Thêm thao tác"
+                              onClick={() => handleEdit(vehicle.id)}
+                              className="text-zinc-400 hover:text-blue-600 transition-colors"
+                              title="Chỉnh sửa"
                             >
-                              <MoreVertical size={18} />
+                              <Edit2 size={18} />
                             </button>
-                            {activeMenuId === vehicle.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-20">
-                                <button
-                                  onClick={() => openStatusModal(vehicle)}
-                                  className="flex items-center w-full px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-                                >
-                                  <ChevronDown size={16} className="mr-2 text-zinc-400" />
-                                  Đổi trạng thái
-                                </button>
-                                <button
-                                  onClick={() => openDeactivateModal(vehicle)}
-                                  className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  <Power size={16} className="mr-2" />
-                                  Ngừng hoạt động
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          )}
+                          {(isManagement || isAdmin) && (
+                            <div className="relative" ref={activeMenuId === vehicle.id ? menuRef : null}>
+                              <button
+                                onClick={() => toggleMenu(vehicle.id)}
+                                className="text-zinc-400 hover:text-zinc-900 transition-colors"
+                                title="Thêm thao tác"
+                              >
+                                <MoreVertical size={18} />
+                              </button>
+                              {activeMenuId === vehicle.id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 rounded-md shadow-lg z-20">
+                                  {isManagement && (
+                                    <button
+                                      onClick={() => openStatusModal(vehicle)}
+                                      className="flex items-center w-full px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                                    >
+                                      <ChevronDown size={16} className="mr-2 text-zinc-400" />
+                                      Đổi trạng thái
+                                    </button>
+                                  )}
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => openDeactivateModal(vehicle)}
+                                      className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                    >
+                                      <Power size={16} className="mr-2" />
+                                      Ngừng hoạt động
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

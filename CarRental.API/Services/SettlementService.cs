@@ -690,18 +690,11 @@ namespace CarRental.API.Services
                 }
 
                 // State Machine Step 10: RentalSettlement -> CLOSED, RentalContract -> COMPLETED, RentalRequest -> COMPLETED
+                // NOTE: TUYỆT ĐỐI KHÔNG thay đổi Vehicle.Status tại Bước 10 (vì sau 15-30 ngày xe có thể đang BOOKED/RENTED).
                 if (settlement.RentalRequest != null)
                 {
                     settlement.RentalRequest.Status = "COMPLETED";
                     settlement.RentalRequest.UpdatedAt = DateTime.UtcNow;
-
-                    if (settlement.RentalRequest.Vehicle != null &&
-                        settlement.RentalRequest.Vehicle.Status != VehicleStatus.REPAIR &&
-                        settlement.RentalRequest.Vehicle.Status != VehicleStatus.MAINTENANCE)
-                    {
-                        settlement.RentalRequest.Vehicle.Status = VehicleStatus.READY;
-                        settlement.RentalRequest.Vehicle.UpdatedAt = DateTime.UtcNow;
-                    }
                 }
 
                 if (settlement.RentalContract != null)

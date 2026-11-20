@@ -37,8 +37,10 @@ import {
 } from 'lucide-react';
 import customerService from '../../services/customerService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 const CustomersManagementPage = () => {
+  const { isManagement } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -606,19 +608,21 @@ const CustomersManagementPage = () => {
                             <FileText className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Nút Khóa / Mở khóa tài khoản */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenLockModal(c)}
-                            className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                              isSuspended
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                            }`}
-                            title={isSuspended ? 'Mở khóa tài khoản' : 'Tạm khóa tài khoản'}
-                          >
-                            {isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-                          </button>
+                          {/* Nút Khóa / Mở khóa tài khoản (Chỉ Quản lý / Admin) */}
+                          {isManagement && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenLockModal(c)}
+                              className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                isSuspended
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                              }`}
+                              title={isSuspended ? 'Mở khóa tài khoản' : 'Tạm khóa tài khoản'}
+                            >
+                              {isSuspended ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
 
                         </div>
                       </td>
@@ -865,52 +869,59 @@ const CustomersManagementPage = () => {
                       </div>
 
                       {/* Actions: Approve / Request Update */}
-                      <div className="space-y-2 pt-1">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={actionLoading}
-                            onClick={handleApproveKyc}
-                            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <ThumbsUp className="w-3.5 h-3.5" />
-                            <span>Phê duyệt KYC (Hợp lệ)</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setShowRejectBox(!showRejectBox)}
-                            className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <ThumbsDown className="w-3.5 h-3.5" />
-                            <span>Yêu cầu bổ sung lại</span>
-                          </button>
+                      {!isManagement ? (
+                        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
+                          <Info className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                          <span><strong>Quyền hạn Nhân viên (STAFF):</strong> Chỉ xem đối chiếu hồ sơ KYC khi giao xe. Phê duyệt hoặc từ chối yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).</span>
                         </div>
-
-                        {showRejectBox && (
-                          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 text-xs">
-                            <span className="font-bold text-amber-900 block">Lý do yêu cầu cập nhật lại:</span>
-                            <select
-                              value={kycRejectReason}
-                              onChange={(e) => setKycRejectReason(e.target.value)}
-                              className="w-full bg-white border border-amber-300 rounded-lg p-2 font-semibold text-slate-900"
-                            >
-                              <option value="Ảnh chụp mờ hoặc lóa sáng">Ảnh chụp mờ hoặc lóa sáng, không đọc được số</option>
-                              <option value="Giấy phép lái xe đã hết hạn">Giấy phép lái xe đã hết hạn theo quy định</option>
-                              <option value="Họ tên không trùng khớp với CCCD">Họ tên trên GPLX không trùng khớp với CCCD</option>
-                              <option value="Mất góc hoặc có dấu hiệu chỉnh sửa">Ảnh chụp có dấu hiệu cắt góc / chỉnh sửa</option>
-                            </select>
+                      ) : (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               disabled={actionLoading}
-                              onClick={handleRejectKyc}
-                              className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold text-xs cursor-pointer"
+                              onClick={handleApproveKyc}
+                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                             >
-                              Xác nhận gửi thông báo cho khách
+                              <ThumbsUp className="w-3.5 h-3.5" />
+                              <span>Phê duyệt KYC (Hợp lệ)</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setShowRejectBox(!showRejectBox)}
+                              className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <ThumbsDown className="w-3.5 h-3.5" />
+                              <span>Yêu cầu bổ sung lại</span>
                             </button>
                           </div>
-                        )}
-                      </div>
+
+                          {showRejectBox && (
+                            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 text-xs">
+                              <span className="font-bold text-amber-900 block">Lý do yêu cầu cập nhật lại:</span>
+                              <select
+                                value={kycRejectReason}
+                                onChange={(e) => setKycRejectReason(e.target.value)}
+                                className="w-full bg-white border border-amber-300 rounded-lg p-2 font-semibold text-slate-900"
+                              >
+                                <option value="Ảnh chụp mờ hoặc lóa sáng">Ảnh chụp mờ hoặc lóa sáng, không đọc được số</option>
+                                <option value="Giấy phép lái xe đã hết hạn">Giấy phép lái xe đã hết hạn theo quy định</option>
+                                <option value="Họ tên không trùng khớp với CCCD">Họ tên trên GPLX không trùng khớp với CCCD</option>
+                                <option value="Mất góc hoặc có dấu hiệu chỉnh sửa">Ảnh chụp có dấu hiệu cắt góc / chỉnh sửa</option>
+                              </select>
+                              <button
+                                type="button"
+                                disabled={actionLoading}
+                                onClick={handleRejectKyc}
+                                className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold text-xs cursor-pointer"
+                              >
+                                Xác nhận gửi thông báo cho khách
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   </div>
@@ -1024,63 +1035,73 @@ const CustomersManagementPage = () => {
                     </div>
                   </div>
 
-                  {/* Quick Form: Điều chỉnh điểm tín nhiệm */}
-                  <form onSubmit={handleAddViolation} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                      <PlusCircle className="w-4 h-4 text-blue-900" />
-                      <span>Ghi nhận vi phạm / Điều chỉnh điểm thủ công</span>
-                    </h4>
+                  {/* Quick Form: Điều chỉnh điểm tín nhiệm (Chỉ Quản lý / Admin) */}
+                  {!isManagement ? (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5">
+                      <Info className="w-4 h-4 shrink-0 text-blue-900 mt-0.5" />
+                      <div>
+                        <span className="font-bold text-slate-800 block mb-0.5">Quyền hạn Nhân viên (STAFF)</span>
+                        <span>Chỉ xem lịch sử vi phạm & điểm tín nhiệm. Thao tác điều chỉnh điểm tín nhiệm và ghi nhận vi phạm yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleAddViolation} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                        <PlusCircle className="w-4 h-4 text-blue-900" />
+                        <span>Ghi nhận vi phạm / Điều chỉnh điểm thủ công</span>
+                      </h4>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-700 block">Loại sự vụ:</label>
-                        <select
-                          value={violationForm.type}
-                          onChange={(e) => setViolationForm(p => ({ ...p, type: e.target.value }))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-slate-900"
-                        >
-                          <option value="TRẢ XE TRỄ">Trả xe trễ hạn (-10 điểm)</option>
-                          <option value="PHẠT NGUỘI">Vi phạm tốc độ / Phạt nguội (-15 điểm)</option>
-                          <option value="VỆ SINH">Hút thuốc / Dơ nội thất (-10 điểm)</option>
-                          <option value="THIỆT HẠI">Trầy xước va quẹt (-25 điểm)</option>
-                          <option value="KHEN THƯỞNG">Khen thưởng giữ gìn xe xuất sắc (+5 điểm)</option>
-                        </select>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-700 block">Loại sự vụ:</label>
+                          <select
+                            value={violationForm.type}
+                            onChange={(e) => setViolationForm(p => ({ ...p, type: e.target.value }))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-slate-900"
+                          >
+                            <option value="TRẢ XE TRỄ">Trả xe trễ hạn (-10 điểm)</option>
+                            <option value="PHẠT NGUỘI">Vi phạm tốc độ / Phạt nguội (-15 điểm)</option>
+                            <option value="VỆ SINH">Hút thuốc / Dơ nội thất (-10 điểm)</option>
+                            <option value="THIỆT HẠI">Trầy xước va quẹt (-25 điểm)</option>
+                            <option value="KHEN THƯỞNG">Khen thưởng giữ gìn xe xuất sắc (+5 điểm)</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-700 block">Số điểm cộng / trừ:</label>
+                          <input
+                            type="number"
+                            required
+                            value={violationForm.pointsAdjustment}
+                            onChange={(e) => setViolationForm(p => ({ ...p, pointsAdjustment: e.target.value }))}
+                            className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold tabular-nums text-slate-900"
+                          />
+                        </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="font-bold text-slate-700 block">Số điểm cộng / trừ:</label>
+                      <div className="space-y-1 text-xs">
+                        <label className="font-bold text-slate-700 block">Ghi chú biên bản:</label>
                         <input
-                          type="number"
+                          type="text"
                           required
-                          value={violationForm.pointsAdjustment}
-                          onChange={(e) => setViolationForm(p => ({ ...p, pointsAdjustment: e.target.value }))}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold tabular-nums text-slate-900"
+                          placeholder="VD: Trả xe trễ 1.5 giờ do thời tiết mưa lớn tại Vũng Tàu..."
+                          value={violationForm.notes}
+                          onChange={(e) => setViolationForm(p => ({ ...p, notes: e.target.value }))}
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 font-medium text-slate-900"
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-1 text-xs">
-                      <label className="font-bold text-slate-700 block">Ghi chú biên bản:</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="VD: Trả xe trễ 1.5 giờ do thời tiết mưa lớn tại Vũng Tàu..."
-                        value={violationForm.notes}
-                        onChange={(e) => setViolationForm(p => ({ ...p, notes: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 rounded-lg p-2 font-medium text-slate-900"
-                      />
-                    </div>
-
-                    <div className="text-right pt-1">
-                      <button
-                        type="submit"
-                        disabled={actionLoading}
-                        className="px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-lg font-bold text-xs shadow-xs transition"
-                      >
-                        {actionLoading ? 'Đang lưu...' : 'Lưu biên bản & cập nhật điểm'}
-                      </button>
-                    </div>
-                  </form>
+                      <div className="text-right pt-1">
+                        <button
+                          type="submit"
+                          disabled={actionLoading}
+                          className="px-4 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-lg font-bold text-xs shadow-xs transition"
+                        >
+                          {actionLoading ? 'Đang lưu...' : 'Lưu biên bản & cập nhật điểm'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
 
                 </div>
               )}

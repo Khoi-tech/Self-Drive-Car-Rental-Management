@@ -48,7 +48,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create([FromBody] CreateContractTemplateDto createDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -59,7 +59,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id:guid}")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateContractTemplateDto updateDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -72,7 +72,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPatch("{id:guid}/status")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateContractTemplateStatusDto statusDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -85,7 +85,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpDelete("{id:guid}")]
-        [Authorize(Policy = "Management")]
+        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var success = await _contractTemplateService.DeleteAsync(id);

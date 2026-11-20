@@ -6,7 +6,7 @@ namespace CarRental.API.Services
 {
     public interface IAnalyticsService
     {
-        Task<DashboardOverviewDto> GetDashboardOverviewAsync(DateTime? fromDate = null, DateTime? toDate = null);
-        Task<FleetUtilizationReportDto> GetFleetUtilizationReportAsync(DateTime? fromDate = null, DateTime? toDate = null);
+        Task<DashboardOverviewDto> GetDashboardOverviewAsync(DateTime? fromDate = null, DateTime? toDate = null, bool isStaffOnly = false);
+        Task<FleetUtilizationReportDto> GetFleetUtilizationReportAsync(DateTime? fromDate = null, DateTime? toDate = null, bool isStaffOnly = false);
     }
 }

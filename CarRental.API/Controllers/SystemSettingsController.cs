@@ -10,7 +10,7 @@ namespace CarRental.API.Controllers
 {
     [ApiController]
     [Route("api/system-settings")]
-    [Authorize(Policy = "Management")]
+    [Authorize(Policy = "AdminOnly")]
     public class SystemSettingsController : ControllerBase
     {
         private readonly ISystemSettingsService _settingsService;

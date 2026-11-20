@@ -22,12 +22,21 @@ import {
   CalendarClock,
   ShieldAlert as ShieldAlertIcon,
   Timer,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Truck,
+  FileText,
+  ArrowRight,
+  ShieldAlert
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import analyticsService from '../../services/analyticsService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
 
 const DashboardPage = () => {
+  const { role, isStaff, isManagement, isAdmin } = useAuth();
+  const isStaffOnly = role === 'STAFF';
+
   const [data, setData] = useState(null);
   const [fleetReport, setFleetReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +69,7 @@ const DashboardPage = () => {
     return (
       <div className="flex items-center justify-center min-h-[50vh] text-slate-500 space-y-3 flex-col">
         <RefreshCw size={28} className="animate-spin text-blue-900" />
-        <p className="text-xs font-semibold">Đang tổng hợp dữ liệu kinh doanh & đội xe thời gian thực...</p>
+        <p className="text-xs font-semibold">Đang tổng hợp dữ liệu {isStaffOnly ? 'vận hành đội xe' : 'kinh doanh & đội xe'} thời gian thực...</p>
       </div>
     );
   }
@@ -76,6 +85,8 @@ const DashboardPage = () => {
   const maintVehicles = (data?.maintenanceVehicles ?? 0) + (data?.repairVehicles ?? 0);
 
   const maxMonthRev = Math.max(...(data?.monthlyRevenue?.map(m => m.revenue) || [1000000]));
+  const topCars = data?.topVehicles || data?.topEarningVehicles || [];
+  const transitAnomalies = data?.transitAnomalies;
 
   return (
     <div className="space-y-6 pb-12 font-sans">
@@ -85,15 +96,21 @@ const DashboardPage = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-950 tracking-tight">
-              Trung Tâm Điều Hành & Doanh Thu
+              {isStaffOnly ? 'Bảng Điều Phối Vận Hành' : 'Trung Tâm Điều Hành & Doanh Thu'}
             </h1>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-              Live Data
+            <span className={`px-2 py-0.5 rounded-full border text-[11px] font-bold flex items-center gap-1 ${
+              isStaffOnly ? 'bg-blue-50 text-blue-900 border-blue-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                isStaffOnly ? 'bg-blue-700' : 'bg-emerald-600'
+              }`}></span>
+              {isStaffOnly ? 'Điều Phối Live' : 'Live Data'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Giám sát thời gian thực: Doanh thu tài chính, tỷ lệ khai thác đội xe và dòng sự kiện vận hành
+            {isStaffOnly 
+              ? 'Điều phối thời gian thực: Đơn chờ duyệt, xe sẵn sàng bàn giao, xe trả trễ và sự cố cần xử lý'
+              : 'Giám sát thời gian thực: Doanh thu tài chính, tỷ lệ khai thác đội xe và dòng sự kiện vận hành'}
           </p>
         </div>
 
@@ -108,7 +125,7 @@ const DashboardPage = () => {
                   : 'text-slate-600 hover:text-zinc-950'
               }`}
             >
-              Tổng Quan & Biểu Đồ
+              {isStaffOnly ? 'Điều Phối Vận Hành' : 'Tổng Quan & Biểu Đồ'}
             </button>
             <button
               onClick={() => setActiveTab('FLEET_UTILIZATION')}
@@ -118,7 +135,7 @@ const DashboardPage = () => {
                   : 'text-slate-600 hover:text-zinc-950'
               }`}
             >
-              Hiệu Suất Đội Xe ({totalVehicles})
+              Trạng Thái Đội Xe ({totalVehicles})
             </button>
           </div>
 
@@ -139,105 +156,196 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* KPI Cards Row (Strictly Clean White & Navy, Anti-AI) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Card 1: Total Revenue */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng Doanh Thu</span>
-            <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
-              <CircleDollarSign size={16} />
+      {/* KPI Cards Row */}
+      {isStaffOnly ? (
+        /* ==================== STAFF: 4 OPERATIONAL DISPATCH CARDS ==================== */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Pending Requests */}
+          <Link to="/admin/requests" className="bg-white border border-amber-200 hover:border-amber-400 rounded-lg p-5 shadow-xs space-y-2 transition block group">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Đơn Chờ Duyệt</span>
+              <div className="p-1.5 rounded bg-amber-50 text-amber-700 border border-amber-200 group-hover:bg-amber-100 transition">
+                <Clock size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold text-amber-700 tabular-nums tracking-tight">
+                {data?.pendingRequests ?? 0} đơn
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                <span>Cần thẩm định & duyệt</span>
+                <span className="text-amber-700 font-semibold group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                  Xử lý ngay <ArrowRight size={12} />
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          {/* Card 2: Ready Vehicles for Handover */}
+          <Link to="/admin/vehicles" className="bg-white border border-emerald-200 hover:border-emerald-400 rounded-lg p-5 shadow-xs space-y-2 transition block group">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Xe Sẵn Sàng Giao</span>
+              <div className="p-1.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 group-hover:bg-emerald-100 transition">
+                <Car size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-emerald-700 tabular-nums tracking-tight">
+                  {readyVehicles} xe
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums">/ {totalVehicles} tổng xe</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                <span>Sẵn sàng bàn giao khách</span>
+                <span className="text-emerald-700 font-semibold group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                  Kiểm tra <ArrowRight size={12} />
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          {/* Card 3: Late Returns */}
+          <Link to="/admin/return" className="bg-white border border-rose-200 hover:border-rose-400 rounded-lg p-5 shadow-xs space-y-2 transition block group">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Xe Trả Trễ</span>
+              <div className="p-1.5 rounded bg-rose-50 text-rose-700 border border-rose-200 group-hover:bg-rose-100 transition">
+                <Timer size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold text-rose-700 tabular-nums tracking-tight">
+                {data?.lateReturnsCount ?? 0} xe
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                <span>Cần liên hệ khách / kiểm tra</span>
+                <span className="text-rose-700 font-semibold group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                  Xem chi tiết <ArrowRight size={12} />
+                </span>
+              </div>
+            </div>
+          </Link>
+
+          {/* Card 4: Incidents & Disputes */}
+          <Link to="/admin/incidents" className="bg-white border border-purple-200 hover:border-purple-400 rounded-lg p-5 shadow-xs space-y-2 transition block group">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Sự Cố & Khiếu Nại</span>
+              <div className="p-1.5 rounded bg-purple-50 text-purple-700 border border-purple-200 group-hover:bg-purple-100 transition">
+                <AlertTriangle size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold text-purple-800 tabular-nums tracking-tight">
+                {(data?.totalIncidents ?? 0) + (data?.disputedRequests ?? 0)} vụ
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
+                <span>{data?.totalIncidents ?? 0} sự cố, {data?.disputedRequests ?? 0} khiếu nại</span>
+                <span className="text-purple-800 font-semibold group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                  Xử lý <ArrowRight size={12} />
+                </span>
+              </div>
+            </div>
+          </Link>
+        </div>
+      ) : (
+        /* ==================== MANAGER / ADMIN: 4 FINANCIAL & FLEET CARDS ==================== */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Revenue */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tổng Doanh Thu</span>
+              <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
+                <CircleDollarSign size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold text-blue-900 tabular-nums tracking-tight">
+                {formatCurrency(totalRev)}
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                <span className={`inline-flex items-center gap-0.5 font-bold ${
+                  growth >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                }`}>
+                  {growth >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                  {growth >= 0 ? `+${growth}%` : `${growth}%`}
+                </span>
+                <span className="text-slate-500">so với tháng trước</span>
+              </div>
             </div>
           </div>
-          <div>
-            <div className="text-2xl font-extrabold text-blue-900 tabular-nums tracking-tight">
-              {formatCurrency(totalRev)}
+
+          {/* Card 2: Fleet Utilization */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tỷ Lệ Khai Thác Đội Xe</span>
+              <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
+                <BarChart3 size={16} />
+              </div>
             </div>
-            <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-              <span className={`inline-flex items-center gap-0.5 font-bold ${
-                growth >= 0 ? 'text-emerald-700' : 'text-rose-700'
-              }`}>
-                {growth >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                {growth >= 0 ? `+${growth}%` : `${growth}%`}
-              </span>
-              <span className="text-slate-500">so với tháng trước</span>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-blue-900 tabular-nums tracking-tight">
+                  {fleetUtil}%
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums">({rentedVehicles}/{totalVehicles} xe lăn bánh)</span>
+              </div>
+              <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div 
+                  className="bg-blue-900 h-1.5 rounded-full transition-all duration-700"
+                  style={{ width: `${Math.max(5, fleetUtil)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Rental Bookings */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lượt Thuê Xe</span>
+              <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
+                <Clock size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold text-zinc-950 tabular-nums tracking-tight">
+                  {data?.totalRentalRequests ?? 0}
+                </span>
+                <span className="text-xs text-emerald-700 font-bold tabular-nums">({data?.completedRentals ?? 0} hoàn tất)</span>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span className="tabular-nums">{data?.pendingRequests ?? 0} đơn đang chờ duyệt</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Card 4: Fleet Status */}
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Xe Sẵn Sàng Giao</span>
+              <div className="p-1.5 rounded bg-slate-100 text-emerald-700 border border-slate-200">
+                <Car size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold text-emerald-700 tabular-nums tracking-tight">
+                  {readyVehicles} xe
+                </span>
+                <span className="text-xs text-slate-500 tabular-nums">/ {totalVehicles} xe</span>
+              </div>
+              <p className="mt-1.5 text-xs text-slate-500 flex items-center justify-between">
+                <span>Bảo dưỡng: <strong className="text-zinc-950 tabular-nums">{maintVehicles}</strong></span>
+                <span>Sự cố: <strong className="text-zinc-950 tabular-nums">{data?.totalIncidents ?? 0}</strong></span>
+              </p>
             </div>
           </div>
         </div>
-
-        {/* Card 2: Fleet Utilization */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tỷ Lệ Khai Thác Đội Xe</span>
-            <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
-              <BarChart3 size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-blue-900 tabular-nums tracking-tight">
-                {fleetUtil}%
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums">({rentedVehicles}/{totalVehicles} xe lăn bánh)</span>
-            </div>
-            <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-              <div 
-                className="bg-blue-900 h-1.5 rounded-full transition-all duration-700"
-                style={{ width: `${Math.max(5, fleetUtil)}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Rental Bookings */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lượt Thuê Xe</span>
-            <div className="p-1.5 rounded bg-slate-100 text-blue-900 border border-slate-200">
-              <Clock size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-zinc-950 tabular-nums tracking-tight">
-                {data?.totalRentalRequests ?? 0}
-              </span>
-              <span className="text-xs text-emerald-700 font-bold tabular-nums">({data?.completedRentals ?? 0} hoàn tất)</span>
-            </div>
-            <p className="mt-1.5 text-xs text-slate-500 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              <span className="tabular-nums">{data?.pendingRequests ?? 0} đơn đang chờ duyệt</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Fleet Status */}
-        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Xe Sẵn Sàng Giao</span>
-            <div className="p-1.5 rounded bg-slate-100 text-emerald-700 border border-slate-200">
-              <Car size={16} />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-extrabold text-emerald-700 tabular-nums tracking-tight">
-                {readyVehicles} xe
-              </span>
-              <span className="text-xs text-slate-500 tabular-nums">/ {totalVehicles} xe</span>
-            </div>
-            <p className="mt-1.5 text-xs text-slate-500 flex items-center justify-between">
-              <span>Bảo dưỡng: <strong className="text-zinc-950 tabular-nums">{maintVehicles}</strong></span>
-              <span>Sự cố: <strong className="text-zinc-950 tabular-nums">{data?.totalIncidents ?? 0}</strong></span>
-            </p>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {/* Operational Statistics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className={`grid gap-3 ${isStaffOnly ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'}`}>
         <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
           <div className="flex items-center gap-1.5 mb-1.5">
             <div className="p-1 rounded bg-red-50 text-red-600 border border-red-100"><Ban size={13} /></div>
@@ -286,101 +394,206 @@ const DashboardPage = () => {
           <span className="text-lg font-extrabold text-rose-700 tabular-nums">{data?.disputedRequests ?? 0}</span>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <div className="p-1 rounded bg-violet-50 text-violet-600 border border-violet-100"><ReceiptIcon size={13} /></div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Thu Hồi Rủi Ro</span>
+        {/* Sensitive Financial Card: Thu Hồi Rủi Ro - HIDDEN FOR STAFF */}
+        {!isStaffOnly && (
+          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded bg-violet-50 text-violet-600 border border-violet-100"><ReceiptIcon size={13} /></div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Thu Hồi Rủi Ro</span>
+              </div>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
+                {data?.riskRecoveryRatio ?? 100}%
+              </span>
             </div>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
-              {data?.riskRecoveryRatio ?? 100}%
-            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-extrabold text-emerald-700 tabular-nums">{formatCurrency(data?.totalCompensationCollected ?? 0).replace(' ₫', '')}</span>
+              <span className="text-[10px] text-slate-400">/</span>
+              <span className="text-xs font-extrabold text-rose-600 tabular-nums">{formatCurrency(data?.totalRepairCost ?? 0).replace(' ₫', '')}</span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xs font-extrabold text-emerald-700 tabular-nums">{formatCurrency(data?.totalCompensationCollected ?? 0).replace(' ₫', '')}</span>
-            <span className="text-[10px] text-slate-400">/</span>
-            <span className="text-xs font-extrabold text-rose-600 tabular-nums">{formatCurrency(data?.totalRepairCost ?? 0).replace(' ₫', '')}</span>
-          </div>
-        </div>
+        )}
       </div>
 
       {activeTab === 'OVERVIEW' ? (
         <>
-          {/* Main Visual: Revenue Chart & Fleet Status Breakdown */}
+          {/* Main Visual Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* 6-Month Revenue Bar Visualization */}
-            <div className="lg:col-span-2 p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-2">
-                    <TrendingUp size={16} className="text-blue-900" />
-                    Doanh Thu 6 Tháng Gần Nhất
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Thu nhập từ hợp đồng cho thuê và các khoản quyết toán phụ phí
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-slate-500 block">Tháng này ({data?.monthlyRevenue?.slice(-1)[0]?.monthLabel})</span>
-                  <span className="text-base font-extrabold text-blue-900 block tabular-nums">
-                    {formatCurrency(monthRev)}
+            {isStaffOnly ? (
+              /* ==================== STAFF: OPERATIONAL ACTION CENTER ==================== */
+              <div className="lg:col-span-2 p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-5">
+                <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-2">
+                      <Truck size={16} className="text-blue-900" />
+                      Lối Tắt Điều Phối Nghiệp Vụ Trọng Tâm
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Thực hiện nhanh các bước trong chu trình bàn giao, kiểm tra và quyết toán xe
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 bg-slate-100 text-slate-700 rounded border border-slate-200">
+                    4 Nghiệp Vụ Chính
                   </span>
                 </div>
-              </div>
 
-              {/* Bar visualization */}
-              <div className="pt-4 pb-2">
-                <div className="grid grid-cols-6 gap-3 sm:gap-6 items-end h-48 border-b border-slate-200 pb-2">
-                  {data?.monthlyRevenue?.map((item, idx) => {
-                    const heightPercent = maxMonthRev > 0 
-                      ? Math.max(8, Math.round((item.revenue / maxMonthRev) * 100)) 
-                      : 8;
-                    const isCurrent = idx === (data.monthlyRevenue.length - 1);
-
-                    return (
-                      <div key={item.monthLabel} className="flex flex-col items-center gap-2 h-full justify-end group">
-                        {/* Hover Tooltip Value */}
-                        <span className="text-[10px] text-slate-600 font-semibold opacity-0 group-hover:opacity-100 transition tabular-nums whitespace-nowrap">
-                          {formatCurrency(item.revenue).slice(0, -2)}
-                        </span>
-
-                        {/* Bar */}
-                        <div 
-                          className={`w-full max-w-[38px] rounded-t-md transition-all duration-500 ${
-                            isCurrent
-                              ? 'bg-blue-900 shadow-xs'
-                              : 'bg-slate-200 hover:bg-slate-300'
-                          }`}
-                          style={{ height: `${heightPercent}%` }}
-                        ></div>
-
-                        {/* Month Label */}
-                        <span className={`text-[11px] font-semibold mt-1 ${
-                          isCurrent ? 'text-blue-900 font-bold' : 'text-slate-500'
-                        }`}>
-                          {item.monthLabel}
-                        </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <Link 
+                    to="/admin/handover" 
+                    className="p-4 rounded-lg border border-slate-200 hover:border-blue-900 hover:shadow-xs transition bg-slate-50/50 flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-blue-900 uppercase">Bước 6: Bàn Giao Xe</span>
+                        <div className="p-1.5 rounded bg-blue-100 text-blue-900 group-hover:scale-110 transition">
+                          <Car size={16} />
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                      <p className="text-xs text-slate-600">
+                        Kiểm tra ODO, mức xăng, chụp ảnh 8 góc xe và ký biên bản điện tử bàn giao cho khách.
+                      </p>
+                    </div>
+                    <div className="mt-3 text-xs font-bold text-blue-900 flex items-center gap-1 group-hover:translate-x-1 transition">
+                      Đến Bàn Giao <ArrowRight size={13} />
+                    </div>
+                  </Link>
 
-              <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-blue-900"></span>
-                    <span>Tháng hiện tại</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-slate-200"></span>
-                    <span>Các tháng trước</span>
-                  </span>
+                  <Link 
+                    to="/admin/return" 
+                    className="p-4 rounded-lg border border-slate-200 hover:border-blue-900 hover:shadow-xs transition bg-slate-50/50 flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-emerald-800 uppercase">Bước 8: Thu Hồi & Nhận Xe</span>
+                        <div className="p-1.5 rounded bg-emerald-100 text-emerald-800 group-hover:scale-110 transition">
+                          <CheckCircle2 size={16} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Đối chiếu ODO vượt mức, phụ phí xăng/vệ sinh, ghi nhận xước xát và ký biên bản nhận xe.
+                      </p>
+                    </div>
+                    <div className="mt-3 text-xs font-bold text-emerald-800 flex items-center gap-1 group-hover:translate-x-1 transition">
+                      Đến Nhận Trả Xe <ArrowRight size={13} />
+                    </div>
+                  </Link>
+
+                  <Link 
+                    to="/admin/incidents" 
+                    className="p-4 rounded-lg border border-slate-200 hover:border-blue-900 hover:shadow-xs transition bg-slate-50/50 flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-rose-700 uppercase">Báo Cáo Sự Cố & Hư Hỏng</span>
+                        <div className="p-1.5 rounded bg-rose-100 text-rose-700 group-hover:scale-110 transition">
+                          <AlertTriangle size={16} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Ghi nhận sự cố va chạm, xước phát sinh trong quá trình trung chuyển nội bộ hoặc lưu hành.
+                      </p>
+                    </div>
+                    <div className="mt-3 text-xs font-bold text-rose-700 flex items-center gap-1 group-hover:translate-x-1 transition">
+                      Xem Danh Sách Sự Cố <ArrowRight size={13} />
+                    </div>
+                  </Link>
+
+                  <Link 
+                    to="/admin/customers" 
+                    className="p-4 rounded-lg border border-slate-200 hover:border-blue-900 hover:shadow-xs transition bg-slate-50/50 flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-800 uppercase">Đối Chiếu Hồ Sơ KYC</span>
+                        <div className="p-1.5 rounded bg-slate-200 text-slate-800 group-hover:scale-110 transition">
+                          <Users size={16} />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Xem đối chiếu CCCD và GPLX gốc của khách hàng trước khi trao chìa khóa xe.
+                      </p>
+                    </div>
+                    <div className="mt-3 text-xs font-bold text-slate-800 flex items-center gap-1 group-hover:translate-x-1 transition">
+                      Tra Cứu Khách Hàng <ArrowRight size={13} />
+                    </div>
+                  </Link>
                 </div>
-                <span className="text-[11px]">Đơn vị: VNĐ</span>
               </div>
-            </div>
+            ) : (
+              /* ==================== MANAGER / ADMIN: 6-MONTH REVENUE BAR CHART ==================== */
+              <div className="lg:col-span-2 p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-2">
+                      <TrendingUp size={16} className="text-blue-900" />
+                      Doanh Thu 6 Tháng Gần Nhất
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Thu nhập từ hợp đồng cho thuê và các khoản quyết toán phụ phí
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-500 block">Tháng này ({data?.monthlyRevenue?.slice(-1)[0]?.monthLabel})</span>
+                    <span className="text-base font-extrabold text-blue-900 block tabular-nums">
+                      {formatCurrency(monthRev)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bar visualization */}
+                <div className="pt-4 pb-2">
+                  <div className="grid grid-cols-6 gap-3 sm:gap-6 items-end h-48 border-b border-slate-200 pb-2">
+                    {data?.monthlyRevenue?.map((item, idx) => {
+                      const heightPercent = maxMonthRev > 0 
+                        ? Math.max(8, Math.round((item.revenue / maxMonthRev) * 100)) 
+                        : 8;
+                      const isCurrent = idx === (data.monthlyRevenue.length - 1);
+
+                      return (
+                        <div key={item.monthLabel} className="flex flex-col items-center gap-2 h-full justify-end group">
+                          {/* Hover Tooltip Value */}
+                          <span className="text-[10px] text-slate-600 font-semibold opacity-0 group-hover:opacity-100 transition tabular-nums whitespace-nowrap">
+                            {formatCurrency(item.revenue).slice(0, -2)}
+                          </span>
+
+                          {/* Bar */}
+                          <div 
+                            className={`w-full max-w-[38px] rounded-t-md transition-all duration-500 ${
+                              isCurrent
+                                ? 'bg-blue-900 shadow-xs'
+                                : 'bg-slate-200 hover:bg-slate-300'
+                            }`}
+                            style={{ height: `${heightPercent}%` }}
+                          ></div>
+
+                          {/* Month Label */}
+                          <span className={`text-[11px] font-semibold mt-1 ${
+                            isCurrent ? 'text-blue-900 font-bold' : 'text-slate-500'
+                          }`}>
+                            {item.monthLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-blue-900"></span>
+                      <span>Tháng hiện tại</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-slate-200"></span>
+                      <span>Các tháng trước</span>
+                    </span>
+                  </div>
+                  <span className="text-[11px]">Đơn vị: VNĐ</span>
+                </div>
+              </div>
+            )}
 
             {/* Fleet Status Breakdown */}
             <div className="p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-5">
@@ -390,7 +603,7 @@ const DashboardPage = () => {
                   Cơ Cấu Trạng Thái Đội Xe
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Phân bổ trạng thái 27 phương tiện thời gian thực
+                  Phân bổ trạng thái {totalVehicles} phương tiện thời gian thực
                 </p>
               </div>
 
@@ -399,13 +612,13 @@ const DashboardPage = () => {
                   <div className="flex justify-between mb-1">
                     <span className="text-slate-600 font-medium">Sẵn sàng bàn giao (READY)</span>
                     <span className="font-bold text-emerald-800 tabular-nums">
-                      {readyVehicles} xe ({Math.round((readyVehicles / totalVehicles) * 100)}%)
+                      {readyVehicles} xe ({totalVehicles > 0 ? Math.round((readyVehicles / totalVehicles) * 100) : 0}%)
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div 
                       className="bg-emerald-600 h-2 rounded-full" 
-                      style={{ width: `${(readyVehicles / totalVehicles) * 100}%` }}
+                      style={{ width: `${totalVehicles > 0 ? (readyVehicles / totalVehicles) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -414,13 +627,13 @@ const DashboardPage = () => {
                   <div className="flex justify-between mb-1">
                     <span className="text-slate-600 font-medium">Đang cho thuê (RENTED)</span>
                     <span className="font-bold text-blue-900 tabular-nums">
-                      {rentedVehicles} xe ({Math.round((rentedVehicles / totalVehicles) * 100)}%)
+                      {rentedVehicles} xe ({totalVehicles > 0 ? Math.round((rentedVehicles / totalVehicles) * 100) : 0}%)
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div 
                       className="bg-blue-900 h-2 rounded-full" 
-                      style={{ width: `${(rentedVehicles / totalVehicles) * 100}%` }}
+                      style={{ width: `${totalVehicles > 0 ? (rentedVehicles / totalVehicles) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -429,13 +642,13 @@ const DashboardPage = () => {
                   <div className="flex justify-between mb-1">
                     <span className="text-slate-600 font-medium">Bảo dưỡng & Gara sửa chữa</span>
                     <span className="font-bold text-amber-700 tabular-nums">
-                      {maintVehicles} xe ({Math.round((maintVehicles / totalVehicles) * 100)}%)
+                      {maintVehicles} xe ({totalVehicles > 0 ? Math.round((maintVehicles / totalVehicles) * 100) : 0}%)
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div 
                       className="bg-amber-500 h-2 rounded-full" 
-                      style={{ width: `${(maintVehicles / totalVehicles) * 100}%` }}
+                      style={{ width: `${totalVehicles > 0 ? (maintVehicles / totalVehicles) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -449,22 +662,110 @@ const DashboardPage = () => {
 
           </div>
 
+          {/* MANAGER / ADMIN ONLY: TRANSIT ANOMALIES POST-CHECK SECTION */}
+          {!isStaffOnly && transitAnomalies && (
+            <div className="p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-100">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-2">
+                      <ShieldAlert size={16} className="text-amber-600" />
+                      Cảnh Báo Hậu Kiểm Trung Chuyển (Transit Anomalies)
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                      {transitAnomalies.totalTransitAnomalies} cảnh báo
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Hậu kiểm đối soát sai lệch ODO và trầy xước trung chuyển nội bộ giữa các khâu giao / nhận xe
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+                    Giao xe: <strong>{transitAnomalies.handoverAnomaliesCount}</strong>
+                  </span>
+                  <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+                    Trả xe: <strong>{transitAnomalies.returnAnomaliesCount}</strong>
+                  </span>
+                  <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">
+                    Nội bộ: <strong>{transitAnomalies.internalTransitIncidentsCount}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {transitAnomalies.recentAnomalies && transitAnomalies.recentAnomalies.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                        <th className="py-2.5 px-3 text-left">Phương tiện</th>
+                        <th className="py-2.5 px-3 text-left">Phân loại</th>
+                        <th className="py-2.5 px-3 text-left">Nội dung cảnh báo</th>
+                        <th className="py-2.5 px-3 text-center">Sai lệch ODO</th>
+                        <th className="py-2.5 px-3 text-left">Nhân viên phụ trách</th>
+                        <th className="py-2.5 px-3 text-right">Thời gian</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {transitAnomalies.recentAnomalies.map((item, idx) => (
+                        <tr key={item.id || idx} className="hover:bg-amber-50/40 transition">
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-zinc-950 block">{item.vehicleName}</span>
+                            <span className="license-plate text-[9px] py-0">{item.licensePlate}</span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
+                              item.type === 'HANDOVER_ANOMALY' 
+                                ? 'bg-blue-50 text-blue-800 border border-blue-200' 
+                                : item.type === 'RETURN_ANOMALY'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                            }`}>
+                              {item.type === 'HANDOVER_ANOMALY' ? 'Lúc giao xe' : item.type === 'RETURN_ANOMALY' ? 'Lúc nhận xe' : 'Trung chuyển'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-medium text-slate-700 max-w-xs truncate">
+                            {item.description}
+                          </td>
+                          <td className="py-2.5 px-3 text-center tabular-nums font-bold text-amber-700">
+                            {item.odoDifference > 0 ? `+${item.odoDifference} km` : '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600">
+                            {item.staffName || 'Hệ thống'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-slate-400 tabular-nums">
+                            {formatDateTime(item.timestamp)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <span>Chưa ghi nhận bất thường trung chuyển nào trong 30 ngày qua (Đội xe vận hành chuẩn an toàn).</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Bottom Row: Top Cars & Live Operational Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Top 5 Revenue Cars */}
+            {/* Top 5 Cars */}
             <div className="p-6 rounded-lg bg-white border border-slate-200 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-2">
                   <Sparkles size={16} className="text-blue-900" />
-                  Top Xe Sinh Lời Cao Nhất
+                  {isStaffOnly ? 'Top Xe Được Thuê Nhiều Nhất' : 'Top Xe Sinh Lời Cao Nhất'}
                 </h3>
                 <span className="text-xs text-slate-500">Tháng này</span>
               </div>
 
               <div className="space-y-3">
-                {data?.topEarningVehicles?.map((v, i) => (
-                  <div key={v.vehicleId} className="flex items-center justify-between p-2.5 rounded-md hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
+                {topCars.map((v, i) => (
+                  <div key={v.vehicleId || i} className="flex items-center justify-between p-2.5 rounded-md hover:bg-slate-50 transition border border-transparent hover:border-slate-200">
                     <div className="flex items-center gap-3">
                       <span className="w-6 h-6 rounded bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold tabular-nums">
                         {i + 1}
@@ -477,12 +778,20 @@ const DashboardPage = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-extrabold text-blue-900 tabular-nums">
-                        {formatCurrency(v.totalRevenue)}
-                      </div>
-                      <div className="text-[10px] text-slate-500 tabular-nums">
-                        {v.rentCount} lượt ({v.rentDays} ngày)
-                      </div>
+                      {isStaffOnly ? (
+                        <div className="text-xs font-bold text-blue-900 tabular-nums">
+                          {v.rentalCount || v.rentCount || 0} lượt thuê
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-xs font-extrabold text-blue-900 tabular-nums">
+                            {formatCurrency(v.totalRevenue || 0)}
+                          </div>
+                          <div className="text-[10px] text-slate-500 tabular-nums">
+                            {v.rentalCount || v.rentCount || 0} lượt
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -524,15 +833,15 @@ const DashboardPage = () => {
           </div>
         </>
       ) : (
-        /* TAB 2: FLEET UTILIZATION REPORT (Table for all 27 cars) */
+        /* TAB 2: FLEET UTILIZATION REPORT */
         <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider">
-                Báo Cáo Chi Tiết Khai Thác Toàn Bộ Đội Xe (27 Xe)
+                Báo Cáo Chi Tiết Khai Thác Toàn Bộ Đội Xe ({totalVehicles} Xe)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Hiệu suất ngày lăn bánh, số lượt thuê và doanh thu đóng góp theo từng phương tiện
+                Hiệu suất ngày lăn bánh, số lượt thuê {!isStaffOnly && 'và doanh thu đóng góp'} theo từng phương tiện
               </p>
             </div>
           </div>
@@ -546,7 +855,7 @@ const DashboardPage = () => {
                   <th className="py-3 px-4 text-center">Số ODO</th>
                   <th className="py-3 px-4 text-center">Lượt thuê</th>
                   <th className="py-3 px-4 text-center">Ngày lăn bánh</th>
-                  <th className="py-3 px-4 text-right">Doanh thu tích lũy</th>
+                  {!isStaffOnly && <th className="py-3 px-4 text-right">Doanh thu tích lũy</th>}
                   <th className="py-3 px-4 text-right">Tỷ lệ khai thác</th>
                 </tr>
               </thead>
@@ -575,9 +884,11 @@ const DashboardPage = () => {
                       <td className="py-3 px-4 text-center tabular-nums text-slate-600">
                         {car.totalDaysRented || 0} ngày
                       </td>
-                      <td className="py-3 px-4 text-right tabular-nums font-extrabold text-blue-900">
-                        {formatCurrency(car.totalRevenue || 0)}
-                      </td>
+                      {!isStaffOnly && (
+                        <td className="py-3 px-4 text-right tabular-nums font-extrabold text-blue-900">
+                          {formatCurrency(car.totalRevenue || 0)}
+                        </td>
+                      )}
                       <td className="py-3 px-4 text-right tabular-nums font-bold text-zinc-950">
                         {car.utilizationRate || 0}%
                       </td>

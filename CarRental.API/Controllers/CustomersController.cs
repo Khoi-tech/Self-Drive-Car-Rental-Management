@@ -418,6 +418,15 @@ namespace CarRental.API.Controllers
                 return NotFound(new { Message = "Không tìm thấy thông tin tài khoản khách hàng." });
             }
 
+            // Quản lý tài khoản nội bộ (STAFF, MANAGER, ADMIN) chỉ dành riêng cho ADMIN
+            if (targetUser.Role != "CUSTOMER" && !User.IsAdmin())
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    Message = "Chỉ Quản trị viên (ADMIN) mới có quyền khóa hoặc mở khóa tài khoản nội bộ."
+                });
+            }
+
             bool isSuspending = string.Equals(dto.Status, "SUSPENDED", StringComparison.OrdinalIgnoreCase);
 
             targetUser.IsActive = !isSuspending;
@@ -442,7 +451,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}/kyc-status")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> UpdateKycStatus(string id, [FromBody] UpdateKycStatusDto dto)
         {
             if (!Guid.TryParse(id, out var userGuid))
@@ -474,7 +483,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/violations")]
-        [Authorize(Policy = "Operations")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> AddViolation(string id, [FromBody] AddViolationDto dto)
         {
             if (!Guid.TryParse(id, out var userGuid))

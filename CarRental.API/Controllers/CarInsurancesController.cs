@@ -49,6 +49,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Create([FromBody] CreateCarInsuranceDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -65,6 +66,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "Management")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCarInsuranceDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);

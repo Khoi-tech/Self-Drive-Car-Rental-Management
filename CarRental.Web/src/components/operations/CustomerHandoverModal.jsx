@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FileCheck, CheckCircle2, Car, Gauge, Fuel, ShieldAlert, X, AlertCircle } from 'lucide-react';
+import { 
+  FileCheck, 
+  CheckCircle2, 
+  Car, 
+  Gauge, 
+  Fuel, 
+  ShieldAlert, 
+  X, 
+  AlertCircle,
+  Camera,
+  MapPin,
+  Lock,
+  Zap
+} from 'lucide-react';
 import handoverService from '../../services/handoverService';
 import { formatDateTime } from '../../utils/formatters';
 import VehicleDamageMap from './VehicleDamageMap';
@@ -37,6 +50,10 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
 
   if (!isOpen || !rentalRequest) return null;
 
+  const isElectric = (rentalRequest?.vehicle?.fuelType || rentalRequest?.fuelType || '').toUpperCase() === 'ELECTRIC';
+  const handoverOdo = protocol?.handoverOdo || protocol?.odoAtHandover || 0;
+  const fuelLevel = protocol?.handoverFuelLevel ?? protocol?.fuelLevel ?? 100;
+
   const handleConfirm = async () => {
     if (!agreed) {
       setError('Vui lòng đánh dấu xác nhận đã kiểm tra thực tế phương tiện.');
@@ -64,7 +81,7 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto animate-scaleUp">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto animate-scaleUp text-white">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
@@ -73,8 +90,13 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               <FileCheck size={22} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>Xác Nhận Bàn Giao & Nhận Xe</span>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <span>Xác Nhận Nhận Bàn Giao Xe</span>
+                {protocol?.protocolNumber && (
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-800 text-emerald-400 border border-emerald-500/30">
+                    {protocol.protocolNumber}
+                  </span>
+                )}
               </h3>
               <p className="text-xs text-zinc-400">
                 Xe: <strong className="text-zinc-200">{rentalRequest.carMake} {rentalRequest.carModel}</strong> ({rentalRequest.carLicensePlate})
@@ -105,13 +127,19 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
             {/* Thông số kỹ thuật lúc bàn giao */}
             <div className="bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="p-2 bg-zinc-900 rounded-xl border border-zinc-800">
-                <div className="text-[10px] text-zinc-400">Số ODO xuất phát</div>
-                <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">{protocol.odoAtHandover} KM</div>
+                <div className="text-[10px] text-zinc-400 flex items-center justify-center gap-1">
+                  <Gauge size={11} />
+                  <span>Số ODO lúc giao</span>
+                </div>
+                <div className="text-sm font-bold font-mono text-amber-400 mt-0.5">{handoverOdo.toLocaleString()} KM</div>
               </div>
 
               <div className="p-2 bg-zinc-900 rounded-xl border border-zinc-800">
-                <div className="text-[10px] text-zinc-400">Mức nhiên liệu</div>
-                <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">{protocol.fuelLevel}</div>
+                <div className="text-[10px] text-zinc-400 flex items-center justify-center gap-1">
+                  {isElectric ? <Zap size={11} className="text-amber-400" /> : <Fuel size={11} className="text-emerald-400" />}
+                  <span>{isElectric ? '% Pin bàn giao' : 'Mức nhiên liệu'}</span>
+                </div>
+                <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">{fuelLevel}%</div>
               </div>
 
               <div className="p-2 bg-zinc-900 rounded-xl border border-zinc-800">
@@ -125,12 +153,29 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               </div>
             </div>
 
+            {/* Ảnh chụp đồng hồ Taplo đối chứng */}
+            {protocol.handoverDashPhotoUrl && (
+              <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800 space-y-2">
+                <span className="text-[11px] font-bold text-zinc-300 flex items-center gap-1.5">
+                  <Camera size={13} className="text-blue-400" />
+                  <span>Ảnh chụp đồng hồ Taplo đối chứng lúc giao:</span>
+                </span>
+                <div className="rounded-xl overflow-hidden border border-zinc-800 max-w-sm mx-auto">
+                  <img
+                    src={protocol.handoverDashPhotoUrl}
+                    alt="Đồng hồ taplo lúc bàn giao"
+                    className="w-full max-h-48 object-cover"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Chi tiết hiện trạng xe */}
             <div className="bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800 space-y-2 text-xs">
               <h5 className="font-bold text-zinc-300">Hiện trạng ngoại thất & nội thất:</h5>
-              <p className="text-zinc-400">• Ngoại quan: {protocol.exteriorCondition}</p>
-              <p className="text-zinc-400">• Nội thất: {protocol.interiorCondition}</p>
-              <p className="text-zinc-400">• Lốp & Mâm: {protocol.tireCondition}</p>
+              <p className="text-zinc-400">• Ngoại quan: {protocol.exteriorCondition || 'Bình thường'}</p>
+              <p className="text-zinc-400">• Nội thất: {protocol.interiorCondition || 'Sạch sẽ'}</p>
+              <p className="text-zinc-400">• Lốp & Mâm: {protocol.tireCondition || 'Tốt'}</p>
               {protocol.existingScratchesNotes && (
                 <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl">
                   <strong>Vết trầy xước/móp méo đã có trước:</strong> {protocol.existingScratchesNotes}
@@ -140,8 +185,9 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
               {/* Sơ đồ vết xước 2D bàn giao */}
               {(() => {
                 let pts = [];
-                if (protocol.damagePointsJson) {
-                  try { pts = JSON.parse(protocol.damagePointsJson); } catch {}
+                const mapJson = protocol.handoverDamageMap || protocol.dispatchDamageMap || protocol.damagePointsJson;
+                if (mapJson) {
+                  try { pts = JSON.parse(mapJson); } catch {}
                 }
                 return pts.length > 0 ? (
                   <div className="pt-2">
@@ -182,7 +228,7 @@ const CustomerHandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) =>
                   className="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-0 bg-zinc-900 border-zinc-700"
                 />
                 <span className="text-xs text-zinc-300">
-                  Tôi đã kiểm tra thực tế phương tiện cùng nhân viên VELORA, xác nhận các thông số ODO, mức xăng và tình trạng thân vỏ nêu trên là chính xác và đồng ý nhận xe.
+                  Tôi đã kiểm tra thực tế phương tiện cùng nhân viên VELORA, xác nhận các thông số ODO ({handoverOdo.toLocaleString()} km), mức {isElectric ? 'pin' : 'nhiên liệu'} ({fuelLevel}%) và sơ đồ thân vỏ nêu trên là chính xác và đồng ý nhận xe.
                 </span>
               </label>
 

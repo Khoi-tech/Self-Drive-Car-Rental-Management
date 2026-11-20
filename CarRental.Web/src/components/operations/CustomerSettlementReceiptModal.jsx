@@ -210,17 +210,32 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
                       </div>
                     )}
 
-                    {settlement.fuelFee > 0 && (
+                    {settlement.fuelFee > 0 ? (
                       <div className="py-2 flex justify-between text-rose-400">
                         <span>Phí bù hao hụt nhiên liệu:</span>
                         <span>-{formatCurrency(settlement.fuelFee)}</span>
                       </div>
+                    ) : (
+                      <div className="py-2 flex justify-between text-emerald-400">
+                        <span>Phí bù hao hụt nhiên liệu:</span>
+                        <span className="text-[11px] font-semibold">0đ (Miễn phụ phí trong ngưỡng dung sai 3%)</span>
+                      </div>
                     )}
 
-                    {settlement.damageFee > 0 && (
+                    {settlement.damageFee > 0 ? (
                       <div className="py-2 flex justify-between text-rose-400">
-                        <span>Phí bồi thường hư hỏng / sự cố:</span>
+                        <div>
+                          <span>Phí bồi thường hư hỏng / trầy xước:</span>
+                          <span className="block text-[10px] text-zinc-500 mt-0.5">
+                            * Chỉ áp dụng cho vết xước phát sinh trong chuyến đi (CUSTOMER_RENTAL)
+                          </span>
+                        </div>
                         <span>-{formatCurrency(settlement.damageFee)}</span>
+                      </div>
+                    ) : (
+                      <div className="py-2 flex justify-between text-emerald-400">
+                        <span>Phí bồi thường trầy xước:</span>
+                        <span className="text-[11px] font-semibold">0đ (Thân vỏ nguyên vẹn / vết cũ được miễn)</span>
                       </div>
                     )}
 

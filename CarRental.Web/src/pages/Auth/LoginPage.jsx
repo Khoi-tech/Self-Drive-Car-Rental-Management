@@ -7,7 +7,7 @@ import Navbar from '../../components/layout/Navbar';
 const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/';
+  const redirectUrl = searchParams.get('returnUrl') || searchParams.get('redirect') || '/';
 
   const { login } = useAuth();
 

@@ -32,11 +32,11 @@ import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../../utils/imageGalleryHelper';
 
 const RENTAL_TABS = [
-  { id: 'ACTIVE', label: 'Đang thuê', statuses: ['ACTIVE'] },
-  { id: 'PENDING', label: 'Chờ xác nhận', statuses: ['PENDING'] },
-  { id: 'UPCOMING', label: 'Sắp nhận xe', statuses: ['APPROVED', 'SIGNED', 'CONFIRMED'] },
-  { id: 'COMPLETED', label: 'Đã hoàn thành', statuses: ['COMPLETED', 'HOLDING', 'DISPUTED'] },
-  { id: 'CANCELLED', label: 'Đã hủy', statuses: ['CANCELLED', 'REJECTED'] }
+  { id: 'ACTIVE', label: 'Đang thuê', statuses: ['ACTIVE', 'IN_TRANSIT'] },
+  { id: 'PENDING', label: 'Chờ xác nhận', statuses: ['PENDING', 'PENDING_HOLD_PAYMENT', 'HOLD_CONFIRMED'] },
+  { id: 'UPCOMING', label: 'Sắp nhận xe', statuses: ['APPROVED', 'PENDING_SIGNATURE', 'SIGNED', 'DEPOSIT_PAID', 'CONFIRMED'] },
+  { id: 'COMPLETED', label: 'Đã hoàn thành', statuses: ['RETURNED', 'INSPECTION', 'SETTLED', 'PARTIALLY_SETTLED', 'CLOSED', 'COMPLETED', 'HOLDING', 'DISPUTED'] },
+  { id: 'CANCELLED', label: 'Đã hủy', statuses: ['CANCELLED', 'REJECTED', 'VOID'] }
 ];
 
 const STATUS_CONFIG = {
@@ -46,11 +46,29 @@ const STATUS_CONFIG = {
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
     icon: Clock
   },
+  PENDING_HOLD_PAYMENT: {
+    label: 'Chờ nộp cọc 500k',
+    subtext: 'Vui lòng nộp cọc giữ xe 500.000đ để giữ xe trong 4 giờ',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    icon: Clock
+  },
+  HOLD_CONFIRMED: {
+    label: 'Đã cọc 500k • Chờ duyệt',
+    subtext: 'Xe đã được giữ tạm thời! Vui lòng bổ sung CCCD & GPLX nếu chưa nộp',
+    badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
+    icon: Zap
+  },
   APPROVED: {
     label: 'Đã duyệt • Cần ký HĐ',
     subtext: 'Hồ sơ hợp lệ! Vui lòng ký hợp đồng điện tử để xác nhận cọc',
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     icon: CheckCircle2
+  },
+  PENDING_SIGNATURE: {
+    label: 'Cần ký hợp đồng',
+    subtext: 'Hồ sơ đã được phê duyệt! Vui lòng ký hợp đồng điện tử để tiếp tục',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    icon: FileSignature
   },
   SIGNED: {
     label: 'Đã ký HĐ • Chờ cọc',
@@ -58,17 +76,59 @@ const STATUS_CONFIG = {
     badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
     icon: FileSignature
   },
+  DEPOSIT_PAID: {
+    label: 'Đã nộp cọc • Sắp nhận xe',
+    subtext: 'Đã thanh toán cọc thành công! Nhân viên chuẩn bị bàn giao xe',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    icon: CheckCircle2
+  },
   CONFIRMED: {
     label: 'Sắp nhận xe (Đã cọc thành công)',
     subtext: 'Đã giữ xe thành công! Hẹn gặp quý khách vào ngày nhận xe',
     badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
     icon: CheckCircle2
   },
+  IN_TRANSIT: {
+    label: 'Nhân viên đang giao xe',
+    subtext: 'Xe đang trên đường di chuyển đến điểm hẹn với quý khách',
+    badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    icon: Car
+  },
   ACTIVE: {
     label: 'Đang trong hành trình',
     subtext: 'Xe đang lưu hành. Chúc quý khách vạn dặm bình an!',
     badgeClass: 'bg-indigo-50 text-indigo-800 border-indigo-200',
     icon: Car
+  },
+  RETURNED: {
+    label: 'Đã trả xe • Chờ nghiệm thu',
+    subtext: 'Xe đã được trả về, nhân viên đang kiểm tra và lập biên bản hoàn trả',
+    badgeClass: 'bg-purple-50 text-purple-800 border-purple-200',
+    icon: Clock
+  },
+  INSPECTION: {
+    label: 'Đang nghiệm thu xe',
+    subtext: 'Đang đối soát tình trạng xe và tính toán các phụ phí (nếu có)',
+    badgeClass: 'bg-purple-50 text-purple-800 border-purple-200',
+    icon: ShieldAlert
+  },
+  PARTIALLY_SETTLED: {
+    label: 'QT Đợt 1 • Giữ quỹ phạt',
+    subtext: 'Đã hoàn cọc chính. Đang tạm giữ 2.000.000đ quỹ phạt nguội (15-30 ngày)',
+    badgeClass: 'bg-amber-50 text-amber-900 border-amber-300',
+    icon: Clock
+  },
+  SETTLED: {
+    label: 'Đã quyết toán xong',
+    subtext: 'Đã hoàn tất thanh toán & đối soát toàn bộ chi phí chuyến đi',
+    badgeClass: 'bg-blue-50 text-blue-800 border-blue-200',
+    icon: CheckCircle2
+  },
+  CLOSED: {
+    label: 'Hồ sơ đã đóng',
+    subtext: 'Hợp đồng thuê xe đã kết thúc hoàn toàn',
+    badgeClass: 'bg-slate-100 text-slate-800 border-slate-200',
+    icon: CheckCircle2
   },
   COMPLETED: {
     label: 'Chuyến đi hoàn tất',
@@ -85,6 +145,12 @@ const STATUS_CONFIG = {
   CANCELLED: {
     label: 'Đơn đã hủy',
     subtext: 'Yêu cầu thuê xe đã được hủy bỏ theo chính sách VELORA',
+    badgeClass: 'bg-slate-100 text-slate-500 border-slate-200',
+    icon: XCircle
+  },
+  VOID: {
+    label: 'Hợp đồng vô hiệu',
+    subtext: 'Hợp đồng thuê đã bị vô hiệu hóa theo thỏa thuận',
     badgeClass: 'bg-slate-100 text-slate-500 border-slate-200',
     icon: XCircle
   },
@@ -292,8 +358,8 @@ const RentalsManagementSection = ({
   }, [requests]);
 
   // Count per tab
-  const activeCount = allBookings.filter(r => r.status === 'ACTIVE').length;
-  const upcomingCount = allBookings.filter(r => ['APPROVED', 'SIGNED', 'CONFIRMED'].includes(r.status)).length;
+  const activeCount = allBookings.filter(r => ['ACTIVE', 'IN_TRANSIT'].includes(r.status)).length;
+  const upcomingCount = allBookings.filter(r => ['APPROVED', 'PENDING_SIGNATURE', 'SIGNED', 'DEPOSIT_PAID', 'CONFIRMED'].includes(r.status)).length;
   
   // Intelligent active tab: if ACTIVE is 0 but UPCOMING has 1, default to UPCOMING!
   const [activeTab, setActiveTab] = useState(() => (activeCount > 0 ? 'ACTIVE' : 'UPCOMING'));
@@ -316,7 +382,7 @@ const RentalsManagementSection = ({
     return true;
   });
 
-  const upcomingBooking = allBookings.find(r => ['CONFIRMED', 'APPROVED', 'SIGNED'].includes(r.status));
+  const upcomingBooking = allBookings.find(r => ['CONFIRMED', 'APPROVED', 'PENDING_SIGNATURE', 'SIGNED', 'DEPOSIT_PAID'].includes(r.status));
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 space-y-6">
@@ -594,7 +660,7 @@ const RentalsManagementSection = ({
                   <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
                     
                     {/* Fast hold: Thanh toán 500k nếu chưa thanh toán */}
-                    {isFastHold && req.status === 'PENDING' && (
+                    {isFastHold && (req.status === 'PENDING' || req.status === 'PENDING_HOLD_PAYMENT') && (
                       <Link
                         to={`/payment/deposit/${req.id}`}
                         className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
@@ -628,7 +694,7 @@ const RentalsManagementSection = ({
                     )}
 
                     {/* Fast Hold: Thanh toán tiền cọc thế chân nếu chưa nộp */}
-                    {isFastHold && !isSecurityDepositPaid && req.status === 'CONFIRMED' && (
+                    {isFastHold && !isSecurityDepositPaid && ['CONFIRMED', 'DEPOSIT_PAID'].includes(req.status) && (
                       <Link
                         to={`/payment/deposit/${req.id}?type=COLLATERAL`}
                         className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
@@ -638,8 +704,8 @@ const RentalsManagementSection = ({
                       </Link>
                     )}
 
-                    {/* APPROVED -> Ký HĐ */}
-                    {req.status === 'APPROVED' && (
+                    {/* APPROVED / PENDING_SIGNATURE -> Ký HĐ */}
+                    {['APPROVED', 'PENDING_SIGNATURE'].includes(req.status) && (
                       <Link
                         to={`/contracts/sign/${req.id}`}
                         className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
@@ -660,8 +726,8 @@ const RentalsManagementSection = ({
                       </Link>
                     )}
 
-                    {/* CONFIRMED -> Nhận xe (CHỈ KHI ĐÃ CỌC THẾ CHÂN ĐẦY ĐỦ) */}
-                    {req.status === 'CONFIRMED' && (!isFastHold || isSecurityDepositPaid) && (
+                    {/* CONFIRMED / DEPOSIT_PAID -> Nhận xe (CHỈ KHI ĐÃ CỌC THẾ CHÂN ĐẦY ĐỦ) */}
+                    {['CONFIRMED', 'DEPOSIT_PAID'].includes(req.status) && (!isFastHold || isSecurityDepositPaid) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -676,7 +742,7 @@ const RentalsManagementSection = ({
                     )}
 
                     {/* KHÓA NHẬN XE NẾU CHƯA ĐỦ CỌC THẾ CHÂN */}
-                    {req.status === 'CONFIRMED' && isFastHold && !isSecurityDepositPaid && (
+                    {['CONFIRMED', 'DEPOSIT_PAID'].includes(req.status) && isFastHold && !isSecurityDepositPaid && (
                       <div 
                         className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed select-none"
                         title="Chưa thể nhận xe: Quý khách cần thanh toán tiếp tiền cọc thế chân trong vòng 4 tiếng để nhân viên bàn giao xe."
@@ -686,8 +752,8 @@ const RentalsManagementSection = ({
                       </div>
                     )}
 
-                    {/* ACTIVE -> Gia hạn / Báo sự cố */}
-                    {req.status === 'ACTIVE' && (
+                    {/* ACTIVE / IN_TRANSIT -> Gia hạn / Báo sự cố */}
+                    {['ACTIVE', 'IN_TRANSIT'].includes(req.status) && (
                       <>
                         <button
                           type="button"
@@ -714,8 +780,8 @@ const RentalsManagementSection = ({
                       </>
                     )}
 
-                    {/* COMPLETED / HOLDING / DISPUTED -> Phiếu quyết toán */}
-                    {['COMPLETED', 'HOLDING', 'DISPUTED'].includes(req.status) && (
+                    {/* COMPLETED / HOLDING / DISPUTED / SETTLED -> Phiếu quyết toán */}
+                    {['COMPLETED', 'HOLDING', 'DISPUTED', 'SETTLED', 'PARTIALLY_SETTLED', 'CLOSED', 'RETURNED', 'INSPECTION'].includes(req.status) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -730,7 +796,7 @@ const RentalsManagementSection = ({
                     )}
 
                     {/* Hủy đơn khi chưa nhận xe */}
-                    {['PENDING', 'APPROVED', 'SIGNED'].includes(req.status) && (
+                    {['PENDING', 'PENDING_HOLD_PAYMENT', 'HOLD_CONFIRMED', 'APPROVED', 'PENDING_SIGNATURE', 'SIGNED'].includes(req.status) && (
                       <button
                         type="button"
                         onClick={() => onCancelRequest(req.id)}

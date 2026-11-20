@@ -1116,35 +1116,62 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                       />
                     </div>
 
-                    {/* Fuel difference */}
-                    <div className="grid grid-cols-2 gap-2 items-center text-xs">
+                    {/* Fuel difference with tolerance calculation */}
+                    <div className="grid grid-cols-2 gap-2 items-center text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                       <div>
-                        <span className="font-semibold text-zinc-900 block">Bù hao hụt nhiên liệu:</span>
-                        <span className="text-[11px] text-slate-500">Chênh lệch: {preview?.fuelDifference || 0}%</span>
+                        <div className="flex items-center gap-1.5 font-semibold text-zinc-900">
+                          <Fuel size={14} className="text-emerald-600" />
+                          <span>Bù hao hụt nhiên liệu / pin:</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          Giao: <strong className="text-zinc-800">{preview?.handoverFuelLevel ?? 100}%</strong> → Trả: <strong className="text-zinc-800">{preview?.customerReturnFuelLevel ?? 100}%</strong>
+                          <span className="block text-[10px] text-slate-400 mt-0.5">
+                            Hao hụt: {preview?.fuelDeficit ?? 0}% • Ngưỡng dung sai: {preview?.fuelTolerancePercent ?? 3.0}%
+                          </span>
+                        </div>
+                        {(preview?.fuelDeficit ?? 0) <= (preview?.fuelTolerancePercent ?? 3.0) && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                            <CheckCircle2 size={11} className="text-emerald-700" />
+                            Miễn phụ phí (trong ngưỡng dung sai {preview?.fuelTolerancePercent ?? 3.0}%)
+                          </span>
+                        )}
                       </div>
-                      <input
-                        type="number"
-                        value={fuelFee}
-                        onChange={(e) => setFuelFee(Number(e.target.value))}
-                        disabled={step === 2}
-                        className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-right font-bold text-zinc-950 tabular-nums"
-                      />
+                      <div className="flex flex-col items-end">
+                        <input
+                          type="number"
+                          value={fuelFee}
+                          onChange={(e) => setFuelFee(Number(e.target.value))}
+                          disabled={step === 2}
+                          className="bg-white border border-slate-300 rounded px-2.5 py-1 text-right font-bold text-zinc-950 tabular-nums w-full"
+                        />
+                        <span className="text-[10px] text-slate-400 mt-0.5">
+                          {(preview?.fuelDeficit ?? 0) <= (preview?.fuelTolerancePercent ?? 3.0) ? 'Được miễn phụ phí xăng' : 'Tính 6.000đ / 1% hao hụt'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Damage fee */}
-                    <div className="grid grid-cols-2 gap-2 items-center text-xs">
+                    <div className="grid grid-cols-2 gap-2 items-center text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                       <div>
-                        <span className="font-semibold text-zinc-900 block">Sự cố & Hỏng hóc:</span>
-                        <span className="text-[11px] text-slate-500 truncate block max-w-[200px]" title={preview?.damageNotes}>
-                          {preview?.damageNotes || 'Không có hư hỏng ghi nhận'}
-                        </span>
+                        <div className="flex items-center gap-1.5 font-semibold text-zinc-900">
+                          <ShieldAlert size={14} className="text-rose-600" />
+                          <span>Phí bồi thường trầy xước / sự cố:</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          <span className="text-[11px] text-slate-600 truncate block max-w-[240px]" title={preview?.damageNotes}>
+                            {preview?.damageNotes || 'Không có hư hỏng ghi nhận'}
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-semibold block mt-0.5">
+                            * Chỉ tính phí vết xước phát sinh lúc khách thuê (CUSTOMER_RENTAL). Vết cũ & trung chuyển được miễn 100%.
+                          </span>
+                        </div>
                       </div>
                       <input
                         type="number"
                         value={damageFee}
                         onChange={(e) => setDamageFee(Number(e.target.value))}
                         disabled={step === 2}
-                        className="bg-slate-50 border border-slate-300 rounded px-2.5 py-1 text-right font-bold text-zinc-950 tabular-nums"
+                        className="bg-white border border-slate-300 rounded px-2.5 py-1 text-right font-bold text-zinc-950 tabular-nums w-full"
                       />
                     </div>
 

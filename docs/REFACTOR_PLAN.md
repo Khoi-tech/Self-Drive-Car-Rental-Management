@@ -256,33 +256,43 @@ flowchart TD
 
 ---
 
-### PHA 4: CẢI TIẾN GIAO DIỆN VẬN HÀNH (FRONTEND UI/UX POLISH)
+### PHA 4: CẢI TIẾN GIAO DIỆN VẬN HÀNH (FRONTEND UI/UX POLISH) — [HOÀN THÀNH]
 - **Mục tiêu:** Cung cấp giao diện trực quan cho nhân viên và khách hàng với các file thật đã xác minh.
 - **Nội dung công việc:**
-  1. **Nâng cấp Canvas Sơ đồ 2D (`VehicleDamageMap.jsx`):**
-     - Hiển thị marker có màu sắc phân biệt theo `stage`:
-       * Xám (`PRE_EXISTING`): Vết xước cũ (chỉ đọc, không cho sửa).
-       * Cam (`TRANSIT_DELIVERY`): Vết xước phát sinh lúc trung chuyển (Staff giao xe).
-       * Đỏ (`CUSTOMER_RENTAL`): Vết xước mới do khách làm lúc trả xe.
-     - Tích hợp modal xem ảnh chụp chi tiết của từng vết xước.
-  2. **Biểu mẫu Bàn giao xe (`HandoverModal.jsx`, `CustomerHandoverModal.jsx`):**
-     - Nhập số ODO xuất bãi vs ODO bàn giao khách.
-     - Chọn mức nhiên liệu thông minh theo `fuel_type`:
-       * Xe điện: nhập số % pin (0–100%).
-       * Xe xăng/dầu: chọn theo thang 8 vạch trực quan (12.5%/vạch).
-     - Upload ảnh chụp đồng hồ Taplo bắt buộc (`handover_dash_photo_url`).
-     - Cảnh báo trực quan khi ODO lệch ngưỡng: hiện ô bắt buộc nhập lý do giải trình (`transit_anomaly_note`).
-  3. **Biểu mẫu Nghiệm thu Trả xe (`ReturnProtocolModal.jsx`):**
-     - Nhập ODO khách trả vs ODO xe về bãi.
-     - Nhập mức nhiên liệu thực tế lúc khách trả kèm ảnh taplo.
-     - Đánh dấu vết xước mới trên sơ đồ 2D.
-  4. **Giao diện Quyết toán & Quản lý Phạt nguội (`SettlementModal.jsx`, `CustomerSettlementReceiptModal.jsx`):**
-     - Bảng kê chi tiết phụ phí có áp dụng dung sai nhiên liệu.
-     - Tách bạch khoản hoàn cọc đợt 1 và khoản tạm giữ 2.000.000đ quỹ phạt nguội.
-     - Nút xác nhận hoàn cọc đợt 2 (phạt nguội sau 15–30 ngày) chỉ hiển thị cho Manager/Admin kèm mã giao dịch VietQR.
+  1. [x] **Nâng cấp Canvas Sơ đồ 2D (`VehicleDamageMap.jsx`):**
+     - Đọc/ghi cấu trúc JSON marker có trường `stage` (`PRE_EXISTING`, `TRANSIT_DELIVERY`, `CUSTOMER_RENTAL`, `TRANSIT_RETURN`), đồng bộ chuẩn DTO Backend.
+     - Phân 4 màu sắc phân biệt rõ ràng và có thanh chú thích (legend):
+       * Xám (`PRE_EXISTING`): Vết xước cũ từ trước (chỉ đọc, khóa xóa/sửa).
+       * Cam (`TRANSIT_DELIVERY`): Vết xước phát sinh lúc trung chuyển giao xe (khóa lúc trả xe, hiển thị nhãn "Nội bộ / Không tính phí khách").
+       * Đỏ (`CUSTOMER_RENTAL`): Vết xước mới do khách làm lúc trả xe (tính bồi thường).
+       * Vàng/Tím (`TRANSIT_RETURN`): Vết phát sinh khi Staff lái xe về bãi.
+     - Tích hợp modal xem ảnh chụp độ nét cao khi click marker và hỗ trợ upload ảnh chi tiết cho vết mới.
+  2. [x] **Biểu mẫu Bàn giao xe (`HandoverModal.jsx`, `CustomerHandoverModal.jsx`, `HandoversPage.jsx`):**
+     - Tách bạch 2 luồng không chồng chéo:
+       * Nhận tại bãi: đi thẳng hoàn tất bàn giao `COMPLETED`.
+       * Giao tận nơi (2 bước): Bước 1 tạo nháp `IN_TRANSIT` (`dispatch_odo`, `dispatch_fuel_level`, vết `PRE_EXISTING`) $\rightarrow$ Bước 2 giao khách `COMPLETED` (`handover_odo`, `handover_fuel_level`, ảnh taplo `handover_dash_photo_url`, ký kép).
+     - Bộ chọn nhiên liệu thông minh theo `car.fuelType`:
+       * Xe điện: nhập số % pin (0–100%) kèm slider.
+       * Xe xăng/dầu: bộ chọn trực quan thang 8 vạch (1/8 đến 8/8 tương ứng 12.5% – 100%).
+     - Xử lý Audit ODO 2 cấp độ:
+       * Soft Flag: cảnh báo vàng khi vượt `max_allowed_km`, bắt buộc nhập lý do giải trình (`transit_anomaly_note`), không chặn bàn giao.
+       * Hard Block: thông báo lỗi rõ ràng yêu cầu kiểm tra ODO và ảnh taplo.
+     - Khóa toàn bộ nút sửa/xóa nếu hồ sơ đã chốt quyết toán (`PARTIALLY_SETTLED`, `SETTLED`, `CLOSED`).
+  3. [x] **Biểu mẫu Nghiệm thu Trả xe (`ReturnProtocolModal.jsx`, `ReturnsPage.jsx`):**
+     - Nhập `customer_return_odo`, mức nhiên liệu lúc khách trả (thang 8 vạch hoặc % pin), ảnh chụp taplo bắt buộc (`return_dash_photo_url`) và sơ đồ 2D (khóa toàn bộ vết cũ, chỉ cho chấm vết mới `CUSTOMER_RENTAL`).
+     - Khi nhận xe tận nơi: bổ sung khu vực nhập `yard_checkin_odo`, `yard_checkin_fuel_level` và giải trình `return_anomaly_note`.
+     - Dòng tóm tắt minh bạch: "Quãng đường khách sử dụng = ODO khách trả − ODO lúc giao khách".
+  4. [x] **Giao diện Quyết toán & Quản lý Phạt nguội (`SettlementModal.jsx`, `CustomerSettlementReceiptModal.jsx`):**
+     - Bảng kê chi tiết từ `PreviewSettlementDto` có hiển thị mức xăng giao vs trả, dung sai `FuelTolerancePercent`, ghi chú "Miễn phụ phí (trong ngưỡng dung sai)" khi `deficit <= tolerance`, và chỉ phạt các vết `CUSTOMER_RENTAL`.
+     - Tách bạch 2 đợt thanh toán: Đợt 1 (Quyết toán cọc chính) và Đợt 2 (Tạm giữ 2.000.000đ quỹ phạt nguội 15–30 ngày).
+     - Nút xác nhận hoàn cọc đợt 1, hoàn quỹ phạt nguội đợt 2 (kèm mã giao dịch VietQR) và giải quyết khiếu nại chỉ hiển thị cho Manager/Admin.
+  5. [x] **Đồng bộ luồng 10 bước & UX khách hàng:**
+     - Đồng bộ nhãn trạng thái (badge) khớp State Machine mới (`PENDING_HOLD_PAYMENT`, `HOLD_CONFIRMED`, `PENDING_SIGNATURE`, `DEPOSIT_PAID`, `IN_TRANSIT`, `ACTIVE`, `RETURNED`, `SETTLED`, `PARTIALLY_SETTLED`, `CLOSED`, `COMPLETED`, `VOID`, `INSPECTION`) trên `RentalRequestsPage.jsx` và `RentalsManagementSection.jsx`.
+     - Ẩn/vô hiệu hóa các nút hành động không hợp lệ ở trạng thái hiện tại.
+     - Tự động điều hướng khách vãng lai (Guest) sang `/login?returnUrl=...` khi bấm Đặt xe / Fast Hold tại `CarDetailPage.jsx` và `BookingPage.jsx`.
 - **Tiêu chí nghiệm thu (Acceptance Criteria):**
   - Giao diện mượt mà, thao tác nhạy trên tablet/mobile.
-  - `npm run build` đạt 0 lỗi.
+  - `npm run build` đạt 0 lỗi, `dotnet build` đạt 0 lỗi, 0 warnings.
 
 ---
 
@@ -321,6 +331,6 @@ flowchart TD
 | **Pha 0** | Chuẩn bị, Khảo sát & Thiết lập Nền tảng | **HOÀN THÀNH** | AI & User | Baseline sạch 0 errors/warnings, rà soát file thật |
 | **Pha 1** | Schema Database & Domain Entities | **HOÀN THÀNH** | AI & User | Bổ sung cột mới, backfill dữ liệu, seed settings |
 | **Pha 2** | Backend Core Services & State Machine | **HOÀN THÀNH** | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
-| **Pha 3** | Phân quyền Ma trận 3 Role & Bảo mật IDOR | Chờ thực hiện | AI & User | Staff/Manager/Admin, claim JWT, chặn user khóa |
-| **Pha 4** | Cải tiến Giao diện Vận hành | Chờ thực hiện | AI & User | Sơ đồ 2D diff, form biên bản ODO/xăng |
+| **Pha 3** | Phân quyền Ma trận 3 Role & Bảo mật IDOR | **HOÀN THÀNH** | AI & User | Staff/Manager/Admin, claim JWT, chặn user khóa |
+| **Pha 4** | Cải tiến Giao diện Vận hành | **HOÀN THÀNH** | AI & User | Sơ đồ 2D diff, form biên bản ODO/xăng, settlement UI |
 | **Pha 5** | Kiểm thử Tích hợp E2E & Nghiệm thu | Chờ thực hiện | AI & User | Script test 10 bước khép kín |

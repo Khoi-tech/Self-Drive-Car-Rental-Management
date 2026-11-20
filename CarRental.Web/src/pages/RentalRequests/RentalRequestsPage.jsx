@@ -37,13 +37,24 @@ import SettlementModal from '../../components/operations/SettlementModal';
 
 const STATUS_CONFIG = {
   PENDING: { label: 'Chờ duyệt', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', icon: Clock },
-  APPROVED: { label: 'Đã duyệt', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', icon: CheckCircle2 },
-  REJECTED: { label: 'Đã từ chối', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200', icon: XCircle },
-  CONFIRMED: { label: 'Đã xác nhận & cọc', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', icon: FileCheck },
+  PENDING_HOLD_PAYMENT: { label: 'Chờ cọc 500k', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', icon: Clock },
+  HOLD_CONFIRMED: { label: 'Đã cọc 500k', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', icon: Zap },
+  APPROVED: { label: 'Đã duyệt hồ sơ', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', icon: CheckCircle2 },
+  PENDING_SIGNATURE: { label: 'Chờ ký HĐ', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', icon: FileCheck },
   SIGNED: { label: 'Đã ký HĐ', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', icon: FileCheck },
-  ACTIVE: { label: 'Đang thuê xe', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', icon: CheckCircle2 },
+  DEPOSIT_PAID: { label: 'Đã nộp cọc thuê', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', icon: CheckCircle2 },
+  CONFIRMED: { label: 'Đã xác nhận & cọc', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', icon: FileCheck },
+  IN_TRANSIT: { label: 'Đang trung chuyển', bg: 'bg-amber-100', text: 'text-amber-900', border: 'border-amber-300', icon: Car },
+  ACTIVE: { label: 'Đang lưu hành', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', icon: CheckCircle2 },
+  RETURNED: { label: 'Đã trả xe', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', icon: Clock },
+  INSPECTION: { label: 'Đang nghiệm thu', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', icon: ShieldAlert },
+  PARTIALLY_SETTLED: { label: 'QT Đ1 (Giữ phạt)', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', icon: ShieldAlert },
+  SETTLED: { label: 'Đã quyết toán', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon: CheckCircle2 },
+  CLOSED: { label: 'Đã đóng hồ sơ', bg: 'bg-zinc-100', text: 'text-zinc-800', border: 'border-zinc-300', icon: CheckCircle2 },
   COMPLETED: { label: 'Đã hoàn tất', bg: 'bg-zinc-100', text: 'text-zinc-800', border: 'border-zinc-300', icon: CheckCircle2 },
   CANCELLED: { label: 'Đã hủy', bg: 'bg-zinc-100', text: 'text-zinc-600', border: 'border-zinc-200', icon: XCircle },
+  REJECTED: { label: 'Đã từ chối', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200', icon: XCircle },
+  VOID: { label: 'Hợp đồng vô hiệu', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-200', icon: XCircle },
   HOLDING: { label: 'Giữ cọc phạt nguội', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', icon: ShieldAlert },
   DISPUTED: { label: 'Đang khiếu nại', bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300', icon: AlertTriangle },
 };
@@ -130,26 +141,26 @@ const RentalRequestsPage = () => {
   }, []);
 
   // Stats count
-  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
-  const approvedCount = requests.filter(r => r.status === 'APPROVED').length;
-  const confirmedCount = requests.filter(r => r.status === 'CONFIRMED' || r.status === 'SIGNED').length;
-  const activeCount = requests.filter(r => r.status === 'ACTIVE').length;
-  const holdingCount = requests.filter(r => r.status === 'HOLDING' || settlementsMap[r.id]?.trafficFineRefundStatus === 'HOLDING').length;
+  const pendingCount = requests.filter(r => ['PENDING', 'PENDING_HOLD_PAYMENT', 'HOLD_CONFIRMED'].includes(r.status)).length;
+  const approvedCount = requests.filter(r => ['APPROVED', 'PENDING_SIGNATURE'].includes(r.status)).length;
+  const confirmedCount = requests.filter(r => ['CONFIRMED', 'SIGNED', 'DEPOSIT_PAID'].includes(r.status)).length;
+  const activeCount = requests.filter(r => ['ACTIVE', 'IN_TRANSIT'].includes(r.status)).length;
+  const holdingCount = requests.filter(r => ['HOLDING', 'PARTIALLY_SETTLED'].includes(r.status) || settlementsMap[r.id]?.trafficFineRefundStatus === 'HOLDING').length;
   const disputedCount = requests.filter(r => r.status === 'DISPUTED').length;
-  const completedCount = requests.filter(r => r.status === 'COMPLETED' && (!settlementsMap[r.id] || settlementsMap[r.id]?.trafficFineRefundStatus !== 'HOLDING')).length;
-  const cancelledCount = requests.filter(r => r.status === 'CANCELLED' || r.status === 'REJECTED').length;
+  const completedCount = requests.filter(r => ['COMPLETED', 'SETTLED', 'CLOSED'].includes(r.status) && (!settlementsMap[r.id] || settlementsMap[r.id]?.trafficFineRefundStatus !== 'HOLDING')).length;
+  const cancelledCount = requests.filter(r => ['CANCELLED', 'REJECTED', 'VOID'].includes(r.status)).length;
 
   // Filter requests
   const filteredRequests = requests.filter(item => {
     let matchTab = true;
-    if (activeTab === 'PENDING') matchTab = item.status === 'PENDING';
-    else if (activeTab === 'APPROVED') matchTab = item.status === 'APPROVED';
-    else if (activeTab === 'CONFIRMED') matchTab = item.status === 'CONFIRMED' || item.status === 'SIGNED';
-    else if (activeTab === 'ACTIVE') matchTab = item.status === 'ACTIVE';
-    else if (activeTab === 'HOLDING') matchTab = item.status === 'HOLDING' || settlementsMap[item.id]?.trafficFineRefundStatus === 'HOLDING';
+    if (activeTab === 'PENDING') matchTab = ['PENDING', 'PENDING_HOLD_PAYMENT', 'HOLD_CONFIRMED'].includes(item.status);
+    else if (activeTab === 'APPROVED') matchTab = ['APPROVED', 'PENDING_SIGNATURE'].includes(item.status);
+    else if (activeTab === 'CONFIRMED') matchTab = ['CONFIRMED', 'SIGNED', 'DEPOSIT_PAID'].includes(item.status);
+    else if (activeTab === 'ACTIVE') matchTab = ['ACTIVE', 'IN_TRANSIT'].includes(item.status);
+    else if (activeTab === 'HOLDING') matchTab = ['HOLDING', 'PARTIALLY_SETTLED'].includes(item.status) || settlementsMap[item.id]?.trafficFineRefundStatus === 'HOLDING';
     else if (activeTab === 'DISPUTED') matchTab = item.status === 'DISPUTED';
-    else if (activeTab === 'COMPLETED') matchTab = item.status === 'COMPLETED' && (!settlementsMap[item.id] || settlementsMap[item.id]?.trafficFineRefundStatus !== 'HOLDING');
-    else if (activeTab === 'CANCELLED') matchTab = item.status === 'CANCELLED' || item.status === 'REJECTED';
+    else if (activeTab === 'COMPLETED') matchTab = ['COMPLETED', 'SETTLED', 'CLOSED'].includes(item.status) && (!settlementsMap[item.id] || settlementsMap[item.id]?.trafficFineRefundStatus !== 'HOLDING');
+    else if (activeTab === 'CANCELLED') matchTab = ['CANCELLED', 'REJECTED', 'VOID'].includes(item.status);
     else matchTab = true;
 
     const searchLower = searchTerm.toLowerCase();
@@ -714,8 +725,8 @@ const RentalRequestsPage = () => {
                             <Eye size={16} />
                           </button>
 
-                          {/* Quick Actions if PENDING */}
-                          {req.status === 'PENDING' && (
+                          {/* Quick Actions if PENDING or HOLD_CONFIRMED */}
+                          {(req.status === 'PENDING' || req.status === 'HOLD_CONFIRMED') && (
                             <>
                               <button
                                 onClick={() => handleApprove(req.id)}
@@ -736,8 +747,8 @@ const RentalRequestsPage = () => {
                             </>
                           )}
 
-                          {/* Link to Contract if APPROVED, SIGNED or CONFIRMED */}
-                          {(req.status === 'APPROVED' || req.status === 'SIGNED' || req.status === 'CONFIRMED') && (
+                          {/* Link to Contract if APPROVED, PENDING_SIGNATURE, SIGNED, CONFIRMED or DEPOSIT_PAID */}
+                          {['APPROVED', 'PENDING_SIGNATURE', 'SIGNED', 'CONFIRMED', 'DEPOSIT_PAID'].includes(req.status) && (
                             <Link
                               to={`/contracts/sign/${req.id}`}
                               target="_blank"
@@ -748,18 +759,20 @@ const RentalRequestsPage = () => {
                             </Link>
                           )}
 
-                          {/* Handover Protocol Button if CONFIRMED */}
-                          {req.status === 'CONFIRMED' && (
+                          {/* Handover Protocol Button if CONFIRMED, DEPOSIT_PAID or IN_TRANSIT */}
+                          {['CONFIRMED', 'DEPOSIT_PAID', 'IN_TRANSIT'].includes(req.status) && (
                             <button
                               onClick={() => {
                                 setHandoverRequest(req);
                                 setIsHandoverModalOpen(true);
                               }}
                               className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                              title="Lập hoặc xem biên bản bàn giao xe"
+                              title={req.status === 'IN_TRANSIT' ? "Tiếp tục giao xe cho khách tại điểm hẹn" : "Lập hoặc xem biên bản bàn giao xe"}
                             >
                               <FileCheck size={13} />
-                              <span className="hidden sm:inline">Bàn giao</span>
+                              <span className="hidden sm:inline">
+                                {req.status === 'IN_TRANSIT' ? 'Giao khách' : 'Bàn giao'}
+                              </span>
                             </button>
                           )}
 
@@ -792,6 +805,21 @@ const RentalRequestsPage = () => {
                             </>
                           )}
 
+                          {/* Settlement Button if RETURNED or INSPECTION */}
+                          {['RETURNED', 'INSPECTION'].includes(req.status) && (
+                            <button
+                              onClick={() => {
+                                setSettlementRequest(req);
+                                setIsSettlementModalOpen(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
+                              title="Tính phí & Quyết toán cọc"
+                            >
+                              <DollarSign size={13} />
+                              <span className="hidden sm:inline">Quyết toán</span>
+                            </button>
+                          )}
+
                           {/* Dispute Resolution Button if DISPUTED */}
                           {req.status === 'DISPUTED' && (
                             <button
@@ -807,23 +835,23 @@ const RentalRequestsPage = () => {
                             </button>
                           )}
 
-                          {/* View Settlement Button if COMPLETED or HOLDING */}
-                          {(req.status === 'COMPLETED' || req.status === 'HOLDING') && (
+                          {/* View Settlement Button if COMPLETED, SETTLED, CLOSED, HOLDING, PARTIALLY_SETTLED */}
+                          {['COMPLETED', 'SETTLED', 'CLOSED', 'HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) && (
                             <button
                               onClick={() => {
                                 setSettlementRequest(req);
                                 setIsSettlementModalOpen(true);
                               }}
                               className={`px-2.5 py-1.5 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1 ${
-                                req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING'
+                                ['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING'
                                   ? 'bg-purple-700 hover:bg-purple-600 ring-2 ring-purple-300'
                                   : 'bg-slate-800 hover:bg-slate-700'
                               }`}
-                              title={req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING' ? "Đối soát & Hoàn cọc phạt nguội Đợt 2" : "Xem phiếu quyết toán & hoàn cọc"}
+                              title={['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING' ? "Đối soát & Hoàn cọc phạt nguội Đợt 2" : "Xem phiếu quyết toán & hoàn cọc"}
                             >
                               <DollarSign size={13} />
                               <span className="hidden sm:inline">
-                                {req.status === 'HOLDING' || settle?.trafficFineRefundStatus === 'HOLDING' ? 'Đối soát Đ2' : 'Phiếu QT'}
+                                {['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING' ? 'Đối soát Đ2' : 'Phiếu QT'}
                               </span>
                             </button>
                           )}
@@ -1357,7 +1385,7 @@ const RentalRequestsPage = () => {
               </button>
 
               <div className="flex items-center gap-2.5">
-                {selectedRequest.status === 'PENDING' ? (
+                {(selectedRequest.status === 'PENDING' || selectedRequest.status === 'HOLD_CONFIRMED') ? (
                   <>
                     <button
                       onClick={() => openRejectDialog(selectedRequest.id)}
@@ -1376,18 +1404,19 @@ const RentalRequestsPage = () => {
                       Phê duyệt hồ sơ
                     </button>
                   </>
-                ) : (selectedRequest.status === 'APPROVED' || selectedRequest.status === 'CONFIRMED') ? (
+                ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-emerald-700 font-medium hidden sm:inline">Hồ sơ đã hợp lệ</span>
-                    <Link
-                      to={`/contracts/sign/${selectedRequest.id}`}
-                      target="_blank"
-                      className="px-3.5 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition flex items-center gap-1.5 shadow-sm"
-                    >
-                      <FileText size={15} />
-                      Xem hợp đồng
-                    </Link>
-                    {selectedRequest.status === 'CONFIRMED' && selectedRequest.depositMethod === 'CASH' && !selectedRequest.isSecurityDepositPaid && (
+                    {['APPROVED', 'PENDING_SIGNATURE', 'SIGNED', 'CONFIRMED', 'DEPOSIT_PAID'].includes(selectedRequest.status) && (
+                      <Link
+                        to={`/contracts/sign/${selectedRequest.id}`}
+                        target="_blank"
+                        className="px-3.5 py-2 bg-[#0F172A] text-white rounded-md text-xs font-semibold hover:bg-[#1D4ED8] transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <FileText size={15} />
+                        Xem hợp đồng
+                      </Link>
+                    )}
+                    {['CONFIRMED', 'DEPOSIT_PAID'].includes(selectedRequest.status) && selectedRequest.depositMethod === 'CASH' && !selectedRequest.isSecurityDepositPaid && (
                       <button
                         onClick={() => handleConfirmCashDeposit(selectedRequest.id)}
                         disabled={actionLoading}
@@ -1398,7 +1427,7 @@ const RentalRequestsPage = () => {
                         Xác nhận thu cọc
                       </button>
                     )}
-                    {selectedRequest.status === 'CONFIRMED' && (
+                    {['CONFIRMED', 'DEPOSIT_PAID', 'IN_TRANSIT'].includes(selectedRequest.status) && (
                       <button
                         onClick={() => {
                           setHandoverRequest(selectedRequest);
@@ -1406,14 +1435,42 @@ const RentalRequestsPage = () => {
                           setIsDetailModalOpen(false);
                         }}
                         className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                        title="Lập hoặc xem biên bản bàn giao xe"
+                        title={selectedRequest.status === 'IN_TRANSIT' ? "Tiếp tục giao xe cho khách tại điểm hẹn" : "Lập hoặc xem biên bản bàn giao xe"}
                       >
                         <FileCheck size={15} />
-                        Bàn giao xe
+                        {selectedRequest.status === 'IN_TRANSIT' ? 'Giao khách' : 'Bàn giao xe'}
+                      </button>
+                    )}
+                    {selectedRequest.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => {
+                          setReturnRequest(selectedRequest);
+                          setIsReturnModalOpen(true);
+                          setIsDetailModalOpen(false);
+                        }}
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        title="Nghiệm thu hoàn trả xe"
+                      >
+                        <FileCheck size={15} />
+                        Trả xe
+                      </button>
+                    )}
+                    {['ACTIVE', 'RETURNED', 'INSPECTION', 'HOLDING', 'PARTIALLY_SETTLED', 'SETTLED', 'CLOSED', 'COMPLETED'].includes(selectedRequest.status) && (
+                      <button
+                        onClick={() => {
+                          setSettlementRequest(selectedRequest);
+                          setIsSettlementModalOpen(true);
+                          setIsDetailModalOpen(false);
+                        }}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        title="Phiếu quyết toán & đối soát tài chính"
+                      >
+                        <DollarSign size={15} />
+                        {['HOLDING', 'PARTIALLY_SETTLED'].includes(selectedRequest.status) ? 'Đối soát Đ2' : 'Quyết toán'}
                       </button>
                     )}
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
 

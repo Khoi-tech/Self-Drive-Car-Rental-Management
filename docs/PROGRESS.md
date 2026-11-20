@@ -15,7 +15,7 @@
 | **1** | Cơ sở Dữ liệu & Domain Entities | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **2** | Backend Core Services & State Machine | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **3** | Phân quyền Ma trận 3 Role (STAFF / MANAGER / ADMIN) & IDOR | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
-| **4** | Cải tiến Giao diện Vận hành (UI/UX Canvas & Protocol) | — | — | CHỜ THỰC HIỆN |
+| **4** | Cải tiến Giao diện Vận hành (UI/UX Canvas & Protocol) | 20/11/2026 | 20/11/2026 | **HOÀN THÀNH** |
 | **5** | Kiểm thử Tích hợp E2E & Nghiệm thu Tổng thể | — | — | CHỜ THỰC HIỆN |
 
 ---
@@ -145,33 +145,63 @@
 
 ---
 
-## 3. Danh Mục File & Endpoint Thay Đổi (Phase 3 Artifacts)
+### PHA 4: CẢI TIẾN GIAO DIỆN VẬN HÀNH (FRONTEND UI/UX POLISH) — [x] HOÀN THÀNH
+- [x] **Xác minh nhanh 2 endpoint Backend từ Pha 3:**
+  - Xác nhận `POST /api/vehicles/{vehicleId}/pricing-preview` mở `[AllowAnonymous]` (không bị 403 khi khách vãng lai xem dự toán).
+  - Xác nhận `POST /api/handover-protocols/{id}/confirm` yêu cầu Authenticated + IDOR/Operations validation (hỗ trợ cả khách hàng ký từ máy mình và nhân viên ký kép).
+- [x] **Nâng cấp Sơ đồ xước 2D (`VehicleDamageMap.jsx`):**
+  - Đọc/ghi cấu trúc JSON marker có trường `stage` (`PRE_EXISTING`, `TRANSIT_DELIVERY`, `CUSTOMER_RENTAL`, `TRANSIT_RETURN`), tương thích DTO Backend.
+  - 4 màu sắc phân biệt trực quan kèm thanh chú thích (legend):
+    * Xám (`PRE_EXISTING`): Vết cũ từ trước (chỉ đọc, khóa không cho xóa/sửa).
+    * Cam (`TRANSIT_DELIVERY`): Vết phát sinh lúc trung chuyển giao xe (khóa lúc trả xe, gắn nhãn "Nội bộ / Không tính phí khách").
+    * Đỏ (`CUSTOMER_RENTAL`): Vết mới do khách làm lúc trả xe (tính bồi thường).
+    * Vàng/Tím (`TRANSIT_RETURN`): Vết phát sinh khi Staff lái xe về bãi.
+  - Tích hợp Modal xem ảnh chụp độ nét cao khi click vào marker và hỗ trợ upload ảnh chi tiết cho marker mới.
+- [x] **Nâng cấp Biểu mẫu Bàn giao xe (`HandoverModal.jsx`, `CustomerHandoverModal.jsx`, `HandoversPage.jsx`):**
+  - Tách bạch rõ 2 luồng không chồng chéo:
+    * Nhận tại bãi: đi thẳng hoàn tất bàn giao `COMPLETED`.
+    * Giao tận nơi (2 bước): Bước 1 tạo nháp `IN_TRANSIT` (`dispatch_odo`, `dispatch_fuel_level`, xác nhận `PRE_EXISTING`) $\rightarrow$ Bước 2 gặp khách hoàn tất `COMPLETED` (`handover_odo`, `handover_fuel_level`, bắt buộc ảnh taplo `handover_dash_photo_url`, ký xác nhận kép).
+  - Bộ chọn nhiên liệu thông minh theo `car.fuelType`:
+    * Xe điện: nhập số % pin (0–100%) kèm slider.
+    * Xe xăng/dầu: bộ chọn trực quan thang 8 vạch (1/8 đến 8/8 tương ứng 12.5% – 100%).
+  - Xử lý trực quan Audit ODO 2 cấp độ:
+    * Soft Flag: cảnh báo vàng khi chênh lệch vượt `max_allowed_km`, bắt buộc nhập lý do giải trình (`transit_anomaly_note`), không chặn nút hoàn tất giao xe.
+    * Hard Block: thông báo lỗi rõ ràng yêu cầu kiểm tra ODO và ảnh taplo.
+  - Khóa toàn bộ nút sửa/xóa nếu hồ sơ đã chốt Quyết toán (`PARTIALLY_SETTLED`, `SETTLED`, `CLOSED`).
+- [x] **Nâng cấp Biểu mẫu Nghiệm thu Trả xe (`ReturnProtocolModal.jsx`, `ReturnsPage.jsx`):**
+  - Nhập `customer_return_odo`, mức nhiên liệu lúc khách trả (thang 8 vạch hoặc % pin), ảnh chụp taplo bắt buộc (`return_dash_photo_url`) và sơ đồ 2D (khóa toàn bộ vết cũ, chỉ cho chấm vết mới `CUSTOMER_RENTAL`).
+  - Khi nhận xe tận nơi: hiển thị khu vực cập nhật `yard_checkin_odo`, `yard_checkin_fuel_level` và ô giải trình `return_anomaly_note` (khi vượt ngưỡng ODO chiều về).
+  - Hiển thị dòng tóm tắt minh bạch: "Quãng đường khách sử dụng = ODO khách trả − ODO lúc giao khách".
+- [x] **Nâng cấp Giao diện Quyết toán & Quản lý Phạt nguội (`SettlementModal.jsx`, `CustomerSettlementReceiptModal.jsx`):**
+  - Bảng kê chi tiết từ `PreviewSettlementDto` hiển thị mức xăng giao vs trả, ngưỡng dung sai (`FuelTolerancePercent`), ghi chú "Miễn phụ phí (trong ngưỡng dung sai)" khi `deficit <= tolerance`, và chỉ phạt các vết trầy xước `CUSTOMER_RENTAL`.
+  - Tách bạch rõ 2 phần thanh toán: Đợt 1 (Quyết toán cọc chính) và Đợt 2 (Tạm giữ 2.000.000đ quỹ phạt nguội 15–30 ngày).
+  - Nút xác nhận hoàn cọc đợt 1, hoàn quỹ phạt nguội đợt 2 (kèm mã giao dịch VietQR) và giải quyết khiếu nại chỉ hiển thị cho `MANAGER` / `ADMIN`.
+- [x] **Đồng bộ luồng 10 bước & UX khách hàng:**
+  - Đồng bộ nhãn trạng thái (badge) khớp State Machine mới (`PENDING_HOLD_PAYMENT`, `HOLD_CONFIRMED`, `PENDING_SIGNATURE`, `DEPOSIT_PAID`, `IN_TRANSIT`, `ACTIVE`, `RETURNED`, `SETTLED`, `PARTIALLY_SETTLED`, `CLOSED`, `COMPLETED`, `VOID`, `INSPECTION`) trên `RentalRequestsPage.jsx` và `RentalsManagementSection.jsx`.
+  - Ẩn/vô hiệu hóa các nút hành động không hợp lệ ở trạng thái hiện tại để tránh bấm sai bước.
+  - Tự động điều hướng khách vãng lai (Guest) sang `/login?returnUrl=...` khi bấm Đặt xe / Fast Hold tại `CarDetailPage.jsx` và `BookingPage.jsx`.
+- [x] **Xác minh Biên dịch:**
+  - Backend: `dotnet build` đạt **0 Warning(s), 0 Error(s)**.
+  - Frontend: `npm run build` đạt **0 errors**.
 
-### Backend:
-1. `CarRental.API/Program.cs`: Bổ sung Authorization Policy `AdminOnly` (`ADMIN`).
-2. `CarRental.API/Helpers/SecurityExtensions.cs`: Tăng cường `CanAccessRequestIdAsync` chống IDOR, kiểm tra `dbUser.IsActive`.
-3. `CarRental.API/Controllers/VehiclesController.cs`: Gắn `AdminOnly` cho DELETE xe.
-4. `CarRental.API/Controllers/CompensationPoliciesController.cs`: Gắn `AdminOnly` cho POST/PUT/PATCH.
-5. `CarRental.API/Controllers/ContractTemplatesController.cs`: Gắn `AdminOnly` cho POST/PUT/PATCH/DELETE.
-6. `CarRental.API/Controllers/SystemSettingsController.cs`: Gắn `AdminOnly` cho toàn bộ Controller.
-7. `CarRental.API/Controllers/SettlementsController.cs`: Gắn `Management` cho confirm-refund, confirm-traffic-fine-refund, confirm-additional-payment, resolve-dispute.
-8. `CarRental.API/Controllers/CustomersController.cs`: Gắn `Management` cho update-kyc, add-violation, toggle-status; chặn sửa tài khoản nội bộ nếu không phải ADMIN.
-9. `CarRental.API/Controllers/CarInsurancesController.cs`: Gắn `Management` cho POST/PUT.
-10. `CarRental.API/Controllers/AnalyticsController.cs`: Kiểm tra role và truyền `isStaffOnly` vào `AnalyticsService`.
-11. `CarRental.API/Services/AnalyticsService.cs`: Ẩn doanh thu với `STAFF`, tổng hợp `TransitAnomalies` cho `MANAGER`/`ADMIN`.
-12. `CarRental.API/DTOs/Analytics/DashboardOverviewDto.cs`: Bổ sung DTOs `TransitAnomalySummaryDto`, `TransitAnomalyItemDto`, nullable revenue fields.
-13. `CarRental.API/Services/SettlementService.cs`: Hotfix Bước 10 không đổi `Car.Status = READY`.
+---
+
+## 3. Danh Mục File Thay Đổi (Phase 4 Artifacts)
 
 ### Frontend:
-14. `CarRental.Web/src/context/AuthContext.jsx`: Thêm helper getters theo 3 role.
-15. `CarRental.Web/src/routes/ProtectedRoute.jsx`: Thêm kiểm tra `allowedRoles` và giao diện cảnh báo 403.
-16. `CarRental.Web/src/routes/AppRoutes.jsx`: Bảo vệ các route quản lý giá, chính sách, hệ thống.
-17. `CarRental.Web/src/layouts/AdminLayout.jsx`: Lọc menu điều hướng theo role.
-18. `CarRental.Web/src/components/operations/SettlementModal.jsx`: Ẩn thao tác hoàn cọc/giải quyết tranh chấp cho STAFF.
-19. `CarRental.Web/src/pages/Customers/CustomersManagementPage.jsx`: Ẩn thao tác KYC duyệt, khóa tài khoản, ghi vi phạm cho STAFF.
-20. `CarRental.Web/src/pages/Vehicles/VehiclesPage.jsx`: Ẩn Thêm xe mới, Sửa, Đổi trạng thái, Ngừng hoạt động theo role.
-21. `CarRental.Web/src/pages/Vehicles/VehicleDetailPage.jsx`: Ẩn Chỉnh sửa, Đổi trạng thái, Ngừng hoạt động theo role.
-22. `CarRental.Web/src/pages/Dashboard/DashboardPage.jsx`: Phân tách "Bảng Điều Phối Vận Hành" cho STAFF và Dashboard Doanh thu + Cảnh báo Hậu kiểm Trung chuyển cho Quản lý.
+1. `CarRental.Web/src/components/operations/VehicleDamageMap.jsx`: Canvas sơ đồ xước 2D hỗ trợ diff 4 stage, modal xem ảnh độ phân giải cao, upload ảnh vết xước mới.
+2. `CarRental.Web/src/components/handover/HandoverModal.jsx`: Biểu mẫu bàn giao xe 2 luồng (tại bãi & tận nơi 2 bước), bộ chọn nhiên liệu thông minh (pin EV % vs xăng 8 vạch), Audit ODO 2 cấp độ, khóa khi đã quyết toán.
+3. `CarRental.Web/src/components/operations/CustomerHandoverModal.jsx`: Modal khách hàng xác nhận bàn giao hiển thị ODO, pin/xăng thông minh, ảnh taplo và sơ đồ 2D.
+4. `CarRental.Web/src/pages/Handovers/HandoversPage.jsx`: Cột ODO xuất bãi/bàn giao, mức xăng/pin %, ảnh taplo và sơ đồ 2D xem nhanh.
+5. `CarRental.Web/src/components/operations/ReturnProtocolModal.jsx`: Biểu mẫu nghiệm thu trả xe, ODO khách trả, fuel thông minh, ảnh taplo, khóa vết cũ chỉ cho chấm `CUSTOMER_RENTAL`, khối trung chuyển về bãi và dòng tóm tắt quãng đường khách đi.
+6. `CarRental.Web/src/pages/Returns/ReturnsPage.jsx`: Bảng danh sách trả xe cập nhật các trường ODO khách trả, về bãi, ảnh taplo.
+7. `CarRental.Web/src/components/operations/SettlementModal.jsx`: Bảng kê minh bạch từ `PreviewSettlementDto`, dung sai nhiên liệu, chỉ phạt vết `CUSTOMER_RENTAL`, tách 2 đợt hoàn cọc / giữ quỹ phạt nguội, phân quyền Manager/Admin.
+8. `CarRental.Web/src/components/operations/CustomerSettlementReceiptModal.jsx`: Phiếu quyết toán cho khách hàng giải trình dung sai nhiên liệu và vết xước mới.
+9. `CarRental.Web/src/pages/Auth/LoginPage.jsx`: Tiếp nhận cả `returnUrl` và `redirect` để điều hướng mượt mà sau khi đăng nhập.
+10. `CarRental.Web/src/pages/Catalog/CarDetailPage.jsx`: Điều hướng khách chưa đăng nhập sang `/login?returnUrl=...` khi bấm Đặt xe / Fast Hold.
+11. `CarRental.Web/src/pages/Booking/BookingPage.jsx`: Tự động chuyển hướng khách vãng lai sang đăng nhập khi truy cập form đặt xe.
+12. `CarRental.Web/src/pages/RentalRequests/RentalRequestsPage.jsx`: Đồng bộ `STATUS_CONFIG` 21 trạng thái, đếm và lọc tab theo nhóm trạng thái mới, khóa/ẩn nút hành động sai bước.
+13. `CarRental.Web/src/pages/Customer/sections/RentalsManagementSection.jsx`: Đồng bộ `RENTAL_TABS` và `STATUS_CONFIG` phía khách hàng, kiểm soát các nút thao tác theo đúng tiến độ vòng đời xe.
 
 ---
 
@@ -180,4 +210,5 @@
 - **20/11/2026 10:36:** Hoàn tất Pha 0: Rà soát baseline `dotnet build` và `npm run build` (0 errors, 0 warnings). Commit `506a571`.
 - **20/11/2026 10:42:** Hoàn tất Pha 1: Nâng cấp Enums, Entities, Migration SQL `20261120_UpgradeWorkflowAndDiffMarkers.sql`, backfill dữ liệu, seed settings. Commit `688ce80`.
 - **20/11/2026 11:04:** Hoàn tất Pha 2: Cài đặt State Machine 10 bước tập trung, 3 bẫy nghiệp vụ (Nhiên liệu tolerance, Sơ đồ xước diff & incident nội bộ, Audit ODO 2 cấp độ 2 chiều), khóa cứng sau Settlement, chống trùng lịch gia hạn (HTTP 409), và sửa triệt để lệch số liệu Analytics. Commit `ca43051`.
-- **20/11/2026 11:35:** Hoàn tất Pha 3: Hotfix Bước 10 (không đổi Car -> READY khi hoàn phạt nguội), chuẩn hóa Ma trận 3 Role (STAFF / MANAGER / ADMIN), vá triệt để lỗ hổng IDOR, phân tách dữ liệu Backend Analytics & Dashboard theo role, ẩn hoàn toàn các nút thao tác vượt quyền trên Frontend. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors.
+- **20/11/2026 11:35:** Hoàn tất Pha 3: Hotfix Bước 10 (không đổi Car -> READY khi hoàn phạt nguội), chuẩn hóa Ma trận 3 Role (STAFF / MANAGER / ADMIN), vá triệt để lỗ hổng IDOR, phân tách dữ liệu Backend Analytics & Dashboard theo role, ẩn hoàn toàn các nút thao tác vượt quyền trên Frontend. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors. Commit `04ff22e`.
+- **20/11/2026 12:05:** Hoàn tất Pha 4: Nâng cấp sơ đồ xước 2D diff 4 stage, form bàn giao 2 luồng & ODO audit, form nghiệm thu trả xe & tóm tắt quãng đường, giao diện quyết toán 2 đợt & phân quyền duyệt hoàn cọc, đồng bộ 10 bước State Machine trên toàn bộ trang quản trị và giao diện khách hàng. `dotnet build` 0 errors, 0 warnings; `npm run build` 0 errors.

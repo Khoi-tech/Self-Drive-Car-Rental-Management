@@ -30,11 +30,19 @@ import { useAuth } from '../../context/AuthContext';
 import { validateRentalDates } from '../../utils/dateTimeHelpers';
 
 const BookingPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isAccountSuspended = user?.isActive === false;
   const { carId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Redirect guest to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const currentUrl = window.location.pathname + window.location.search;
+      navigate(`/login?returnUrl=${encodeURIComponent(currentUrl)}`, { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const [vehicle, setVehicle] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -261,6 +269,12 @@ const BookingPage = () => {
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
+
+    if (!user) {
+      const currentUrl = window.location.pathname + window.location.search;
+      navigate(`/login?returnUrl=${encodeURIComponent(currentUrl)}`);
+      return;
+    }
 
     if (isAccountSuspended) {
       setError(

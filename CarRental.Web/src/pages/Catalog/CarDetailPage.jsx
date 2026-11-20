@@ -284,6 +284,14 @@ const CarDetailPage = () => {
   }, [id, startTime, endTime, isDatesOrVehicleInvalid]);
 
   const handleBooking = (type = 'FAST_HOLD') => {
+    const location = searchParams.get('pickupLocation') || vehicle?.pickupLocation || 'Tại Cửa Hàng VELORA';
+    const bookingPath = `/booking/${id}?startTime=${encodeURIComponent(startTime || '')}&endTime=${encodeURIComponent(endTime || '')}&pickupLocation=${encodeURIComponent(location)}&type=${type}`;
+
+    if (!user) {
+      navigate(`/login?returnUrl=${encodeURIComponent(bookingPath)}`);
+      return;
+    }
+
     if (isAccountSuspended) {
       setBookingError(
         `Tài khoản của bạn đang bị TẠM KHÓA quyền đặt xe mới${user?.lockReason ? ` (${user.lockReason})` : ''}. Vui lòng kiểm tra trạng thái tại Hồ sơ cá nhân.`
@@ -307,8 +315,7 @@ const CarDetailPage = () => {
       return;
     }
     setBookingError('');
-    const location = searchParams.get('pickupLocation') || vehicle?.pickupLocation || 'Tại Cửa Hàng VELORA';
-    navigate(`/booking/${id}?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}&pickupLocation=${encodeURIComponent(location)}&type=${type}`);
+    navigate(bookingPath);
   };
 
   const gallery = getVehicleGallery(vehicle);

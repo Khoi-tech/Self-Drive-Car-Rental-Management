@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, ShieldCheck, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, Eye, EyeOff, ShieldCheck, Shield, UserCheck, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/layout/Navbar';
 
@@ -146,17 +146,41 @@ const LoginPage = () => {
             {/* Quick Demo Access Buttons */}
             <div className="mt-6 pt-5 border-t border-slate-100">
               <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider block text-center mb-3">
-                Tài khoản kiểm thử nhanh (Demo)
+                Tài khoản kiểm thử nhanh theo 3 Role (Demo)
               </span>
               <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('admin@velora.vn', 'Velora@2026')}
+                  className="p-2 rounded-md bg-purple-50 hover:bg-purple-100 border border-purple-200 text-left transition-colors flex items-center gap-2"
+                >
+                  <ShieldCheck size={16} className="text-purple-800 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[11px] font-bold text-purple-950 leading-tight">Admin (Tối cao)</div>
+                    <div className="text-[10px] text-purple-700 font-mono truncate">admin@velora.vn</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('manager@velora.vn', 'Velora@2026')}
+                  className="p-2 rounded-md bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition-colors flex items-center gap-2"
+                >
+                  <Shield size={16} className="text-blue-800 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[11px] font-bold text-blue-950 leading-tight">Quản lý (Manager)</div>
+                    <div className="text-[10px] text-blue-700 font-mono truncate">manager@velora.vn</div>
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('staff@velora.vn', 'Velora@2026')}
                   className="p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
                 >
-                  <ShieldCheck size={16} className="text-blue-900 shrink-0" />
+                  <UserCheck size={16} className="text-slate-800 shrink-0" />
                   <div className="truncate">
-                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Nhân viên / Admin</div>
+                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Nhân viên (Staff)</div>
                     <div className="text-[10px] text-slate-500 font-mono truncate">staff@velora.vn</div>
                   </div>
                 </button>
@@ -164,24 +188,24 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('customer@velora.vn', 'Velora@2026')}
-                  className="p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
+                  className="p-2 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition-colors flex items-center gap-2"
                 >
-                  <User size={16} className="text-emerald-700 shrink-0" />
+                  <User size={16} className="text-emerald-800 shrink-0" />
                   <div className="truncate">
-                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Khách hàng Mẫu</div>
-                    <div className="text-[10px] text-slate-500 font-mono truncate">customer@velora.vn</div>
+                    <div className="text-[11px] font-bold text-emerald-950 leading-tight">Khách hàng Mẫu</div>
+                    <div className="text-[10px] text-emerald-700 font-mono truncate">customer@velora.vn</div>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleQuickLogin('hoangminh.nguyen@gmail.com', 'Velora@2026')}
-                  className="col-span-2 p-2 rounded-md bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition-colors flex items-center gap-2"
+                  className="col-span-2 p-2 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left transition-colors flex items-center gap-2"
                 >
-                  <User size={16} className="text-amber-700 shrink-0" />
+                  <User size={16} className="text-amber-800 shrink-0" />
                   <div className="truncate">
-                    <div className="text-[11px] font-bold text-zinc-900 leading-tight">Nguyễn Hoàng Minh (Khách VIP)</div>
-                    <div className="text-[10px] text-slate-500 font-mono truncate">hoangminh.nguyen@gmail.com</div>
+                    <div className="text-[11px] font-bold text-amber-950 leading-tight">Nguyễn Hoàng Minh (Khách VIP)</div>
+                    <div className="text-[10px] text-amber-700 font-mono truncate">hoangminh.nguyen@gmail.com</div>
                   </div>
                 </button>
               </div>

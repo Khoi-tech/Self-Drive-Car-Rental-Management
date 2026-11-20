@@ -578,7 +578,7 @@ namespace CarRental.API.Controllers
 
                 docs.Add(new CustomerDocumentDto
                 {
-                    Id = contract.ContractNumber,
+                    Id = contract.ContractNumber ?? contract.Id.ToString(),
                     Type = "CONTRACT",
                     TypeName = "Hợp đồng thuê xe tự lái điện tử",
                     Title = $"Hợp đồng nguyên tắc & điều khoản giao xe {carName}",
@@ -601,7 +601,7 @@ namespace CarRental.API.Controllers
 
                 docs.Add(new CustomerDocumentDto
                 {
-                    Id = ho.ProtocolNumber,
+                    Id = ho.ProtocolNumber ?? ho.Id.ToString(),
                     Type = "HANDOVER_PROTOCOL",
                     TypeName = "Biên bản giao xe (Handover Out)",
                     Title = $"Biên bản bàn giao xe thực tế {carName}",
@@ -624,7 +624,7 @@ namespace CarRental.API.Controllers
 
                 docs.Add(new CustomerDocumentDto
                 {
-                    Id = rt.ProtocolNumber,
+                    Id = rt.ProtocolNumber ?? rt.Id.ToString(),
                     Type = "RETURN_PROTOCOL",
                     TypeName = "Biên bản nhận lại xe (Return In)",
                     Title = $"Biên bản nhận lại xe & kiểm tra tình trạng {carName}",
@@ -647,7 +647,7 @@ namespace CarRental.API.Controllers
 
                 docs.Add(new CustomerDocumentDto
                 {
-                    Id = st.SettlementNumber,
+                    Id = st.SettlementNumber ?? st.Id.ToString(),
                     Type = "SETTLEMENT_RECEIPT",
                     TypeName = "Phiếu quyết toán & hoàn tiền cọc",
                     Title = $"Biên bản thanh lý hợp đồng & quyết toán cọc thế chân {carName}",
@@ -745,9 +745,9 @@ namespace CarRental.API.Controllers
 
                     transactions.Add(new CustomerTransactionDto
                     {
-                        Id = st.SettlementNumber,
+                        Id = st.SettlementNumber ?? st.Id.ToString(),
                         Type = "DEPOSIT_REFUND",
-                        Title = $"Hoàn trả tiền cọc sau quyết toán đơn {st.SettlementNumber}",
+                        Title = $"Hoàn trả tiền cọc sau quyết toán đơn {st.SettlementNumber ?? st.Id.ToString()}",
                         Car = carName,
                         Amount = st.RefundAmount,
                         IsIncome = true,
@@ -756,7 +756,7 @@ namespace CarRental.API.Controllers
                         Date = (st.SettledAt ?? st.CreatedAt ?? DateTime.UtcNow).ToString("dd/MM/yyyy HH:mm"),
                         Status = st.RefundStatus == "COMPLETED" ? "REFUNDED" : "PENDING",
                         StatusLabel = st.RefundStatus == "COMPLETED" ? "Đã hoàn cọc" : "Đang chờ hoàn cọc",
-                        RefNo = st.SettlementNumber
+                        RefNo = st.SettlementNumber ?? st.Id.ToString()
                     });
                 }
             }

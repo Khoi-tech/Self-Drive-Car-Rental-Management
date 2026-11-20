@@ -45,6 +45,14 @@ namespace CarRental.API.Entities
         [Column("return_date")]
         public DateTime ReturnDate { get; set; } = DateTime.UtcNow;
 
+        // Mốc ODO khách trả xe và xe về bãi
+        [Column("customer_return_odo")]
+        public int CustomerReturnOdo { get; set; } // ODO lúc khách hoàn trả thực tế
+
+        [Column("yard_checkin_odo")]
+        public int? YardCheckinOdo { get; set; } // ODO khi xe về tới bãi trung chuyển
+
+        // Cột cũ để duy trì tương thích ngược
         [Column("start_km")]
         public int StartOdo { get; set; }
 
@@ -60,14 +68,37 @@ namespace CarRental.API.Entities
         [Column("excess_km")]
         public int ExcessKm { get; set; } = 0;
 
+        // Mốc nhiên liệu / pin (decimal: % pin hoặc thang 8 vạch xăng)
+        [Column("customer_return_fuel_level", TypeName = "decimal(5,2)")]
+        public decimal CustomerReturnFuelLevel { get; set; } = 100;
+
+        [Column("yard_checkin_fuel_level", TypeName = "decimal(5,2)")]
+        public decimal? YardCheckinFuelLevel { get; set; }
+
+        // Cột cũ để duy trì tương thích ngược
         [Column("initial_fuel_level")]
         public int InitialFuelLevel { get; set; } = 100;
 
         [Column("fuel_level")]
-        public int ReturnFuelLevel { get; set; } = 100; // 25, 50, 75, 100
+        public int ReturnFuelLevel { get; set; } = 100;
 
         [Column("fuel_difference")]
         public int FuelDifference { get; set; } = 0;
+
+        // Ảnh đồng hồ taplo lúc trả xe
+        [Column("return_dash_photo_url")]
+        public string? ReturnDashPhotoUrl { get; set; }
+
+        // Audit cảnh báo ODO chiều về
+        [Column("has_return_anomaly")]
+        public bool HasReturnAnomaly { get; set; } = false;
+
+        [Column("return_anomaly_note")]
+        public string? ReturnAnomalyNote { get; set; }
+
+        // Sơ đồ xước 2D nghiệm thu trả xe
+        [Column("return_damage_map")]
+        public string? ReturnDamageMap { get; set; } // Marker CUSTOMER_RENTAL / TRANSIT_RETURN
 
         [Column("exterior_condition")]
         public string? ExteriorCondition { get; set; } = "Ngoại thất sạch sẽ, không móp méo kết cấu mới";
@@ -82,7 +113,7 @@ namespace CarRental.API.Entities
         public string? NewDamagesNotes { get; set; }
 
         [Column("damage_points_json")]
-        public string? DamagePointsJson { get; set; } // JSON danh sách điểm vết xước cũ và mới trên sơ đồ 2D xe
+        public string? DamagePointsJson { get; set; }
 
         [Column("accessories_checklist")]
         public string? AccessoriesChecklist { get; set; } = "Giấy đăng ký xe (Cavet);Giấy chứng nhận đăng kiểm;Bảo hiểm TNDS;Chìa khóa thông minh;Kích lốp;Lốp dự phòng;Camera hành trình";

@@ -81,8 +81,15 @@ namespace CarRental.API.Entities
         [MaxLength(50)]
         public string? InsuranceCoverageStatus { get; set; } // PENDING_CLAIM, COVERED, REJECTED, NOT_APPLICABLE
 
+        [Column("responsible_party")]
+        [MaxLength(50)]
+        public string? ResponsibleParty { get; set; } = "CUSTOMER"; // STAFF, CUSTOMER, THIRD_PARTY, FORCE_MAJEURE
+
         [Column("customer_pay_amount", TypeName = "decimal(18,2)")]
         public decimal CustomerPayAmount { get; set; } = 0;
+
+        [Column("staff_pay_amount", TypeName = "decimal(18,2)")]
+        public decimal StaffPayAmount { get; set; } = 0;
 
         [Column("company_pay_amount", TypeName = "decimal(18,2)")]
         public decimal CompanyPayAmount { get; set; } = 0;

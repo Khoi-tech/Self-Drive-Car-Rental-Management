@@ -136,7 +136,7 @@ flowchart TD
 
 ---
 
-### PHA 1: CƠ SỞ DỮ LIỆU & DOMAIN ENTITIES (DATABASE SCHEMA UPGRADES)
+### PHA 1: CƠ SỞ DỮ LIỆU & DOMAIN ENTITIES (DATABASE SCHEMA UPGRADES) — [HOÀN THÀNH]
 - **Mục tiêu:** Nâng cấp Domain Entities và cập nhật Schema PostgreSQL trên Supabase, bảo đảm tương thích và không mất dữ liệu lịch sử.
 - **Nội dung công việc:**
   1. **Chuẩn hóa Enums (`CarRental.API/Entities/Enums.cs`):**
@@ -307,8 +307,8 @@ flowchart TD
 | Pha | Tên công việc | Trạng thái | Phụ trách chính | Ghi chú |
 | :---: | :--- | :---: | :---: | :--- |
 | **Pha 0** | Chuẩn bị, Khảo sát & Thiết lập Nền tảng | **HOÀN THÀNH** | AI & User | Baseline sạch 0 errors/warnings, rà soát file thật |
-| **Pha 1** | Schema Database & Domain Entities | **ĐANG TIẾN HÀNH** | AI & User | Bổ sung cột mới, backfill dữ liệu, seed settings |
-| **Pha 2** | Backend Core Services & State Machine | Chờ thực hiện | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
+| **Pha 1** | Schema Database & Domain Entities | **HOÀN THÀNH** | AI & User | Bổ sung cột mới, backfill dữ liệu, seed settings |
+| **Pha 2** | Backend Core Services & State Machine | **ĐANG TIẾN HÀNH** | AI & User | 10 bước + 3 bẫy nghiệp vụ + khóa settlement |
 | **Pha 3** | Phân quyền Ma trận 3 Role & Bảo mật IDOR | Chờ thực hiện | AI & User | Staff/Manager/Admin, claim JWT, chặn user khóa |
 | **Pha 4** | Cải tiến Giao diện Vận hành | Chờ thực hiện | AI & User | Sơ đồ 2D diff, form biên bản ODO/xăng |
 | **Pha 5** | Kiểm thử Tích hợp E2E & Nghiệm thu | Chờ thực hiện | AI & User | Script test 10 bước khép kín |

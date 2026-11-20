@@ -714,8 +714,8 @@ namespace CarRental.API.Services
                     Id = ad.Id,
                     FullName = ad.FullName,
                     PhoneNumber = ad.PhoneNumber,
-                    IdCardNumber = ad.IdCardNumber,
-                    LicenseNumber = ad.LicenseNumber
+                    IdCardNumber = ad.IdCardNumber ?? string.Empty,
+                    LicenseNumber = ad.LicenseNumber ?? string.Empty
                 }).ToList() ?? new List<AdditionalDriverDto>()
             };
         }

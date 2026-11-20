@@ -91,6 +91,9 @@ namespace CarRental.API.Entities
         [MaxLength(50)]
         public string DepositMethod { get; set; } = "VIETQR"; // VIETQR, CASH
 
+        [Column("estimated_delivery_distance_km", TypeName = "decimal(8,2)")]
+        public decimal? EstimatedDeliveryDistanceKm { get; set; }
+
         [Column("hold_deposit_amount", TypeName = "decimal(18,2)")]
         public decimal HoldDepositAmount { get; set; } = 0;
 

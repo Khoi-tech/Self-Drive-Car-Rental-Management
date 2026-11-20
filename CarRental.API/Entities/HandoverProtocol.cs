@@ -42,20 +42,55 @@ namespace CarRental.API.Entities
         [MaxLength(20)]
         public string? CustomerPhone { get; set; }
 
+        // ODO mốc xuất bãi và giao khách
+        [Column("dispatch_odo")]
+        public int? DispatchOdo { get; set; } // ODO lúc xe rời bãi
+
+        [Column("handover_odo")]
+        public int HandoverOdo { get; set; } // ODO lúc bàn giao cho khách thực tế
+
+        // Cột cũ để duy trì tương thích ngược
         [Column("start_km")]
-        public int OdoAtHandover { get; set; } // Số km lúc bàn giao
+        public int OdoAtHandover { get; set; }
 
+        // Mức nhiên liệu mốc xuất bãi và giao khách (decimal: % pin hoặc thang 8 vạch xăng)
+        [Column("dispatch_fuel_level", TypeName = "decimal(5,2)")]
+        public decimal? DispatchFuelLevel { get; set; }
+
+        [Column("handover_fuel_level", TypeName = "decimal(5,2)")]
+        public decimal HandoverFuelLevel { get; set; } = 100;
+
+        // Cột cũ fuel_level
         [Column("fuel_level")]
-        public int FuelLevel { get; set; } = 100; // 25, 50, 75, 100
+        public int FuelLevel { get; set; } = 100;
 
+        // Ảnh taplo bắt buộc lúc giao xe
+        [Column("handover_dash_photo_url")]
+        public string? HandoverDashPhotoUrl { get; set; }
+
+        // Audit cảnh báo ODO trung chuyển
+        [Column("has_transit_anomaly")]
+        public bool HasTransitAnomaly { get; set; } = false;
+
+        [Column("transit_anomaly_note")]
+        public string? TransitAnomalyNote { get; set; }
+
+        // Sơ đồ xước 2D phân tầng diff marker
+        [Column("dispatch_damage_map")]
+        public string? DispatchDamageMap { get; set; } // Marker kế thừa PRE_EXISTING
+
+        [Column("handover_damage_map")]
+        public string? HandoverDamageMap { get; set; } // Marker lúc gặp khách (PRE_EXISTING + TRANSIT_DELIVERY)
+
+        // Cột cũ để duy trì tương thích ngược
         [Column("damages_desc")]
-        public string? ExistingScratchesNotes { get; set; } // Mô tả vết xước, móp cũ đã có trước khi giao
+        public string? ExistingScratchesNotes { get; set; }
 
         [Column("damage_points_json")]
-        public string? DamagePointsJson { get; set; } // JSON danh sách điểm vết xước trên sơ đồ 2D xe
+        public string? DamagePointsJson { get; set; }
 
         [Column("images")]
-        public string? EvidencePhotoUrls { get; set; } // Danh sách URL ảnh minh chứng
+        public string? EvidencePhotoUrls { get; set; }
 
         [Column("exterior_condition")]
         public string? ExteriorCondition { get; set; } = "Ngoại thất sạch sẽ, không biến dạng kết cấu";
@@ -80,7 +115,7 @@ namespace CarRental.API.Entities
 
         [Column("status")]
         [MaxLength(50)]
-        public string Status { get; set; } = "PENDING_CUSTOMER"; // DRAFT, PENDING_CUSTOMER, CONFIRMED, COMPLETED
+        public string Status { get; set; } = "IN_TRANSIT"; // IN_TRANSIT, COMPLETED
 
         [Column("handover_date")]
         public DateTime HandoverDate { get; set; } = DateTime.UtcNow;

@@ -27,11 +27,13 @@ namespace CarRental.API.Entities
     public enum ContractStatus
     {
         WAITING_SIGNATURE,
+        PENDING_SIGNATURE = WAITING_SIGNATURE,
         SIGNED,
         DEPOSIT_PAID,
         ACTIVE,
         COMPLETED,
         DISPUTED,
+        VOID,
         CANCELLED
     }
 
@@ -47,5 +49,51 @@ namespace CarRental.API.Entities
         PENDING,
         SUCCESS,
         FAILED
+    }
+
+    public enum RentalRequestStatus
+    {
+        PENDING,
+        PENDING_HOLD_PAYMENT,
+        HOLD_CONFIRMED,
+        APPROVED,
+        CONFIRMED,
+        ACTIVE,
+        RETURNED,
+        SETTLED,
+        COMPLETED,
+        CANCELLED,
+        REJECTED
+    }
+
+    public enum HandoverStatus
+    {
+        IN_TRANSIT,
+        COMPLETED
+    }
+
+    public enum DamageStage
+    {
+        PRE_EXISTING,
+        TRANSIT_DELIVERY,
+        CUSTOMER_RENTAL,
+        TRANSIT_RETURN
+    }
+
+    public enum IncidentResponsibleParty
+    {
+        STAFF,
+        CUSTOMER,
+        THIRD_PARTY,
+        FORCE_MAJEURE
+    }
+
+    public enum IncidentType
+    {
+        INTERNAL_TRANSIT,
+        COLLISION,
+        BREAKDOWN,
+        WEATHER,
+        THEFT_VANDALISM
     }
 }

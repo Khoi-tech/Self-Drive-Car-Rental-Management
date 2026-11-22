@@ -117,11 +117,22 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
               if (existing.refundBankName) setSelectedBank(existing.refundBankName);
               if (existing.refundAccountNumber) setAccountNumber(existing.refundAccountNumber);
               if (existing.refundAccountName) setAccountName(existing.refundAccountName);
+              if (existing.status === 'PENDING') {
+                setStep(2);
+                setHoldTrafficFine((existing.trafficFineHoldAmount || 0) > 0);
+                setTrafficFineHoldAmount(existing.trafficFineHoldAmount || 0);
+              } else {
+                setStep(1);
+              }
             } else {
               setExistingSettlement(null);
+              setSettlementResult(null);
+              setStep(1);
             }
           } catch {
             setExistingSettlement(null);
+            setSettlementResult(null);
+            setStep(1);
           }
 
           // 2. Load preview calculation
@@ -130,19 +141,29 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
             const data = previewRes?.data || previewRes;
             setPreview(data);
 
-            setExtraKmFee(data.extraKmFee || 0);
-            setLateReturnFee(data.lateReturnFee || 0);
-            setFuelFee(data.fuelFee || 0);
-            setDamageFee(data.damageFee || 0);
-            setCleaningFee(data.cleaningFee || 0);
-            setOtherFee(data.otherFee || 0);
-            setOtherFeeNotes(data.otherFeeNotes || '');
+            const feeSource = existing?.status === 'PENDING' ? existing : data;
+            setExtraKmFee(feeSource.extraKmFee || 0);
+            setLateReturnFee(feeSource.lateReturnFee || 0);
+            setFuelFee(feeSource.fuelFee || 0);
+            setDamageFee(feeSource.damageFee || 0);
+            setCleaningFee(feeSource.cleaningFee || 0);
+            setOtherFee(feeSource.otherFee || 0);
+            setOtherFeeNotes(feeSource.otherFeeNotes || '');
 
             if (!existing?.refundAccountName) {
               setAccountName(data.customerName || rentalRequest.customerName || '');
             }
           } catch (err) {
             console.error('Preview error:', err);
+            if (existing?.status === 'PENDING') {
+              setExtraKmFee(existing.extraKmFee || 0);
+              setLateReturnFee(existing.lateReturnFee || 0);
+              setFuelFee(existing.fuelFee || 0);
+              setDamageFee(existing.damageFee || 0);
+              setCleaningFee(existing.cleaningFee || 0);
+              setOtherFee(existing.otherFee || 0);
+              setOtherFeeNotes(existing.otherFeeNotes || '');
+            }
           }
         } catch (err) {
           console.error(err);
@@ -160,7 +181,17 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
   // Active settlement object if already completed
   const activeSettlement = existingSettlement || settlementResult;
-  const isAlreadySettled = Boolean(activeSettlement?.id && (activeSettlement?.refundStatus === 'REFUNDED' || activeSettlement?.status === 'DISPUTED' || rentalRequest?.status === 'DISPUTED') && !forceRecreate);
+  const isAlreadySettled = Boolean(
+    activeSettlement?.id &&
+    (
+      activeSettlement?.refundStatus === 'REFUNDED' ||
+      activeSettlement?.status === 'PARTIALLY_SETTLED' ||
+      activeSettlement?.status === 'CLOSED' ||
+      activeSettlement?.status === 'DISPUTED' ||
+      rentalRequest?.status === 'DISPUTED'
+    ) &&
+    !forceRecreate
+  );
 
   // Calculations for Creation / Preview
   const deposit = preview?.depositAmount ?? rentalRequest.depositAmount ?? 0;

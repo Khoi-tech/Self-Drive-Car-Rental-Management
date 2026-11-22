@@ -21,6 +21,7 @@ import {
   LifeBuoy,
   Wrench,
   RotateCcw,
+  Receipt,
   ExternalLink,
   LogOut,
   ChevronRight
@@ -54,6 +55,7 @@ const AdminLayout = () => {
         { name: 'Quản lý khách hàng', path: '/admin/customers', icon: <Users size={17} /> },
         { name: 'Biên bản Bàn giao', path: '/admin/handovers', icon: <FileCheck size={17} /> },
         { name: 'Biên bản Hoàn trả', path: '/admin/returns', icon: <RotateCcw size={17} /> },
+        { name: 'Quyết toán & Hoàn cọc', path: '/admin/settlements', icon: <Receipt size={17} /> },
         { name: 'Gia hạn thuê xe', path: '/admin/extensions', icon: <Clock size={17} /> },
         { name: 'Sự cố & Cứu hộ', path: '/admin/incidents', icon: <LifeBuoy size={17} /> },
       ]

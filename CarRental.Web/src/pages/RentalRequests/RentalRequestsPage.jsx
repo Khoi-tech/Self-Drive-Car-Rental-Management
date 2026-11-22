@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   RefreshCw, 
@@ -25,15 +25,15 @@ import {
   Zap,
   Banknote,
   Wallet,
-  QrCode
+  QrCode,
+  ArrowRight,
+  Receipt
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
-import settlementService from '../../services/settlementService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import HandoverModal from '../../components/handover/HandoverModal';
 import ReturnProtocolModal from '../../components/operations/ReturnProtocolModal';
-import SettlementModal from '../../components/operations/SettlementModal';
 
 const STATUS_CONFIG = {
   PENDING: { label: 'Chờ duyệt', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', icon: Clock },
@@ -68,6 +68,7 @@ const REJECT_PRESETS = [
 ];
 
 const RentalRequestsPage = () => {
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -89,10 +90,6 @@ const RentalRequestsPage = () => {
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnRequest, setReturnRequest] = useState(null);
 
-  // Settlement Modal State
-  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [settlementRequest, setSettlementRequest] = useState(null);
-
   // Reject Action State
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectingId, setRejectingId] = useState(null);
@@ -102,32 +99,16 @@ const RentalRequestsPage = () => {
   // Lightbox Zoom Image Modal
   const [zoomedImage, setZoomedImage] = useState(null);
 
-  // Settlement Map for Traffic Fine Escrow tracking
-  const [settlementsMap, setSettlementsMap] = useState({});
-
   // Fetch data
   const loadRequests = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [reqRes, settleRes] = await Promise.allSettled([
-        rentalRequestService.getAllRequests(),
-        settlementService.getAll()
-      ]);
-
-      const list = reqRes.status === 'fulfilled'
-        ? (Array.isArray(reqRes.value) ? reqRes.value : (reqRes.value?.items || reqRes.value?.data?.items || (Array.isArray(reqRes.value?.data) ? reqRes.value.data : [])))
-        : [];
+      const reqRes = await rentalRequestService.getAllRequests();
+      const list = Array.isArray(reqRes)
+        ? reqRes
+        : (reqRes?.items || reqRes?.data?.items || (Array.isArray(reqRes?.data) ? reqRes.data : []));
       setRequests(list);
-
-      if (settleRes.status === 'fulfilled') {
-        const sList = Array.isArray(settleRes.value) ? settleRes.value : (Array.isArray(settleRes.value?.data) ? settleRes.value.data : []);
-        const sMap = {};
-        sList.forEach(s => {
-          if (s.rentalRequestId) sMap[s.rentalRequestId] = s;
-        });
-        setSettlementsMap(sMap);
-      }
     } catch (err) {
       console.error(err);
       setError('Không thể tải danh sách đơn thuê xe. Vui lòng thử lại!');
@@ -140,14 +121,13 @@ const RentalRequestsPage = () => {
     loadRequests();
   }, []);
 
-  // Stats count
+  // Stats count (focused on Booking & Rental Operations)
   const pendingCount = requests.filter(r => ['PENDING', 'PENDING_HOLD_PAYMENT', 'HOLD_CONFIRMED'].includes(r.status)).length;
   const approvedCount = requests.filter(r => ['APPROVED', 'PENDING_SIGNATURE'].includes(r.status)).length;
   const confirmedCount = requests.filter(r => ['CONFIRMED', 'SIGNED', 'DEPOSIT_PAID'].includes(r.status)).length;
   const activeCount = requests.filter(r => ['ACTIVE', 'IN_TRANSIT'].includes(r.status)).length;
-  const holdingCount = requests.filter(r => ['HOLDING', 'PARTIALLY_SETTLED'].includes(r.status) || settlementsMap[r.id]?.trafficFineRefundStatus === 'HOLDING').length;
-  const disputedCount = requests.filter(r => r.status === 'DISPUTED').length;
-  const completedCount = requests.filter(r => ['COMPLETED', 'SETTLED', 'CLOSED'].includes(r.status) && (!settlementsMap[r.id] || settlementsMap[r.id]?.trafficFineRefundStatus !== 'HOLDING')).length;
+  const returnedOrSettlingCount = requests.filter(r => ['RETURNED', 'INSPECTION', 'HOLDING', 'PARTIALLY_SETTLED', 'SETTLED', 'DISPUTED'].includes(r.status)).length;
+  const completedCount = requests.filter(r => ['COMPLETED', 'CLOSED'].includes(r.status)).length;
   const cancelledCount = requests.filter(r => ['CANCELLED', 'REJECTED', 'VOID'].includes(r.status)).length;
 
   // Filter requests
@@ -157,9 +137,8 @@ const RentalRequestsPage = () => {
     else if (activeTab === 'APPROVED') matchTab = ['APPROVED', 'PENDING_SIGNATURE'].includes(item.status);
     else if (activeTab === 'CONFIRMED') matchTab = ['CONFIRMED', 'SIGNED', 'DEPOSIT_PAID'].includes(item.status);
     else if (activeTab === 'ACTIVE') matchTab = ['ACTIVE', 'IN_TRANSIT'].includes(item.status);
-    else if (activeTab === 'HOLDING') matchTab = ['HOLDING', 'PARTIALLY_SETTLED'].includes(item.status) || settlementsMap[item.id]?.trafficFineRefundStatus === 'HOLDING';
-    else if (activeTab === 'DISPUTED') matchTab = item.status === 'DISPUTED';
-    else if (activeTab === 'COMPLETED') matchTab = ['COMPLETED', 'SETTLED', 'CLOSED'].includes(item.status) && (!settlementsMap[item.id] || settlementsMap[item.id]?.trafficFineRefundStatus !== 'HOLDING');
+    else if (activeTab === 'RETURNED_SETTLING') matchTab = ['RETURNED', 'INSPECTION', 'HOLDING', 'PARTIALLY_SETTLED', 'SETTLED', 'DISPUTED'].includes(item.status);
+    else if (activeTab === 'COMPLETED') matchTab = ['COMPLETED', 'CLOSED'].includes(item.status);
     else if (activeTab === 'CANCELLED') matchTab = ['CANCELLED', 'REJECTED', 'VOID'].includes(item.status);
     else matchTab = true;
 
@@ -289,18 +268,29 @@ const RentalRequestsPage = () => {
             Quản Lý Đơn Thuê & Duyệt Hồ Sơ
           </h1>
           <p className="text-sm text-zinc-500 mt-1">
-            Kiểm duyệt hồ sơ định danh (CCCD, GPLX), xét duyệt yêu cầu thuê xe và cấp phép bước hợp đồng
+            Kiểm duyệt hồ sơ định danh (CCCD, GPLX), xét duyệt yêu cầu thuê xe và điều phối bàn giao / hoàn trả
           </p>
         </div>
 
-        <button
-          onClick={loadRequests}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 transition shadow-sm self-start"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          Làm mới
-        </button>
+        <div className="flex items-center gap-2.5 self-start">
+          <Link
+            to="/admin/settlements"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition shadow-2xs whitespace-nowrap"
+          >
+            <Receipt size={15} />
+            <span>Quyết toán & Hoàn cọc</span>
+            <ArrowRight size={14} />
+          </Link>
+
+          <button
+            onClick={loadRequests}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 transition shadow-sm whitespace-nowrap"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            Làm mới
+          </button>
+        </div>
       </div>
 
       {/* Alert Messages */}
@@ -329,7 +319,7 @@ const RentalRequestsPage = () => {
       )}
 
       {/* 1-Click Operational Smart Filter KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         <div 
           onClick={() => setActiveTab('ALL')}
           className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
@@ -367,7 +357,7 @@ const RentalRequestsPage = () => {
           }`}
         >
           <div>
-            <p className="text-[11px] text-blue-700 uppercase font-semibold">Đã cọc & Giữ</p>
+            <p className="text-[11px] text-blue-700 uppercase font-semibold">Đã cọc & Chờ giao</p>
             <p className="text-xl font-bold text-blue-700 mt-0.5 tabular-nums">{confirmedCount}</p>
           </div>
           <div className="w-8 h-8 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
@@ -391,47 +381,17 @@ const RentalRequestsPage = () => {
         </div>
 
         <div 
-          onClick={() => setActiveTab('HOLDING')}
+          onClick={() => setActiveTab('RETURNED_SETTLING')}
           className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
-            activeTab === 'HOLDING' ? 'ring-2 ring-purple-600 border-purple-600 bg-purple-50/30 shadow-sm' : 'border-purple-200 hover:border-purple-400'
+            activeTab === 'RETURNED_SETTLING' ? 'ring-2 ring-purple-600 border-purple-600 bg-purple-50/30 shadow-sm' : 'border-purple-200 hover:border-purple-400'
           }`}
         >
           <div>
-            <p className="text-[11px] text-purple-700 uppercase font-semibold">Giữ phạt nguội</p>
-            <p className="text-xl font-bold text-purple-700 mt-0.5 tabular-nums">{holdingCount}</p>
+            <p className="text-[11px] text-purple-700 uppercase font-semibold">Đã trả / Chờ QT</p>
+            <p className="text-xl font-bold text-purple-700 mt-0.5 tabular-nums">{returnedOrSettlingCount}</p>
           </div>
           <div className="w-8 h-8 rounded-md bg-purple-50 flex items-center justify-center text-purple-600">
-            <ShieldAlert size={16} />
-          </div>
-        </div>
-
-        <div 
-          onClick={() => setActiveTab('DISPUTED')}
-          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
-            activeTab === 'DISPUTED' ? 'ring-2 ring-rose-600 border-rose-600 bg-rose-50/30 shadow-sm' : 'border-rose-200 hover:border-rose-400'
-          }`}
-        >
-          <div>
-            <p className="text-[11px] text-rose-700 uppercase font-semibold">Khiếu nại</p>
-            <p className="text-xl font-bold text-rose-700 mt-0.5 tabular-nums">{disputedCount}</p>
-          </div>
-          <div className="w-8 h-8 rounded-md bg-rose-50 flex items-center justify-center text-rose-600">
-            <AlertTriangle size={16} />
-          </div>
-        </div>
-
-        <div 
-          onClick={() => setActiveTab('COMPLETED')}
-          className={`bg-white p-3.5 rounded-lg border transition cursor-pointer select-none flex items-center justify-between ${
-            activeTab === 'COMPLETED' ? 'ring-2 ring-slate-800 border-slate-800 bg-slate-100/50 shadow-sm' : 'border-slate-200 hover:border-slate-400'
-          }`}
-        >
-          <div>
-            <p className="text-[11px] text-zinc-600 uppercase font-semibold">Hoàn tất / Đóng</p>
-            <p className="text-xl font-bold text-zinc-800 mt-0.5 tabular-nums">{completedCount}</p>
-          </div>
-          <div className="w-8 h-8 rounded-md bg-zinc-100 flex items-center justify-center text-zinc-700">
-            <CheckCircle2 size={16} />
+            <Receipt size={16} />
           </div>
         </div>
       </div>
@@ -447,15 +407,14 @@ const RentalRequestsPage = () => {
               { key: 'APPROVED', label: `Đã duyệt (${approvedCount})` },
               { key: 'CONFIRMED', label: `Đã cọc (${confirmedCount})` },
               { key: 'ACTIVE', label: `Đang thuê (${activeCount})` },
-              { key: 'HOLDING', label: `Giữ phạt nguội (${holdingCount})` },
-              { key: 'DISPUTED', label: `Khiếu nại (${disputedCount})` },
+              { key: 'RETURNED_SETTLING', label: `Đã trả / QT (${returnedOrSettlingCount})` },
               { key: 'COMPLETED', label: `Hoàn tất (${completedCount})` },
               { key: 'CANCELLED', label: `Hủy / Từ chối (${cancelledCount})` },
             ].map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
+                className={`px-3 py-2.5 text-xs font-semibold border-b-2 transition whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'border-[#0F172A] text-zinc-950'
                     : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
@@ -467,7 +426,7 @@ const RentalRequestsPage = () => {
           </div>
 
           {/* Search box */}
-          <div className="relative w-full md:w-80">
+          <div className="relative w-full md:w-72 shrink-0">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
               <Search size={15} />
             </span>
@@ -489,19 +448,19 @@ const RentalRequestsPage = () => {
           </div>
         </div>
 
-        {/* Requests Table */}
+        {/* Requests Table - Compact layout for 1366px-1440px */}
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3.5">Mã đơn / Ngày tạo</th>
-                <th className="px-4 py-3.5">Khách hàng</th>
-                <th className="px-4 py-3.5">Xe thuê</th>
-                <th className="px-4 py-3.5">Lịch thuê</th>
-                <th className="px-4 py-3.5 text-right">Tổng tiền / Tiền cọc</th>
-                <th className="px-4 py-3.5 text-center">Hồ sơ ảnh</th>
-                <th className="px-4 py-3.5 text-center">Trạng thái</th>
-                <th className="px-4 py-3.5 text-right">Thao tác</th>
+                <th className="px-3 py-3 whitespace-nowrap">Mã đơn / Cọc</th>
+                <th className="px-3 py-3 whitespace-nowrap">Khách hàng</th>
+                <th className="px-3 py-3 whitespace-nowrap">Xe thuê</th>
+                <th className="px-3 py-3 whitespace-nowrap">Lịch thuê</th>
+                <th className="px-3 py-3 text-right whitespace-nowrap">Tổng tiền / Cọc</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Hồ sơ</th>
+                <th className="px-3 py-3 text-center whitespace-nowrap">Trạng thái</th>
+                <th className="px-3 py-3 text-right whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -534,185 +493,153 @@ const RentalRequestsPage = () => {
                   const StatusIcon = statusInfo?.icon || Clock;
 
                   const hasPhotos = req.idCardFrontUrl || req.idCardBackUrl || req.driverLicenseFrontUrl || req.driverLicenseBackUrl;
-                  const settle = settlementsMap[req.id];
                   const isFastHold = req.bookingType === 'FAST_HOLD' || req.holdDepositAmount > 0;
+                  const isSettlementStage = ['RETURNED', 'INSPECTION', 'SETTLED', 'PARTIALLY_SETTLED', 'HOLDING', 'DISPUTED', 'CLOSED', 'COMPLETED'].includes(req.status);
 
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/80 transition group">
-                      {/* Code & Created */}
-                      <td className="px-4 py-3.5 font-mono text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-zinc-950 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      {/* Code & Deposit Mode Badge */}
+                      <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 flex-nowrap">
+                          <span className="font-semibold text-zinc-950 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                             {req.id.substring(0, 8).toUpperCase()}
                           </span>
                           {isFastHold ? (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Đơn cọc nhanh 500k">
-                              <Zap size={10} className="fill-white" /> 500K
+                            <span
+                              className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              title="Đơn giữ chỗ nhanh Fast Hold 500k"
+                            >
+                              <Zap size={10} className="fill-white shrink-0" />
+                              <span>Fast Hold</span>
                             </span>
                           ) : req.depositMethod === 'CASH' ? (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Cọc khi nhận xe (tiền mặt / chuyển khoản)">
-                              <Wallet size={10} /> Cọc nhận xe
+                            <span
+                              className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              title="Cọc tiền mặt khi nhận xe"
+                            >
+                              <Wallet size={10} className="shrink-0" />
+                              <span>Cọc tiền mặt</span>
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-extrabold flex items-center gap-0.5 shadow-2xs" title="Cọc chuyển khoản VietQR">
-                              <QrCode size={10} /> VietQR
+                            <span
+                              className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              title="Cọc chuyển khoản VietQR"
+                            >
+                              <QrCode size={10} className="shrink-0" />
+                              <span>VietQR</span>
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-1 tabular-nums">
+                        <div className="text-[10px] text-slate-400 mt-1 tabular-nums">
                           {formatDateTime(req.createdAt)}
                         </div>
                       </td>
 
                       {/* Customer */}
-                      <td className="px-4 py-3.5">
-                        <div className="font-medium text-zinc-950">{req.customerName}</div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 tabular-nums">
-                          <Phone size={10} className="text-slate-400" />
-                          {req.customerPhone}
+                      <td className="px-3 py-3 max-w-[150px]">
+                        <div className="font-semibold text-zinc-950 truncate" title={req.customerName}>
+                          {req.customerName}
                         </div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Mail size={10} className="text-slate-400" />
-                          <span className="truncate max-w-[140px]">{req.customerEmail}</span>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 tabular-nums whitespace-nowrap">
+                          <Phone size={10} className="text-slate-400 shrink-0" />
+                          <span>{req.customerPhone}</span>
                         </div>
                       </td>
 
                       {/* Vehicle */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
                           {req.carImageUrl ? (
                             <img 
                               src={getPrimaryImageUrl(req.carImageUrl)} 
                               alt={req.carModel} 
                               onError={handleImageError}
-                              className="w-12 h-9 object-cover rounded border border-slate-200 flex-shrink-0"
+                              className="w-10 h-7 object-cover rounded border border-slate-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-12 h-9 bg-slate-100 rounded flex items-center justify-center text-slate-400 flex-shrink-0">
-                              <Car size={16} />
+                            <div className="w-10 h-7 bg-slate-100 rounded flex items-center justify-center text-slate-400 shrink-0">
+                              <Car size={14} />
                             </div>
                           )}
-                          <div>
-                            <div className="font-semibold text-zinc-950">{req.carMake} {req.carModel}</div>
-                            <div className="mt-1">
-                              <span className="license-plate text-[10px] px-2 py-0.5">
-                                {req.carLicensePlate || 'CHƯA GÁN'}
-                              </span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-zinc-950 truncate max-w-[130px]" title={`${req.carMake} ${req.carModel}`}>
+                              {req.carMake} {req.carModel}
                             </div>
+                            <span className="license-plate text-[10px] px-1.5 py-0.2 inline-block mt-0.5">
+                              {req.carLicensePlate || 'CHƯA GÁN'}
+                            </span>
                           </div>
                         </div>
                       </td>
 
                       {/* Schedule */}
-                      <td className="px-4 py-3.5 text-xs">
-                        <div className="text-zinc-950 font-medium tabular-nums">
-                          {req.totalDays} ngày thuê
+                      <td className="px-3 py-3 text-xs whitespace-nowrap">
+                        <div className="text-zinc-950 font-semibold tabular-nums">
+                          {req.totalDays} ngày
                         </div>
                         <div className="text-slate-500 mt-0.5 text-[11px] tabular-nums">
-                          {new Date(req.startTime).toLocaleDateString('vi-VN')} - {new Date(req.endTime).toLocaleDateString('vi-VN')}
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 truncate max-w-[160px]">
-                          {req.pickupLocation}
+                          {new Date(req.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} – {new Date(req.endTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </div>
                       </td>
 
-                      {/* Price */}
-                      <td className="px-4 py-3.5 text-right">
+                      {/* Compact Price & Deposit */}
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         <div className="font-bold text-zinc-950 tabular-nums">
                           {formatCurrency(req.estimatedTotalFee)}
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-1 space-y-0.5">
+                        <div className="text-[11px] mt-0.5 tabular-nums">
                           {isFastHold ? (
-                            <>
-                              <div className="text-amber-800 font-bold flex items-center justify-end gap-1">
-                                <Zap size={11} className="fill-amber-600 text-amber-600" />
-                                <span>Cọc giữ 4h: 500.000đ (Đã thu)</span>
-                              </div>
-                              {req.isSecurityDepositPaid ? (
-                                <div className="text-emerald-700 font-bold">
-                                  ✓ Đã thu cọc: {formatCurrency(Math.max(0, (req.depositAmount > 500000 ? req.depositAmount : 20000000) - 500000))}
-                                </div>
-                              ) : (
-                                <div className="text-rose-700 font-bold">
-                                  ⏳ Cọc thế chân: {formatCurrency(Math.max(0, (req.depositAmount > 500000 ? req.depositAmount : 20000000) - 500000))}
-                                </div>
-                              )}
-                            </>
+                            req.isSecurityDepositPaid ? (
+                              <span className="text-emerald-700 font-semibold" title="Đã thu 500k giữ chỗ + cọc thế chân">
+                                Cọc: {formatCurrency(req.depositAmount > 500000 ? req.depositAmount : 20000000)} ✓
+                              </span>
+                            ) : (
+                              <span className="text-amber-700 font-semibold" title="Đã giữ 500k, chờ thu cọc thế chân">
+                                Giữ 500k • Chờ cọc
+                              </span>
+                            )
                           ) : (
-                            <>Cọc xe: <span className="font-mono tabular-nums text-slate-700 font-medium">{formatCurrency(req.depositAmount)}</span></>
+                            <span className="text-slate-500">
+                              Cọc: <span className="font-semibold text-slate-700">{formatCurrency(req.depositAmount)}</span>
+                            </span>
                           )}
                         </div>
                       </td>
 
                       {/* Photos Preview */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
                         {hasPhotos && req.customerIdCard !== 'CHƯA_CẬP_NHẬT' ? (
-                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200">
-                            <ShieldCheck size={12} className="text-emerald-600" />
-                            <span>{isFastHold ? 'Đã nộp CCCD/GPLX' : 'Đủ 4 ảnh'}</span>
-                          </div>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200 whitespace-nowrap">
+                            <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
+                            <span>Đủ giấy tờ</span>
+                          </span>
                         ) : isFastHold ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200">
-                            <Clock size={12} className="text-amber-600" />
-                            <span>Chờ KH nộp giấy tờ</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200 whitespace-nowrap">
+                            <Clock size={11} className="text-amber-600 shrink-0" />
+                            <span>Chờ KYC</span>
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Thiếu ảnh</span>
+                          <span className="text-[11px] text-slate-400 italic">Thiếu ảnh</span>
                         )}
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3.5 text-center">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
-                          <StatusIcon size={12} />
+                      <td className="px-3 py-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
+                          <StatusIcon size={11} className="shrink-0" />
                           {statusInfo.label}
                         </span>
 
-                        {/* Fast Hold waiting collateral tag */}
-                        {isFastHold && !req.isSecurityDepositPaid && (req.status === 'CONFIRMED' || req.status === 'PENDING') && (
-                          <div className="mt-1 flex justify-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                              <Clock size={10} className="text-amber-600" />
-                              <span>Giữ xe 4h • Chờ cọc</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Traffic Fine Escrow Tag if COMPLETED */}
-                        {req.status === 'COMPLETED' && settle?.trafficFineHoldAmount > 0 && (
-                          <div className="mt-1 flex justify-center">
-                            {settle.trafficFineRefundStatus === 'HOLDING' ? (
-                              <span 
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                title={`Giữ cọc phạt nguội ${formatCurrency(settle.trafficFineHoldAmount)} đến ${formatDateTime(settle.trafficFineRefundDate)}`}
-                              >
-                                <Clock size={10} className="text-indigo-600" />
-                                <span>Giữ PN: {formatCurrency(settle.trafficFineHoldAmount)}</span>
-                              </span>
-                            ) : settle.trafficFineRefundStatus === 'REFUNDED' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <CheckCircle2 size={10} className="text-emerald-600" />
-                                <span>Hoàn đủ 2 đợt</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                <AlertTriangle size={10} className="text-amber-600" />
-                                <span>Đã trừ phạt & hoàn dư</span>
-                              </span>
-                            )}
-                          </div>
-                        )}
-
                         {req.status === 'REJECTED' && req.rejectReason && (
-                          <p className="text-[11px] text-rose-600 mt-1 max-w-[130px] truncate mx-auto" title={req.rejectReason}>
+                          <p className="text-[10px] text-rose-600 mt-1 max-w-[120px] truncate mx-auto" title={req.rejectReason}>
                             {req.rejectReason}
                           </p>
                         )}
                       </td>
 
-                      {/* Action */}
-                      <td className="px-4 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      {/* Action - Always visible on right */}
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1 flex-nowrap">
                           {/* Detail & Inspection */}
                           <button
                             onClick={() => {
@@ -722,7 +649,7 @@ const RentalRequestsPage = () => {
                             className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-slate-100 rounded-md transition"
                             title="Soi hồ sơ định danh chi tiết"
                           >
-                            <Eye size={16} />
+                            <Eye size={15} />
                           </button>
 
                           {/* Quick Actions if PENDING or HOLD_CONFIRMED */}
@@ -734,7 +661,7 @@ const RentalRequestsPage = () => {
                                 className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition"
                                 title="Phê duyệt nhanh"
                               >
-                                <CheckCircle2 size={16} />
+                                <CheckCircle2 size={15} />
                               </button>
                               <button
                                 onClick={() => openRejectDialog(req.id)}
@@ -742,7 +669,7 @@ const RentalRequestsPage = () => {
                                 className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-md transition"
                                 title="Từ chối yêu cầu"
                               >
-                                <XCircle size={16} />
+                                <XCircle size={15} />
                               </button>
                             </>
                           )}
@@ -755,7 +682,7 @@ const RentalRequestsPage = () => {
                               className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition"
                               title="Xem hợp đồng điện tử"
                             >
-                              <FileText size={16} />
+                              <FileText size={15} />
                             </Link>
                           )}
 
@@ -766,94 +693,45 @@ const RentalRequestsPage = () => {
                                 setHandoverRequest(req);
                                 setIsHandoverModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                              title={req.status === 'IN_TRANSIT' ? "Tiếp tục giao xe cho khách tại điểm hẹn" : "Lập hoặc xem biên bản bàn giao xe"}
+                              className="px-2.5 py-1.5 bg-[#0F172A] hover:bg-[#1D4ED8] text-white rounded-md text-xs font-semibold inline-flex items-center gap-1 transition shadow-xs whitespace-nowrap"
+                              title={req.status === 'IN_TRANSIT' ? 'Tiếp tục giao xe cho khách tại điểm hẹn' : 'Lập hoặc xem biên bản bàn giao xe'}
                             >
                               <FileCheck size={13} />
-                              <span className="hidden sm:inline">
-                                {req.status === 'IN_TRANSIT' ? 'Giao khách' : 'Bàn giao'}
-                              </span>
+                              <span>{req.status === 'IN_TRANSIT' ? 'Giao khách' : 'Bàn giao'}</span>
                             </button>
                           )}
 
-                          {/* Return Protocol & Settlement Buttons if ACTIVE */}
+                          {/* Return Protocol Button if ACTIVE */}
                           {req.status === 'ACTIVE' && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setReturnRequest(req);
-                                  setIsReturnModalOpen(true);
-                                }}
-                                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                                title="Nghiệm thu hoàn trả xe"
-                              >
-                                <FileCheck size={13} />
-                                <span className="hidden sm:inline">Trả xe</span>
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setSettlementRequest(req);
-                                  setIsSettlementModalOpen(true);
-                                }}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                                title="Tính phí & Quyết toán cọc"
-                              >
-                                <DollarSign size={13} />
-                                <span className="hidden sm:inline">Quyết toán</span>
-                              </button>
-                            </>
-                          )}
-
-                          {/* Settlement Button if RETURNED or INSPECTION */}
-                          {['RETURNED', 'INSPECTION'].includes(req.status) && (
                             <button
                               onClick={() => {
-                                setSettlementRequest(req);
-                                setIsSettlementModalOpen(true);
+                                setReturnRequest(req);
+                                setIsReturnModalOpen(true);
                               }}
-                              className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1"
-                              title="Tính phí & Quyết toán cọc"
+                              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold inline-flex items-center gap-1 transition shadow-xs whitespace-nowrap"
+                              title="Nghiệm thu hoàn trả xe"
                             >
-                              <DollarSign size={13} />
-                              <span className="hidden sm:inline">Quyết toán</span>
+                              <FileCheck size={13} />
+                              <span>Trả xe</span>
                             </button>
                           )}
 
-                          {/* Dispute Resolution Button if DISPUTED */}
-                          {req.status === 'DISPUTED' && (
-                            <button
-                              onClick={() => {
-                                setSettlementRequest(req);
-                                setIsSettlementModalOpen(true);
-                              }}
-                              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1 animate-pulse"
-                              title="Phân xử khiếu nại tài chính của khách hàng"
-                            >
-                              <ShieldAlert size={13} />
-                              <span className="hidden sm:inline">Phân xử</span>
-                            </button>
-                          )}
-
-                          {/* View Settlement Button if COMPLETED, SETTLED, CLOSED, HOLDING, PARTIALLY_SETTLED */}
-                          {['COMPLETED', 'SETTLED', 'CLOSED', 'HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) && (
-                            <button
-                              onClick={() => {
-                                setSettlementRequest(req);
-                                setIsSettlementModalOpen(true);
-                              }}
-                              className={`px-2.5 py-1.5 text-white rounded-md text-xs font-semibold flex items-center gap-1 transition shadow-sm ml-1 ${
-                                ['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING'
-                                  ? 'bg-purple-700 hover:bg-purple-600 ring-2 ring-purple-300'
-                                  : 'bg-slate-800 hover:bg-slate-700'
+                          {/* Clean 1-button redirect to dedicated Settlements page for RETURNED/SETTLED/PARTIALLY_SETTLED/COMPLETED/... */}
+                          {isSettlementStage && (
+                            <Link
+                              to={`/admin/settlements?requestId=${req.id}`}
+                              className={`px-2.5 py-1.5 rounded-md text-xs font-semibold inline-flex items-center gap-1 transition shadow-xs whitespace-nowrap ${
+                                req.status === 'DISPUTED'
+                                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                                  : req.status === 'RETURNED' || req.status === 'INSPECTION'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
                               }`}
-                              title={['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING' ? "Đối soát & Hoàn cọc phạt nguội Đợt 2" : "Xem phiếu quyết toán & hoàn cọc"}
+                              title="Mở hồ sơ trên trang Quyết toán & Hoàn cọc"
                             >
-                              <DollarSign size={13} />
-                              <span className="hidden sm:inline">
-                                {['HOLDING', 'PARTIALLY_SETTLED'].includes(req.status) || settle?.trafficFineRefundStatus === 'HOLDING' ? 'Đối soát Đ2' : 'Phiếu QT'}
-                              </span>
-                            </button>
+                              <span>Quyết toán</span>
+                              <ArrowRight size={12} />
+                            </Link>
                           )}
                         </div>
                       </td>
@@ -1455,18 +1333,17 @@ const RentalRequestsPage = () => {
                         Trả xe
                       </button>
                     )}
-                    {['ACTIVE', 'RETURNED', 'INSPECTION', 'HOLDING', 'PARTIALLY_SETTLED', 'SETTLED', 'CLOSED', 'COMPLETED'].includes(selectedRequest.status) && (
+                    {['RETURNED', 'INSPECTION', 'HOLDING', 'PARTIALLY_SETTLED', 'SETTLED', 'DISPUTED', 'CLOSED', 'COMPLETED'].includes(selectedRequest.status) && (
                       <button
                         onClick={() => {
-                          setSettlementRequest(selectedRequest);
-                          setIsSettlementModalOpen(true);
                           setIsDetailModalOpen(false);
+                          navigate(`/admin/settlements?requestId=${selectedRequest.id}`);
                         }}
                         className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
-                        title="Phiếu quyết toán & đối soát tài chính"
+                        title="Chuyển sang trang Quyết toán & Hoàn cọc"
                       >
-                        <DollarSign size={15} />
-                        {['HOLDING', 'PARTIALLY_SETTLED'].includes(selectedRequest.status) ? 'Đối soát Đ2' : 'Quyết toán'}
+                        <span>Quyết toán</span>
+                        <ArrowRight size={14} />
                       </button>
                     )}
                   </div>
@@ -1601,26 +1478,16 @@ const RentalRequestsPage = () => {
           }}
           rentalRequest={returnRequest}
           onSuccess={loadRequests}
-          onProceedToSettlement={(createdProtocol) => {
-            const req = returnRequest;
+          onProceedToSettlement={() => {
+            const reqId = returnRequest?.id;
             setIsReturnModalOpen(false);
             setReturnRequest(null);
-            setSettlementRequest(req);
-            setIsSettlementModalOpen(true);
+            if (reqId) {
+              navigate(`/admin/settlements?requestId=${reqId}`);
+            } else {
+              navigate('/admin/settlements');
+            }
           }}
-        />
-      )}
-
-      {/* ================= MODAL: QUYẾT TOÁN CỌC & HOÀN TIỀN ================= */}
-      {isSettlementModalOpen && settlementRequest && (
-        <SettlementModal
-          isOpen={isSettlementModalOpen}
-          onClose={() => {
-            setIsSettlementModalOpen(false);
-            setSettlementRequest(null);
-          }}
-          rentalRequest={settlementRequest}
-          onSuccess={loadRequests}
         />
       )}
 

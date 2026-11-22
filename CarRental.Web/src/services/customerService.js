@@ -24,9 +24,15 @@ const customerService = {
     }
   },
 
-  updateKycStatus: async (id, kycStatus, rejectReason = '') => {
+  updateKycStatus: async (id, kycStatus, rejectReason = '', extra = {}) => {
     try {
-      const response = await api.put(`/customers/${id}/kyc-status`, { kycStatus, rejectReason });
+      const response = await api.put(`/customers/${id}/kyc-status`, {
+        kycStatus,
+        rejectReason,
+        dateOfBirth: extra.dateOfBirth || null,
+        licenseIssueDate: extra.licenseIssueDate || null,
+        licenseClass: extra.licenseClass || null
+      });
       return response;
     } catch (error) {
       console.error('Error updating customer KYC status:', error);

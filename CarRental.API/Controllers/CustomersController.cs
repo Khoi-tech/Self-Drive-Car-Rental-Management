@@ -85,15 +85,25 @@ namespace CarRental.API.Controllers
             public string LicenseClass { get; set; } = "B2";
             public string LicenseExpiryDate { get; set; } = "Chưa cập nhật";
             public bool IsLicenseNearExpiry { get; set; } = false;
+            public string? DateOfBirth { get; set; }
+            public string? LicenseIssueDate { get; set; }
 
-            public string MembershipTier { get; set; } = "Silver";
+            public string MembershipTier { get; set; } = "STANDARD";
+            public string MembershipTierLabel { get; set; } = "Thành viên Tiêu chuẩn";
+            public string? NextTier { get; set; }
+            public string? NextTierLabel { get; set; }
+            public int CompletedTripsToNextTier { get; set; }
+            public int TierProgressPercent { get; set; }
+            public List<string> MembershipPerks { get; set; } = new();
+
             public int TrustScore { get; set; } = 100;
-            public string KycStatus { get; set; } = "VERIFIED"; // VERIFIED, PENDING, REJECTED
+            public string KycStatus { get; set; } = "NOT_SUBMITTED"; // NOT_SUBMITTED, PENDING, VERIFIED, REJECTED
             public string AccountStatus { get; set; } = "ACTIVE"; // ACTIVE, SUSPENDED
 
             public int TotalBookings { get; set; }
             public int CompletedBookings { get; set; }
             public int ActiveBookings { get; set; }
+            public int UpcomingBookings { get; set; }
             public int CancelledBookings { get; set; }
 
             public decimal TotalSpent { get; set; }
@@ -123,8 +133,11 @@ namespace CarRental.API.Controllers
 
         public class UpdateKycStatusDto
         {
-            public string KycStatus { get; set; } = "VERIFIED"; // "VERIFIED" or "REJECTED"
+            public string KycStatus { get; set; } = "VERIFIED"; // "VERIFIED", "REJECTED", "PENDING"
             public string? RejectReason { get; set; }
+            public string? DateOfBirth { get; set; }
+            public string? LicenseIssueDate { get; set; }
+            public string? LicenseClass { get; set; }
         }
 
         public class AddViolationDto
@@ -228,6 +241,24 @@ namespace CarRental.API.Controllers
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
+            var allRequestIds = allRequests.Select(r => r.Id).ToList();
+
+            // Load paid deposit/hold payments and settlements to accurately calculate real Escrow
+            var paidDepositPaymentsByReq = await _context.Payments
+                .AsNoTracking()
+                .Where(p => p.RentalRequestId.HasValue
+                    && allRequestIds.Contains(p.RentalRequestId.Value)
+                    && (p.Status == "SUCCESS" || p.Status == "PAID" || p.Status == "COMPLETED")
+                    && (p.Type == "DEPOSIT" || p.Type == "DEPOSIT_COLLATERAL" || p.Type == "HOLD_DEPOSIT"))
+                .GroupBy(p => p.RentalRequestId!.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.Sum(p => p.Amount));
+
+            var settlementsByReq = await _context.RentalSettlements
+                .AsNoTracking()
+                .Where(s => s.RentalRequestId.HasValue && allRequestIds.Contains(s.RentalRequestId.Value))
+                .GroupBy(s => s.RentalRequestId!.Value)
+                .ToDictionaryAsync(g => g.Key, g => g.OrderByDescending(x => x.CreatedAt).First());
+
             var requestsByEmail = allRequests
                 .Where(r => !string.IsNullOrWhiteSpace(r.CustomerEmail))
                 .GroupBy(r => r.CustomerEmail.Trim().ToLowerInvariant())
@@ -254,23 +285,72 @@ namespace CarRental.API.Controllers
                     ? dbUser.DriverLicenseNumber
                     : (latestReq?.DriverLicenseNumber ?? "Chưa cập nhật");
 
-                var licenseClass = !string.IsNullOrWhiteSpace(dbUser.DriverLicenseClass)
-                    ? dbUser.DriverLicenseClass
-                    : (latestReq?.DriverLicenseClass ?? "B2");
+                var licenseClass = !string.IsNullOrWhiteSpace(dbUser.LicenseClass)
+                    ? dbUser.LicenseClass
+                    : (!string.IsNullOrWhiteSpace(dbUser.DriverLicenseClass)
+                        ? dbUser.DriverLicenseClass
+                        : (latestReq?.DeclaredLicenseClass ?? latestReq?.DriverLicenseClass ?? "B2"));
 
                 var licenseExpiryDateObj = dbUser.DriverLicenseExpiry ?? latestReq?.DriverLicenseExpiry;
                 var licenseExpiryDate = licenseExpiryDateObj?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật";
                 var isLicenseNearExpiry = licenseExpiryDateObj.HasValue && licenseExpiryDateObj.Value <= DateTime.UtcNow.AddDays(30);
 
+                var dobValue = dbUser.DateOfBirth ?? latestReq?.DeclaredDob;
+                var licenseIssueValue = dbUser.LicenseIssueDate ?? latestReq?.DeclaredLicenseIssueDate;
+
                 var userBookingCount = userReqs.Count;
                 var completedCount = userReqs.Count(r => r.Status == "COMPLETED");
-                var activeCount = userReqs.Count(r => r.Status == "ACTIVE" || r.Status == "CONFIRMED" || r.Status == "SIGNED" || r.Status == "HOLDING");
+                var activeCount = userReqs.Count(r => r.Status == "ACTIVE" || r.Status == "IN_TRANSIT");
+                var upcomingCount = userReqs.Count(r =>
+                    r.Status == "APPROVED" ||
+                    r.Status == "CONFIRMED" ||
+                    r.Status == "HOLD_CONFIRMED" ||
+                    r.Status == "DEPOSIT_PAID" ||
+                    r.Status == "SIGNED");
                 var cancelledCount = userReqs.Count(r => r.Status == "CANCELLED" || r.Status == "REJECTED");
-                var totalSpent = userReqs.Where(r => r.Status == "COMPLETED" || r.Status == "ACTIVE").Sum(r => r.EstimatedTotalFee);
-                var escrowDeposit = userReqs.Where(r => r.Status == "ACTIVE" || r.Status == "CONFIRMED" || r.Status == "SIGNED").Sum(r => r.DepositAmount);
 
-                var tierCalculated = userBookingCount >= 10 ? "Platinum" : (userBookingCount >= 4 ? "Gold" : "Silver");
-                var currentKycStatus = dbUser.KycStatus ?? (!string.IsNullOrWhiteSpace(rawIdCard) && rawIdCard != "Chưa cập nhật" ? "VERIFIED" : "PENDING");
+                // Tổng chi tiêu thực tế chỉ tính từ các chuyến COMPLETED
+                var totalSpent = userReqs
+                    .Where(r => r.Status == "COMPLETED")
+                    .Sum(r => r.EstimatedTotalFee);
+
+                // Cọc phong tỏa (Escrow): chỉ tính các đơn thực sự đang giữ tiền
+                decimal escrowDeposit = 0m;
+                foreach (var r in userReqs)
+                {
+                    if (r.Status == "COMPLETED" || r.Status == "CANCELLED" || r.Status == "REJECTED" || r.Status == "CLOSED" || r.Status == "SETTLED")
+                    {
+                        continue;
+                    }
+
+                    if (r.Status == "PARTIALLY_SETTLED")
+                    {
+                        if (settlementsByReq.TryGetValue(r.Id, out var st) && st.TrafficFineRefundStatus != "REFUNDED")
+                        {
+                            escrowDeposit += st.TrafficFineHoldAmount;
+                        }
+                        continue;
+                    }
+
+                    if (r.Status == "DEPOSIT_PAID" || r.Status == "ACTIVE" || r.Status == "IN_TRANSIT" || r.Status == "RETURNED")
+                    {
+                        escrowDeposit += r.DepositAmount;
+                        continue;
+                    }
+
+                    // Các đơn chờ nhận xe (CONFIRMED, APPROVED, HOLD_CONFIRMED, SIGNED...):
+                    // Không cộng cọc tiền mặt chưa thu; chỉ cộng đúng số tiền đã thanh toán (VD: cọc giữ chỗ 500k hoặc VietQR đã PAID)
+                    if (paidDepositPaymentsByReq.TryGetValue(r.Id, out var paidAmt) && paidAmt > 0)
+                    {
+                        escrowDeposit += paidAmt;
+                    }
+                }
+
+                // Single Source of Truth: Hạng thành viên tính từ COMPLETED trips, TotalSpent, TrustScore
+                var membership = MembershipHelper.Evaluate(completedCount, totalSpent, dbUser.TrustScore);
+                var currentKycStatus = string.IsNullOrWhiteSpace(dbUser.KycStatus)
+                    ? "NOT_SUBMITTED"
+                    : dbUser.KycStatus.Trim().ToUpperInvariant();
 
                 var violations = dbUser.Violations.OrderByDescending(v => v.CreatedAt).Select(v => new ViolationLogDto
                 {
@@ -329,13 +409,22 @@ namespace CarRental.API.Controllers
                     LicenseClass = licenseClass,
                     LicenseExpiryDate = licenseExpiryDate,
                     IsLicenseNearExpiry = isLicenseNearExpiry,
-                    MembershipTier = tierCalculated,
+                    DateOfBirth = dobValue?.ToString("yyyy-MM-dd"),
+                    LicenseIssueDate = licenseIssueValue?.ToString("yyyy-MM-dd"),
+                    MembershipTier = membership.Tier,
+                    MembershipTierLabel = membership.TierLabel,
+                    NextTier = membership.NextTier,
+                    NextTierLabel = membership.NextTierLabel,
+                    CompletedTripsToNextTier = membership.CompletedTripsToNextTier,
+                    TierProgressPercent = membership.ProgressPercent,
+                    MembershipPerks = membership.Perks,
                     TrustScore = dbUser.TrustScore,
                     KycStatus = currentKycStatus,
                     AccountStatus = dbUser.IsActive ? "ACTIVE" : "SUSPENDED",
                     TotalBookings = userBookingCount,
                     CompletedBookings = completedCount,
                     ActiveBookings = activeCount,
+                    UpcomingBookings = upcomingCount,
                     CancelledBookings = cancelledCount,
                     TotalSpent = totalSpent,
                     EscrowDepositAmount = escrowDeposit,
@@ -469,9 +558,27 @@ namespace CarRental.API.Controllers
                 return NotFound(new { Message = "Không tìm thấy thông tin tài khoản khách hàng." });
             }
 
-            targetUser.KycStatus = dto.KycStatus;
+            targetUser.KycStatus = string.IsNullOrWhiteSpace(dto.KycStatus) ? "VERIFIED" : dto.KycStatus.Trim().ToUpperInvariant();
             targetUser.KycReviewedAt = DateTime.UtcNow;
             targetUser.KycNote = dto.RejectReason;
+
+            if (!string.IsNullOrWhiteSpace(dto.DateOfBirth) && DateTime.TryParse(dto.DateOfBirth, out var parsedDob))
+            {
+                targetUser.DateOfBirth = DateTime.SpecifyKind(parsedDob.Date, DateTimeKind.Utc);
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.LicenseIssueDate) && DateTime.TryParse(dto.LicenseIssueDate, out var parsedIssueDate))
+            {
+                targetUser.LicenseIssueDate = DateTime.SpecifyKind(parsedIssueDate.Date, DateTimeKind.Utc);
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.LicenseClass))
+            {
+                var normalizedClass = dto.LicenseClass.Trim().ToUpperInvariant();
+                targetUser.LicenseClass = normalizedClass;
+                targetUser.DriverLicenseClass = normalizedClass;
+            }
+
             targetUser.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -479,10 +586,13 @@ namespace CarRental.API.Controllers
             return Ok(new
             {
                 Success = true,
-                Message = dto.KycStatus == "VERIFIED" 
+                Message = targetUser.KycStatus == "VERIFIED" 
                     ? "Hồ sơ KYC đã được phê duyệt hợp lệ!" 
-                    : $"Đã gửi yêu cầu cập nhật lại hồ sơ KYC: {dto.RejectReason}",
-                KycStatus = dto.KycStatus
+                    : $"Đã cập nhật trạng thái hồ sơ KYC ({targetUser.KycStatus}): {dto.RejectReason}",
+                KycStatus = targetUser.KycStatus,
+                DateOfBirth = targetUser.DateOfBirth?.ToString("yyyy-MM-dd"),
+                LicenseIssueDate = targetUser.LicenseIssueDate?.ToString("yyyy-MM-dd"),
+                LicenseClass = targetUser.LicenseClass ?? targetUser.DriverLicenseClass
             });
         }
 

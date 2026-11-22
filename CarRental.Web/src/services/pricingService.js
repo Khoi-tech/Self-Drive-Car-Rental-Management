@@ -66,7 +66,9 @@ const pricingService = {
       const payload = {
         rentalDays,
         isHoliday: Boolean(options.isHoliday),
-        isVietQrPrepaid: Boolean(options.isVietQrPrepaid)
+        isVietQrPrepaid: Boolean(options.isVietQrPrepaid),
+        ...(options.startTime ? { startTime: options.startTime } : {}),
+        ...(options.customerEmail ? { customerEmail: options.customerEmail } : {})
       };
       const response = await api.post(`/vehicles/${vehicleId}/pricing-preview`, payload);
       return response;

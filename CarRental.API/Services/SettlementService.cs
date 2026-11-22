@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using CarRental.API.Data;
 using CarRental.API.DTOs.Settlement;
 using CarRental.API.Entities;
+using CarRental.API.Helpers;
 
 namespace CarRental.API.Services
 {
@@ -140,11 +141,24 @@ namespace CarRental.API.Services
                     : $"{damageNotes}; Bồi thường sự cố: {incSummary}";
             }
 
-            // 5. Phí vệ sinh nếu xe cần dọn nội thất / rửa
+            // 5. Phí vệ sinh nếu xe cần dọn nội thất / rửa (Miễn phí vệ sinh tiêu chuẩn cho Hội viên GOLD / PLATINUM)
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, request.CustomerEmail);
             decimal cleaningFee = 0;
+            bool isCleaningFeeWaived = false;
+            string? cleaningFeeWaiverNote = null;
+
             if (returnProtocol.NextVehicleStatus == "CLEANING" || returnProtocol.NextVehicleStatus == "MAINTENANCE")
             {
-                cleaningFee = 200000m;
+                if (membership.HasFreeStandardCleaning)
+                {
+                    cleaningFee = 0m;
+                    isCleaningFeeWaived = true;
+                    cleaningFeeWaiverNote = $"Miễn phí vệ sinh & rửa xe tiêu chuẩn 200.000đ (Quyền lợi Hội viên {membership.Tier})";
+                }
+                else
+                {
+                    cleaningFee = 200000m;
+                }
             }
 
             decimal depositAmount = contract?.DepositAmount ?? request.DepositAmount;
@@ -219,6 +233,9 @@ namespace CarRental.API.Services
                 ReturnDamageMap = returnProtocol.ReturnDamageMap ?? returnProtocol.DamagePointsJson,
                 EvidencePhotoUrls = returnProtocol.EvidencePhotoUrls,
                 CleaningFee = cleaningFee,
+                CustomerMembershipTier = membership.Tier,
+                IsCleaningFeeWaived = isCleaningFeeWaived,
+                CleaningFeeWaiverNote = cleaningFeeWaiverNote,
                 OtherFee = 0,
                 TotalDeduction = totalDeduction,
                 BalanceAmount = balance,

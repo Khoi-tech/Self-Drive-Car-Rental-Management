@@ -273,7 +273,7 @@ const CarDetailPage = () => {
       setCalculating(true);
     }, 0);
 
-    pricingService.previewPricing(id, diffDays)
+    pricingService.previewPricing(id, diffDays, { startTime })
       .then(res => {
         clearTimeout(timer);
         if (!ignore) {

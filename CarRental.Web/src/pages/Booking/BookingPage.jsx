@@ -185,7 +185,10 @@ const BookingPage = () => {
           const diffTime = end - start;
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
-          const previewRes = await pricingService.previewPricing(carId, diffDays);
+          const previewRes = await pricingService.previewPricing(carId, diffDays, {
+            startTime: startTimeStr,
+            customerEmail: user?.email
+          });
           setPreview(previewRes.data || previewRes);
         } else {
           setPreview(null);
@@ -1719,7 +1722,19 @@ const BookingPage = () => {
                       <div className="flex justify-between text-emerald-700 font-semibold">
                         <span>Chiết khấu thời gian ({preview.discountPercentage}%)</span>
                         <span className="tabular-nums">
-                          -{formatCurrencyVND(((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays) - preview.rentalPrice)}
+                          -{formatCurrencyVND(preview.discountAmount ?? Math.round(((preview.basePrice || vehicle?.dailyRate) * preview.rentalDays) * (preview.discountPercentage / 100)))}
+                        </span>
+                      </div>
+                    )}
+
+                    {preview.vipEarlyBookingDiscountAmount > 0 && (
+                      <div className="flex justify-between text-amber-800 font-bold bg-amber-50/90 p-2 rounded-lg border border-amber-200">
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          {preview.vipEarlyBookingNote || `Ưu đãi Hội viên ${preview.membershipTier} đặt trước ≥ 7 ngày (${preview.vipEarlyBookingDiscountPercentage}%)`}
+                        </span>
+                        <span className="tabular-nums text-amber-900 shrink-0 ml-2">
+                          -{formatCurrencyVND(preview.vipEarlyBookingDiscountAmount)}
                         </span>
                       </div>
                     )}

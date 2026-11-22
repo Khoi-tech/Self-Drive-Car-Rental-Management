@@ -312,7 +312,12 @@ namespace CarRental.API.Services
                 var totalDays = (int)Math.Ceiling((dto.EndTime - dto.StartTime).TotalDays);
                 if (totalDays <= 0) totalDays = 1;
 
-                var previewDto = new PricingPreviewRequestDto { RentalDays = totalDays };
+                var previewDto = new PricingPreviewRequestDto
+                {
+                    RentalDays = totalDays,
+                    StartTime = dto.StartTime,
+                    CustomerEmail = dto.CustomerEmail
+                };
                 var preview = await _pricingService.PreviewPricingAsync(dto.CarId, previewDto);
 
                 if (preview == null)
@@ -327,7 +332,7 @@ namespace CarRental.API.Services
                 var isOnlinePrepay = !isFastHold && !isCash;
                 var onlineDiscountPercentSetting = await _settingsService.GetSettingValueAsync("vietqr_discount_percent", 5m);
                 var onlineDiscountPercent = isOnlinePrepay ? onlineDiscountPercentSetting : 0m;
-                var totalDiscountPercent = preview.DiscountPercentage + onlineDiscountPercent;
+                var totalDiscountPercent = preview.DiscountPercentage + preview.VipEarlyBookingDiscountPercentage + onlineDiscountPercent;
                 var estimatedFee = isOnlinePrepay 
                     ? Math.Round(preview.RentalPrice * (1m - onlineDiscountPercent / 100m))
                     : preview.RentalPrice;

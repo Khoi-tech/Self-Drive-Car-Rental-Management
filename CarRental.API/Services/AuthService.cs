@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using CarRental.API.Data;
 using CarRental.API.DTOs.Auth;
 using CarRental.API.Entities;
+using CarRental.API.Helpers;
 
 namespace CarRental.API.Services
 {
@@ -58,12 +59,13 @@ namespace CarRental.API.Services
             await _context.SaveChangesAsync();
 
             var token = GenerateJwtToken(user);
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, user.Email);
 
             return new AuthResponseDto
             {
                 Token = token,
                 RefreshToken = refreshToken.Token,
-                User = MapToUserDto(user)
+                User = MapToUserDto(user, membership)
             };
         }
 
@@ -96,12 +98,13 @@ namespace CarRental.API.Services
             await _context.SaveChangesAsync();
 
             var token = GenerateJwtToken(user);
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, user.Email);
 
             return new AuthResponseDto
             {
                 Token = token,
                 RefreshToken = refreshToken.Token,
-                User = MapToUserDto(user)
+                User = MapToUserDto(user, membership)
             };
         }
 
@@ -146,12 +149,13 @@ namespace CarRental.API.Services
             await _context.SaveChangesAsync();
 
             var newAccessToken = GenerateJwtToken(storedToken.User);
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, storedToken.User.Email);
 
             return new AuthResponseDto
             {
                 Token = newAccessToken,
                 RefreshToken = newRefreshToken.Token,
-                User = MapToUserDto(storedToken.User)
+                User = MapToUserDto(storedToken.User, membership)
             };
         }
 
@@ -226,7 +230,8 @@ namespace CarRental.API.Services
 
             if (user == null) return null;
 
-            return MapToUserDto(user);
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, user.Email);
+            return MapToUserDto(user, membership);
         }
 
         private string GenerateJwtToken(User user)
@@ -276,8 +281,9 @@ namespace CarRental.API.Services
             };
         }
 
-        private static UserDto MapToUserDto(User user)
+        private static UserDto MapToUserDto(User user, MembershipInfo? membership = null)
         {
+            var m = membership ?? MembershipHelper.Evaluate(0, 0m, user.TrustScore);
             return new UserDto
             {
                 Id = user.Id,
@@ -287,12 +293,24 @@ namespace CarRental.API.Services
                 Role = user.Role,
                 IsActive = user.IsActive,
                 LockReason = user.LockReason,
-                KycStatus = user.KycStatus ?? "PENDING",
+                KycStatus = string.IsNullOrWhiteSpace(user.KycStatus) ? "NOT_SUBMITTED" : user.KycStatus.Trim().ToUpperInvariant(),
+                TrustScore = user.TrustScore,
                 DateOfBirth = user.DateOfBirth,
                 DriverLicenseClass = user.DriverLicenseClass,
                 LicenseClass = user.LicenseClass ?? user.DriverLicenseClass,
                 LicenseIssueDate = user.LicenseIssueDate,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                MembershipTier = m.Tier,
+                MembershipTierLabel = m.TierLabel,
+                NextTier = m.NextTier,
+                NextTierLabel = m.NextTierLabel,
+                CompletedTrips = m.CompletedTrips,
+                TotalSpent = m.TotalSpent,
+                CompletedTripsToNextTier = m.CompletedTripsToNextTier,
+                SpentToNextTier = m.SpentToNextTier,
+                RequiredTrustScoreForNextTier = m.RequiredTrustScoreForNextTier,
+                TierProgressPercent = m.ProgressPercent,
+                MembershipPerks = m.Perks
             };
         }
     }

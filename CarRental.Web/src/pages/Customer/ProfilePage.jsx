@@ -301,12 +301,13 @@ const ProfilePage = () => {
           </div>
         )}
 
-        {/* 1. Header Banner (VIP greeting, membership badge, 3 KPI cards) */}
+        {/* 1. Header Banner (VIP greeting, membership badge, TrustScore, tier progress & KPI cards) */}
         <ProfileHeaderBanner
           user={user}
           requests={requests}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          kycStatus={user?.kycStatus}
         />
 
         {/* 2. Main 2-Column Layout */}
@@ -369,9 +370,19 @@ const ProfilePage = () => {
                     )}
 
                     {group.badgeLabel && !isActive && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                        ✓ KYC
-                      </span>
+                      user?.kycStatus === 'VERIFIED' ? (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                          ✓ KYC
+                        </span>
+                      ) : user?.kycStatus === 'PENDING' ? (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                          Chờ duyệt
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0">
+                          Chưa KYC
+                        </span>
+                      )
                     )}
                   </button>
                 );

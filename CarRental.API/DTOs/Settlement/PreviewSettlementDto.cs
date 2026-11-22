@@ -49,6 +49,9 @@ namespace CarRental.API.DTOs.Settlement
         public string? EvidencePhotoUrls { get; set; }
 
         public decimal CleaningFee { get; set; }
+        public string CustomerMembershipTier { get; set; } = "STANDARD";
+        public bool IsCleaningFeeWaived { get; set; }
+        public string? CleaningFeeWaiverNote { get; set; }
         public decimal OtherFee { get; set; }
         public string? OtherFeeNotes { get; set; }
 

@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace CarRental.API.DTOs.PricingPolicy
@@ -11,5 +12,9 @@ namespace CarRental.API.DTOs.PricingPolicy
         public bool IsHoliday { get; set; } = false;
 
         public bool IsVietQrPrepaid { get; set; } = false;
+
+        public DateTime? StartTime { get; set; }
+
+        public string? CustomerEmail { get; set; }
     }
 }

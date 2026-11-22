@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using CarRental.API.Data;
 using CarRental.API.DTOs.PricingPolicy;
 using CarRental.API.Entities;
+using CarRental.API.Helpers;
 
 namespace CarRental.API.Services
 {
@@ -183,7 +184,26 @@ namespace CarRental.API.Services
             decimal baseSubtotal = basePrice * requestDto.RentalDays;
             decimal discountAmount = Math.Round(baseSubtotal * (discountPercentage / 100m), 0);
             decimal holidaySurchargeAmount = Math.Round(baseSubtotal * (holidaySurcharge / 100m), 0);
-            decimal subtotalBeforeVietQr = baseSubtotal - discountAmount + holidaySurchargeAmount;
+            decimal subtotalAfterTierPolicy = baseSubtotal - discountAmount + holidaySurchargeAmount;
+
+            // Quyền lợi Hội viên GOLD / PLATINUM: Giảm 10% khi đặt trước >= 7 ngày
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, requestDto.CustomerEmail);
+            decimal vipEarlyDiscountPercent = 0m;
+            decimal vipEarlyDiscountAmount = 0m;
+            string? vipEarlyNote = null;
+
+            if (membership.HasEarlyBookingDiscount && requestDto.StartTime.HasValue)
+            {
+                var leadDays = (requestDto.StartTime.Value.ToUniversalTime() - DateTime.UtcNow).TotalDays;
+                if (leadDays >= 7.0)
+                {
+                    vipEarlyDiscountPercent = membership.EarlyBookingDiscountPercent;
+                    vipEarlyDiscountAmount = Math.Round(subtotalAfterTierPolicy * (vipEarlyDiscountPercent / 100m), 0);
+                    vipEarlyNote = $"Ưu đãi Hội viên {membership.Tier} đặt trước ≥ 7 ngày (-{vipEarlyDiscountPercent:0}%)";
+                }
+            }
+
+            decimal subtotalBeforeVietQr = Math.Max(0m, subtotalAfterTierPolicy - vipEarlyDiscountAmount);
 
             decimal vietQrDiscountPercentage = 0m;
             decimal vietQrDiscountAmount = 0m;
@@ -193,7 +213,7 @@ namespace CarRental.API.Services
                 vietQrDiscountAmount = Math.Round(subtotalBeforeVietQr * (vietQrDiscountPercentage / 100m), 0);
             }
 
-            decimal rentalPrice = subtotalBeforeVietQr - vietQrDiscountAmount;
+            decimal rentalPrice = Math.Max(0m, subtotalBeforeVietQr - vietQrDiscountAmount);
             decimal adjustedDailyPrice = requestDto.RentalDays > 0
                 ? Math.Round(rentalPrice / requestDto.RentalDays, 0)
                 : 0m;
@@ -210,6 +230,10 @@ namespace CarRental.API.Services
                 DiscountAmount = discountAmount,
                 HolidaySurchargeAmount = holidaySurchargeAmount,
                 VietQrDiscountAmount = vietQrDiscountAmount,
+                MembershipTier = membership.Tier,
+                VipEarlyBookingDiscountPercentage = vipEarlyDiscountPercent,
+                VipEarlyBookingDiscountAmount = vipEarlyDiscountAmount,
+                VipEarlyBookingNote = vipEarlyNote,
                 AdjustedDailyPrice = adjustedDailyPrice,
                 RentalPrice = rentalPrice
             };

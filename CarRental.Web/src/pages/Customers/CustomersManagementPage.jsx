@@ -61,12 +61,14 @@ const CustomersManagementPage = () => {
   const [unmaskPii, setUnmaskPii] = useState(false); // Global toggle in drawer
   const [unmaskAuditLogTime, setUnmaskAuditLogTime] = useState('');
 
-  // Tab 1: Checklist state for KYC verification
+  // Tab 1: Checklist state & editable eligibility dates for KYC verification
   const [kycChecklist, setKycChecklist] = useState({
     photoClear: false,
     vneidMatched: false,
     licenseValid: false
   });
+  const [kycDob, setKycDob] = useState('');
+  const [kycLicenseIssueDate, setKycLicenseIssueDate] = useState('');
   const [kycRejectReason, setKycRejectReason] = useState('Ảnh chụp mờ hoặc lóa sáng');
   const [showRejectBox, setShowRejectBox] = useState(false);
 
@@ -133,6 +135,8 @@ const CustomersManagementPage = () => {
     setDrawerTab('kyc');
     setUnmaskPii(false);
     setShowRejectBox(false);
+    setKycDob(customer.dateOfBirth || '');
+    setKycLicenseIssueDate(customer.licenseIssueDate || '');
     setKycChecklist({
       photoClear: customer.kycStatus === 'VERIFIED',
       vneidMatched: customer.kycStatus === 'VERIFIED',
@@ -178,16 +182,31 @@ const CustomersManagementPage = () => {
     }
   };
 
-  // Approve KYC
+  // Approve KYC (also saves DateOfBirth & LicenseIssueDate for 2-layer eligibility)
   const handleApproveKyc = async () => {
     if (!selectedCustomer) return;
     try {
       setActionLoading(true);
-      await customerService.updateKycStatus(selectedCustomer.id, 'VERIFIED');
-      setCustomers(prev => prev.map(c => 
-        c.id === selectedCustomer.id ? { ...c, kycStatus: 'VERIFIED' } : c
+      await customerService.updateKycStatus(selectedCustomer.id, 'VERIFIED', '', {
+        dateOfBirth: kycDob || null,
+        licenseIssueDate: kycLicenseIssueDate || null
+      });
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
+          ? {
+              ...c,
+              kycStatus: 'VERIFIED',
+              dateOfBirth: kycDob || c.dateOfBirth,
+              licenseIssueDate: kycLicenseIssueDate || c.licenseIssueDate
+            }
+          : c
       ));
-      setSelectedCustomer(prev => ({ ...prev, kycStatus: 'VERIFIED' }));
+      setSelectedCustomer(prev => ({
+        ...prev,
+        kycStatus: 'VERIFIED',
+        dateOfBirth: kycDob || prev.dateOfBirth,
+        licenseIssueDate: kycLicenseIssueDate || prev.licenseIssueDate
+      }));
       alert(`Đã phê duyệt hồ sơ KYC của ${selectedCustomer.fullName} thành công!`);
     } catch {
       alert('Lỗi phê duyệt KYC.');
@@ -196,20 +215,54 @@ const CustomersManagementPage = () => {
     }
   };
 
-  // Reject / Request Update KYC
+  // Update KYC dates without changing VERIFIED status
+  const handleUpdateKycDates = async () => {
+    if (!selectedCustomer) return;
+    try {
+      setActionLoading(true);
+      await customerService.updateKycStatus(selectedCustomer.id, selectedCustomer.kycStatus, '', {
+        dateOfBirth: kycDob || null,
+        licenseIssueDate: kycLicenseIssueDate || null
+      });
+      setCustomers(prev => prev.map(c =>
+        c.id === selectedCustomer.id
+          ? {
+              ...c,
+              dateOfBirth: kycDob || c.dateOfBirth,
+              licenseIssueDate: kycLicenseIssueDate || c.licenseIssueDate
+            }
+          : c
+      ));
+      setSelectedCustomer(prev => ({
+        ...prev,
+        dateOfBirth: kycDob || prev.dateOfBirth,
+        licenseIssueDate: kycLicenseIssueDate || prev.licenseIssueDate
+      }));
+      alert('Đã cập nhật Ngày sinh & Ngày cấp GPLX thành công!');
+    } catch {
+      alert('Lỗi cập nhật thông tin KYC.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reject / Revoke / Request Update KYC
   const handleRejectKyc = async () => {
     if (!selectedCustomer) return;
     try {
       setActionLoading(true);
-      await customerService.updateKycStatus(selectedCustomer.id, 'REJECTED', kycRejectReason);
-      setCustomers(prev => prev.map(c => 
+      await customerService.updateKycStatus(selectedCustomer.id, 'REJECTED', kycRejectReason, {
+        dateOfBirth: kycDob || null,
+        licenseIssueDate: kycLicenseIssueDate || null
+      });
+      setCustomers(prev => prev.map(c =>
         c.id === selectedCustomer.id ? { ...c, kycStatus: 'REJECTED' } : c
       ));
       setSelectedCustomer(prev => ({ ...prev, kycStatus: 'REJECTED' }));
       setShowRejectBox(false);
-      alert(`Đã gửi yêu cầu cập nhật lại hồ sơ KYC đến ${selectedCustomer.fullName}!`);
+      alert(`Đã thu hồi / gửi yêu cầu cập nhật lại hồ sơ KYC đến ${selectedCustomer.fullName}!`);
     } catch {
-      alert('Lỗi từ chối KYC.');
+      alert('Lỗi cập nhật trạng thái KYC.');
     } finally {
       setActionLoading(false);
     }
@@ -395,9 +448,10 @@ const CustomersManagementPage = () => {
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-900"
           >
             <option value="ALL">Tất cả hạng VIP</option>
-            <option value="Platinum">Platinum Member</option>
-            <option value="Gold">Gold Member</option>
-            <option value="Silver">Silver Member</option>
+            <option value="PLATINUM">Platinum Member</option>
+            <option value="GOLD">Gold Member</option>
+            <option value="SILVER">Silver Member</option>
+            <option value="STANDARD">Thành viên Tiêu chuẩn</option>
           </select>
 
           <select
@@ -408,6 +462,8 @@ const CustomersManagementPage = () => {
             <option value="ALL">Tất cả KYC</option>
             <option value="VERIFIED">Đã xác minh KYC</option>
             <option value="PENDING">Chờ duyệt giấy tờ</option>
+            <option value="REJECTED">Bị từ chối / Cần bổ sung</option>
+            <option value="NOT_SUBMITTED">Chưa nộp KYC</option>
           </select>
 
           <select
@@ -481,14 +537,16 @@ const CustomersManagementPage = () => {
                               #{c.id.substring(0, 12).toUpperCase()}
                             </span>
                             <span className={`inline-flex items-center gap-0.5 mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-extrabold border ${
-                              c.membershipTier === 'Platinum'
+                              c.membershipTier?.toUpperCase() === 'PLATINUM'
                                 ? 'bg-indigo-50 text-indigo-900 border-indigo-200'
-                                : c.membershipTier === 'Gold'
+                                : c.membershipTier?.toUpperCase() === 'GOLD'
                                 ? 'bg-amber-50 text-amber-900 border-amber-200'
-                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                                : c.membershipTier?.toUpperCase() === 'SILVER'
+                                ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                : 'bg-zinc-50 text-zinc-600 border-zinc-200'
                             }`}>
                               <Award className="w-2.5 h-2.5" />
-                              {c.membershipTier}
+                              {c.membershipTierLabel || c.membershipTier}
                             </span>
                           </div>
                         </div>
@@ -521,15 +579,25 @@ const CustomersManagementPage = () => {
                         <div className="font-mono text-slate-800 font-semibold tabular-nums">
                           {c.maskedIdCard}
                         </div>
-                        {isKycPending ? (
+                        {c.kycStatus === 'VERIFIED' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Đã xác minh KYC
+                          </span>
+                        ) : c.kycStatus === 'PENDING' ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 animate-pulse">
                             <span className="w-2 h-2 rounded-full bg-amber-500" />
                             CHỜ DUYỆT KYC
                           </span>
+                        ) : c.kycStatus === 'REJECTED' ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700">
+                            <AlertCircle className="w-3 h-3 text-red-600" />
+                            Từ chối / Cần bổ sung
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Đã xác minh KYC
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            Chưa nộp KYC
                           </span>
                         )}
                       </td>
@@ -553,13 +621,14 @@ const CustomersManagementPage = () => {
                       <td className="py-3.5 px-4 text-center">
                         <div 
                           className="cursor-help inline-block group relative"
-                          title={`Tổng: ${c.totalBookings} đơn = ${c.completedBookings} hoàn thành + ${c.activeBookings} đang chạy + ${c.cancelledBookings} đã hủy`}
+                          title={`Tổng: ${c.totalBookings} đơn = ${c.completedBookings} hoàn thành + ${c.activeBookings} đang lưu hành + ${c.upcomingBookings || 0} sắp nhận + ${c.cancelledBookings} đã hủy`}
                         >
                           <span className="font-black text-slate-900 tabular-nums text-sm">
                             {c.totalBookings} chuyến
                           </span>
                           <span className="text-[10px] text-slate-500 block tabular-nums">
-                            {c.completedBookings} hoàn thành • {c.activeBookings} đang chạy • {c.cancelledBookings} đã hủy
+                            {c.completedBookings} hoàn thành • {c.activeBookings} đang chạy
+                            {(c.upcomingBookings || 0) > 0 ? ` • ${c.upcomingBookings} sắp nhận` : ''} • {c.cancelledBookings} hủy
                           </span>
                         </div>
                       </td>
@@ -753,17 +822,17 @@ const CustomersManagementPage = () => {
                         <span className="text-[11px] font-semibold text-slate-600 block">CCCD gắn chip (Mặt trước / Mặt sau):</span>
                         <div className="grid grid-cols-2 gap-2">
                           <div 
-                            onClick={() => setPreviewImage({ title: 'CCCD Mặt trước', url: selectedCustomer.IdCardFrontUrl || 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80' })}
+                            onClick={() => setPreviewImage({ title: 'CCCD Mặt trước', url: selectedCustomer.idCardFrontUrl || selectedCustomer.IdCardFrontUrl || 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80' })}
                             className="aspect-[16/10] bg-slate-200 rounded-lg overflow-hidden border border-slate-300 relative cursor-pointer group"
                           >
-                            <img src={selectedCustomer.IdCardFrontUrl || 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=600&q=80'} alt="CCCD trước" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <img src={selectedCustomer.idCardFrontUrl || selectedCustomer.IdCardFrontUrl || 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=600&q=80'} alt="CCCD trước" className="w-full h-full object-cover group-hover:scale-105 transition" />
                             <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-bold">Mặt trước</span>
                           </div>
                           <div 
-                            onClick={() => setPreviewImage({ title: 'CCCD Mặt sau', url: selectedCustomer.IdCardBackUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80' })}
+                            onClick={() => setPreviewImage({ title: 'CCCD Mặt sau', url: selectedCustomer.idCardBackUrl || selectedCustomer.IdCardBackUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80' })}
                             className="aspect-[16/10] bg-slate-200 rounded-lg overflow-hidden border border-slate-300 relative cursor-pointer group"
                           >
-                            <img src={selectedCustomer.IdCardBackUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80'} alt="CCCD sau" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <img src={selectedCustomer.idCardBackUrl || selectedCustomer.IdCardBackUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80'} alt="CCCD sau" className="w-full h-full object-cover group-hover:scale-105 transition" />
                             <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-bold">Mặt sau</span>
                           </div>
                         </div>
@@ -774,17 +843,17 @@ const CustomersManagementPage = () => {
                         <span className="text-[11px] font-semibold text-slate-600 block">GPLX chuẩn Bộ GTVT:</span>
                         <div className="grid grid-cols-2 gap-2">
                           <div 
-                            onClick={() => setPreviewImage({ title: 'GPLX Mặt trước', url: selectedCustomer.DriverLicenseFrontUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80' })}
+                            onClick={() => setPreviewImage({ title: 'GPLX Mặt trước', url: selectedCustomer.driverLicenseFrontUrl || selectedCustomer.DriverLicenseFrontUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80' })}
                             className="aspect-[16/10] bg-slate-200 rounded-lg overflow-hidden border border-slate-300 relative cursor-pointer group"
                           >
-                            <img src={selectedCustomer.DriverLicenseFrontUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80'} alt="GPLX trước" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <img src={selectedCustomer.driverLicenseFrontUrl || selectedCustomer.DriverLicenseFrontUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80'} alt="GPLX trước" className="w-full h-full object-cover group-hover:scale-105 transition" />
                             <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-bold">GPLX Trước</span>
                           </div>
                           <div 
-                            onClick={() => setPreviewImage({ title: 'GPLX Mặt sau', url: selectedCustomer.DriverLicenseBackUrl || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=800&q=80' })}
+                            onClick={() => setPreviewImage({ title: 'GPLX Mặt sau', url: selectedCustomer.driverLicenseBackUrl || selectedCustomer.DriverLicenseBackUrl || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=800&q=80' })}
                             className="aspect-[16/10] bg-slate-200 rounded-lg overflow-hidden border border-slate-300 relative cursor-pointer group"
                           >
-                            <img src={selectedCustomer.DriverLicenseBackUrl || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80'} alt="GPLX sau" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <img src={selectedCustomer.driverLicenseBackUrl || selectedCustomer.DriverLicenseBackUrl || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?auto=format&fit=crop&w=600&q=80'} alt="GPLX sau" className="w-full h-full object-cover group-hover:scale-105 transition" />
                             <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-bold">GPLX Sau</span>
                           </div>
                         </div>
@@ -818,8 +887,8 @@ const CustomersManagementPage = () => {
                             Hạng {selectedCustomer.licenseClass} (Sedan/SUV dưới 9 chỗ)
                           </span>
                         </div>
-                        <div className="flex justify-between py-1 items-center">
-                          <span className="text-slate-500">Ngày hết hạn:</span>
+                        <div className="flex justify-between py-1 items-center border-b border-slate-100">
+                          <span className="text-slate-500">Ngày hết hạn GPLX:</span>
                           <div className="flex items-center gap-1.5">
                             <span className="font-bold tabular-nums text-slate-800">{selectedCustomer.licenseExpiryDate}</span>
                             {selectedCustomer.isLicenseNearExpiry && (
@@ -828,6 +897,26 @@ const CustomersManagementPage = () => {
                               </span>
                             )}
                           </div>
+                        </div>
+                        <div className="flex justify-between py-1 items-center border-b border-slate-100 gap-2">
+                          <label className="text-slate-500 shrink-0">Ngày sinh (Lọc tuổi):</label>
+                          <input
+                            type="date"
+                            value={kycDob}
+                            disabled={!isManagement}
+                            onChange={(e) => setKycDob(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-900 tabular-nums focus:outline-none focus:border-blue-900 disabled:opacity-60"
+                          />
+                        </div>
+                        <div className="flex justify-between py-1 items-center gap-2">
+                          <label className="text-slate-500 shrink-0">Ngày cấp GPLX (Kinh nghiệm):</label>
+                          <input
+                            type="date"
+                            value={kycLicenseIssueDate}
+                            disabled={!isManagement}
+                            onChange={(e) => setKycLicenseIssueDate(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-md px-2 py-1 text-xs font-bold text-slate-900 tabular-nums focus:outline-none focus:border-blue-900 disabled:opacity-60"
+                          />
                         </div>
                       </div>
 
@@ -868,34 +957,73 @@ const CustomersManagementPage = () => {
                         </label>
                       </div>
 
-                      {/* Actions: Approve / Request Update */}
+                      {/* Actions: Approve / Verified State / Revoke */}
                       {!isManagement ? (
                         <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
                           <Info className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                           <span><strong>Quyền hạn Nhân viên (STAFF):</strong> Chỉ xem đối chiếu hồ sơ KYC khi giao xe. Phê duyệt hoặc từ chối yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).</span>
                         </div>
                       ) : (
-                        <div className="space-y-2 pt-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={actionLoading}
-                              onClick={handleApproveKyc}
-                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <ThumbsUp className="w-3.5 h-3.5" />
-                              <span>Phê duyệt KYC (Hợp lệ)</span>
-                            </button>
+                        <div className="space-y-2.5 pt-1">
+                          {selectedCustomer.kycStatus === 'VERIFIED' ? (
+                            <>
+                              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                  <div>
+                                    <span className="text-xs font-black text-emerald-900 uppercase tracking-wide block">
+                                      ĐÃ PHÊ DUYỆT KYC
+                                    </span>
+                                    <span className="text-[11px] text-emerald-700">
+                                      Hồ sơ đã xác thực hợp lệ và đủ điều kiện thuê mọi phân khúc xe.
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setShowRejectBox(!showRejectBox)}
-                              className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
-                            >
-                              <ThumbsDown className="w-3.5 h-3.5" />
-                              <span>Yêu cầu bổ sung lại</span>
-                            </button>
-                          </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={handleUpdateKycDates}
+                                  className="flex-1 py-2 bg-slate-900 hover:bg-blue-900 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>Lưu Ngày sinh / Ngày cấp GPLX</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setShowRejectBox(!showRejectBox)}
+                                  className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  <ThumbsDown className="w-3.5 h-3.5" />
+                                  <span>Thu hồi / Yêu cầu cập nhật lại KYC</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={actionLoading}
+                                onClick={handleApproveKyc}
+                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                                <span>Phê duyệt KYC (Hợp lệ)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setShowRejectBox(!showRejectBox)}
+                                className="py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <ThumbsDown className="w-3.5 h-3.5" />
+                                <span>Yêu cầu bổ sung lại</span>
+                              </button>
+                            </div>
+                          )}
 
                           {showRejectBox && (
                             <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2 text-xs">
@@ -1128,9 +1256,14 @@ const CustomersManagementPage = () => {
 
                     <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200">
                       <span className="text-[10px] font-bold text-indigo-800 uppercase block">Đang lưu hành</span>
-                      <span className="text-base font-black text-indigo-900 tabular-nums">
+                      <span className="text-base font-black text-indigo-900 tabular-nums block">
                         {selectedCustomer.activeBookings} xe
                       </span>
+                      {(selectedCustomer.upcomingBookings || 0) > 0 && (
+                        <span className="text-[10px] font-semibold text-indigo-700">
+                          +{selectedCustomer.upcomingBookings} sắp nhận
+                        </span>
+                      )}
                     </div>
 
                     <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">

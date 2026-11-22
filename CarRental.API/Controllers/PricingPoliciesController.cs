@@ -140,6 +140,12 @@ namespace CarRental.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            if (string.IsNullOrWhiteSpace(dto.CustomerEmail) && User?.Identity?.IsAuthenticated == true)
+            {
+                dto.CustomerEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                    ?? User.FindFirst("email")?.Value;
+            }
+
             var preview = await _pricingService.PreviewPricingAsync(vehicleId, dto);
             if (preview == null) return NotFound(new { message = "Vehicle not found." });
 

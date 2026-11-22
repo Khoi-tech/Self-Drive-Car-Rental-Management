@@ -1347,7 +1347,14 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
                     {/* Cleaning fee */}
                     <div className="grid grid-cols-2 gap-2 items-center text-xs">
-                      <span className="text-slate-600">Vệ sinh khoang xe chuyên sâu:</span>
+                      <div>
+                        <span className="text-slate-600 block">Vệ sinh khoang xe chuyên sâu:</span>
+                        {preview?.isCleaningFeeWaived && (
+                          <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
+                            ★ {preview.cleaningFeeWaiverNote || `Miễn phí vệ sinh tiêu chuẩn (${preview.customerMembershipTier})`}
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="number"
                         value={cleaningFee}

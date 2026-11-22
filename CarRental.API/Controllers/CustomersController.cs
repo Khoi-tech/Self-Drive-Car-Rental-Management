@@ -146,6 +146,10 @@ namespace CarRental.API.Controllers
 
             public string? DriverLicenseExpiry { get; set; }
 
+            public string? DateOfBirth { get; set; }
+            public string? LicenseClass { get; set; }
+            public string? LicenseIssueDate { get; set; }
+
             public string? IdCardFrontUrl { get; set; }
             public string? IdCardBackUrl { get; set; }
             public string? DriverLicenseFrontUrl { get; set; }
@@ -796,8 +800,21 @@ namespace CarRental.API.Controllers
 
             user.IdCardNumber = dto.IdCardNumber.Trim();
             user.DriverLicenseNumber = dto.DriverLicenseNumber.Trim();
-            user.DriverLicenseClass = dto.DriverLicenseClass?.Trim() ?? "B2";
+            var normalizedClass = !string.IsNullOrWhiteSpace(dto.LicenseClass)
+                ? dto.LicenseClass.Trim()
+                : (dto.DriverLicenseClass?.Trim() ?? "B2");
+            user.DriverLicenseClass = normalizedClass;
+            user.LicenseClass = normalizedClass;
             user.DriverLicenseExpiry = expiry ?? user.DriverLicenseExpiry;
+
+            if (!string.IsNullOrWhiteSpace(dto.DateOfBirth) && DateTime.TryParse(dto.DateOfBirth, out var parsedDob))
+            {
+                user.DateOfBirth = DateTime.SpecifyKind(parsedDob.Date, DateTimeKind.Utc);
+            }
+            if (!string.IsNullOrWhiteSpace(dto.LicenseIssueDate) && DateTime.TryParse(dto.LicenseIssueDate, out var parsedIssue))
+            {
+                user.LicenseIssueDate = DateTime.SpecifyKind(parsedIssue.Date, DateTimeKind.Utc);
+            }
             if (!string.IsNullOrWhiteSpace(dto.IdCardFrontUrl))
             {
                 user.IdCardFrontUrl = dto.IdCardFrontUrl.StartsWith("data:image/") || dto.IdCardFrontUrl.Length > 256

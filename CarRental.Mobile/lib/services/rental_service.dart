@@ -2,23 +2,41 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../core/constants/api_constants.dart';
 import '../models/contract_model.dart';
+import '../models/handover_protocol_model.dart';
 import '../models/rental_request_model.dart';
+import '../models/return_protocol_model.dart';
 import 'auth_service.dart';
 
 class RentalService {
   final AuthService _authService = AuthService();
 
-  Future<RentalRequestModel> createRentalRequest(CreateRentalRequestDto dto) async {
-    final baseUrl = await ApiConstants.getBaseUrl();
-    final url = Uri.parse('$baseUrl/api/rental-requests');
+  Future<Map<String, String>> _buildHeaders() async {
     final token = await _authService.getToken();
-
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
-    if (token != null) {
+    if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }
+    return headers;
+  }
+
+  String _extractErrorMessage(String body, String fallback) {
+    try {
+      final err = jsonDecode(body);
+      if (err is Map) {
+        if (err['message'] != null) return err['message'].toString();
+        if (err['Message'] != null) return err['Message'].toString();
+        if (err['details'] != null) return err['details'].toString();
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  Future<RentalRequestModel> createRentalRequest(CreateRentalRequestDto dto) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/rental-requests');
+    final headers = await _buildHeaders();
 
     final response = await http
         .post(
@@ -32,30 +50,115 @@ class RentalService {
       final data = jsonDecode(response.body);
       return RentalRequestModel.fromJson(data);
     } else {
-      String msg = 'Không thể tạo đơn đặt xe';
-      try {
-        final err = jsonDecode(response.body);
-        if (err['message'] != null) {
-          msg = err['message'];
-        } else if (err['details'] != null) {
-          msg = err['details'];
+      throw Exception(_extractErrorMessage(response.body, 'Không thể tạo đơn đặt xe'));
+    }
+  }
+
+  Future<RentalRequestModel?> getRentalRequestById(String id) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/rental-requests/$id');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          return RentalRequestModel.fromJson(data);
         }
-      } catch (_) {}
-      throw Exception(msg);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>> cancelRentalRequest(String id) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/rental-requests/$id/cancel');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .put(url, headers: headers)
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': (data is Map ? (data['message'] ?? data['Message']) : null) ??
+              'Đã hủy đơn thuê xe thành công.',
+        };
+      }
+      return {
+        'success': false,
+        'message': _extractErrorMessage(response.body, 'Không thể hủy đơn thuê xe.'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateRentalDocuments(
+    String requestId, {
+    String? customerIdCard,
+    String? driverLicenseNumber,
+    String? driverLicenseClass,
+    String? idCardFrontUrl,
+    String? idCardBackUrl,
+    String? driverLicenseFrontUrl,
+    String? driverLicenseBackUrl,
+  }) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/rental-requests/$requestId/documents');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .put(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              if (customerIdCard != null && customerIdCard.trim().isNotEmpty)
+                'customerIdCard': customerIdCard.trim(),
+              if (driverLicenseNumber != null && driverLicenseNumber.trim().isNotEmpty)
+                'driverLicenseNumber': driverLicenseNumber.trim(),
+              if (driverLicenseClass != null && driverLicenseClass.trim().isNotEmpty)
+                'driverLicenseClass': driverLicenseClass.trim(),
+              if (idCardFrontUrl != null && idCardFrontUrl.trim().isNotEmpty)
+                'idCardFrontUrl': idCardFrontUrl.trim(),
+              if (idCardBackUrl != null && idCardBackUrl.trim().isNotEmpty)
+                'idCardBackUrl': idCardBackUrl.trim(),
+              if (driverLicenseFrontUrl != null && driverLicenseFrontUrl.trim().isNotEmpty)
+                'driverLicenseFrontUrl': driverLicenseFrontUrl.trim(),
+              if (driverLicenseBackUrl != null && driverLicenseBackUrl.trim().isNotEmpty)
+                'driverLicenseBackUrl': driverLicenseBackUrl.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': (data is Map ? (data['message'] ?? data['Message']) : null) ??
+              'Bổ sung hồ sơ định danh thành công.',
+        };
+      }
+      return {
+        'success': false,
+        'message': _extractErrorMessage(response.body, 'Không thể cập nhật giấy tờ.'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
     }
   }
 
   Future<RentalContractModel> getOrCreateContractByRequestId(String requestId) async {
     final baseUrl = await ApiConstants.getBaseUrl();
     final url = Uri.parse('$baseUrl/api/rental-contracts/request/$requestId');
-    final token = await _authService.getToken();
-
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
+    final headers = await _buildHeaders();
 
     final response = await http
         .get(url, headers: headers)
@@ -65,26 +168,14 @@ class RentalService {
       final data = jsonDecode(response.body);
       return RentalContractModel.fromJson(data);
     } else {
-      String msg = 'Không thể lấy thông tin hợp đồng';
-      try {
-        final err = jsonDecode(response.body);
-        if (err['message'] != null) msg = err['message'];
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception(_extractErrorMessage(response.body, 'Không thể lấy thông tin hợp đồng'));
     }
   }
 
   Future<RentalContractModel> signContract(String contractId, String signatureName) async {
     final baseUrl = await ApiConstants.getBaseUrl();
     final url = Uri.parse('$baseUrl/api/rental-contracts/$contractId/sign');
-    final token = await _authService.getToken();
-
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
+    final headers = await _buildHeaders();
 
     final response = await http
         .post(
@@ -102,12 +193,163 @@ class RentalService {
       final contractData = data['data'] ?? data;
       return RentalContractModel.fromJson(contractData);
     } else {
-      String msg = 'Ký hợp đồng không thành công';
-      try {
-        final err = jsonDecode(response.body);
-        if (err['message'] != null) msg = err['message'];
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception(_extractErrorMessage(response.body, 'Ký hợp đồng không thành công'));
+    }
+  }
+
+  Future<HandoverProtocolModel?> getHandoverByRequestId(String requestId) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/handover-protocols/request/$requestId');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          return HandoverProtocolModel.fromJson(data);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>> confirmHandover(
+    String protocolId, {
+    required String customerSignature,
+    String? notes,
+  }) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/handover-protocols/$protocolId/confirm');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              'customerSignature': customerSignature.trim(),
+              if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': (data is Map ? data['message'] : null) ??
+              'Xác nhận bàn giao xe thành công! Chuyến đi đã được kích hoạt.',
+        };
+      }
+      return {
+        'success': false,
+        'message': _extractErrorMessage(response.body, 'Không thể xác nhận bàn giao xe.'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
+    }
+  }
+
+  Future<ReturnProtocolModel?> getReturnProtocolByRequestId(String requestId) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/return-protocols/by-request/$requestId');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          return ReturnProtocolModel.fromJson(data);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<Map<String, dynamic>> createRentalExtension({
+    required String rentalRequestId,
+    required DateTime newEndTime,
+    required String reason,
+  }) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/rental-extensions');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              'rentalRequestId': rentalRequestId,
+              'newEndTime': newEndTime.toUtc().toIso8601String(),
+              'reason': reason.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': 'Đã gửi yêu cầu gia hạn thuê xe thành công! Nhân viên VELORA sẽ duyệt sớm.',
+        };
+      }
+      return {
+        'success': false,
+        'message': _extractErrorMessage(response.body, 'Không thể gửi yêu cầu gia hạn.'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> createIncidentReport({
+    required String rentalRequestId,
+    required String incidentType,
+    required String severity,
+    required String location,
+    required String description,
+    bool hasInjuries = false,
+  }) async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/incidents');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              'rentalRequestId': rentalRequestId,
+              'incidentType': incidentType,
+              'severity': severity,
+              'location': location.trim(),
+              'description': description.trim(),
+              'hasInjuries': hasInjuries,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': 'Đã gửi báo cáo sự cố khẩn cấp! Đội cứu hộ VELORA 24/7 đã tiếp nhận.',
+        };
+      }
+      return {
+        'success': false,
+        'message': _extractErrorMessage(response.body, 'Không thể gửi báo cáo sự cố.'),
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ: $e'};
     }
   }
 
@@ -120,8 +362,6 @@ class RentalService {
       throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    // Backend tự trích xuất danh tính CUSTOMER từ JWT Claim (NameIdentifier -> DB User).
-    // Chỉ truyền email query param khi là nhân sự Operations (STAFF/MANAGER/ADMIN).
     final queryParams = <String, String>{};
     if (user != null && user.isStaff && user.email.isNotEmpty) {
       queryParams['email'] = user.email;
@@ -156,14 +396,12 @@ class RentalService {
     } else if (response.statusCode == 401) {
       throw Exception('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
     } else {
-      String msg = 'Không thể tải danh sách đơn thuê (${response.statusCode})';
-      try {
-        final err = jsonDecode(response.body);
-        if (err is Map && err['message'] != null) {
-          msg = err['message'].toString();
-        }
-      } catch (_) {}
-      throw Exception(msg);
+      throw Exception(
+        _extractErrorMessage(
+          response.body,
+          'Không thể tải danh sách đơn thuê (${response.statusCode})',
+        ),
+      );
     }
   }
 }

@@ -7,6 +7,7 @@ class SettlementModel {
   final String? contractId;
   final double depositAmount;
   final double rentalFee;
+  final double extraKmFee;
   final double lateReturnFee;
   final double fuelFee;
   final double damageFee;
@@ -16,6 +17,7 @@ class SettlementModel {
   final double totalDeduction;
   final double balanceAmount;
   final double refundAmount;
+  final double additionalAmountDue;
   final double trafficFineHoldAmount;
   final String trafficFineRefundStatus;
   final DateTime? trafficFineRefundDate;
@@ -34,6 +36,7 @@ class SettlementModel {
     this.contractId,
     required this.depositAmount,
     required this.rentalFee,
+    this.extraKmFee = 0.0,
     required this.lateReturnFee,
     required this.fuelFee,
     required this.damageFee,
@@ -43,6 +46,7 @@ class SettlementModel {
     required this.totalDeduction,
     required this.balanceAmount,
     required this.refundAmount,
+    this.additionalAmountDue = 0.0,
     required this.trafficFineHoldAmount,
     required this.trafficFineRefundStatus,
     this.trafficFineRefundDate,
@@ -63,6 +67,7 @@ class SettlementModel {
       contractId: json['contractId']?.toString(),
       depositAmount: (json['depositAmount'] is num) ? (json['depositAmount'] as num).toDouble() : 0.0,
       rentalFee: (json['rentalFee'] is num) ? (json['rentalFee'] as num).toDouble() : 0.0,
+      extraKmFee: (json['extraKmFee'] is num) ? (json['extraKmFee'] as num).toDouble() : 0.0,
       lateReturnFee: (json['lateReturnFee'] is num) ? (json['lateReturnFee'] as num).toDouble() : 0.0,
       fuelFee: (json['fuelFee'] is num) ? (json['fuelFee'] as num).toDouble() : 0.0,
       damageFee: (json['damageFee'] is num) ? (json['damageFee'] as num).toDouble() : 0.0,
@@ -72,6 +77,7 @@ class SettlementModel {
       totalDeduction: (json['totalDeduction'] is num) ? (json['totalDeduction'] as num).toDouble() : 0.0,
       balanceAmount: (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0,
       refundAmount: (json['refundAmount'] is num) ? (json['refundAmount'] as num).toDouble() : 0.0,
+      additionalAmountDue: (json['additionalAmountDue'] is num) ? (json['additionalAmountDue'] as num).toDouble() : 0.0,
       trafficFineHoldAmount: (json['trafficFineHoldAmount'] is num)
           ? (json['trafficFineHoldAmount'] as num).toDouble()
           : 0.0,

@@ -58,8 +58,11 @@ namespace CarRental.API.Services
             int customerReturnOdo = returnProtocol.CustomerReturnOdo > 0 ? returnProtocol.CustomerReturnOdo : returnProtocol.EndOdo;
             int totalKmDriven = customerReturnOdo - handoverOdo;
 
-            // 1. Phí km vượt
-            decimal extraKmRate = request.Vehicle?.ExtraKmRate ?? 5000m;
+            // 1. Phí km vượt (fallback về cấu hình hệ thống nếu xe chưa cấu hình riêng hoặc bằng 0)
+            decimal defaultExtraKmRate = await _settingsService.GetSettingValueAsync("default_extra_km_rate", 5000m);
+            decimal extraKmRate = (request.Vehicle?.ExtraKmRate.HasValue == true && request.Vehicle.ExtraKmRate.Value > 0)
+                ? request.Vehicle.ExtraKmRate.Value
+                : defaultExtraKmRate;
             decimal extraKmFee = returnProtocol.ExcessKm * extraKmRate;
 
             // 2. Phí trễ hạn

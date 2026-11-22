@@ -306,7 +306,8 @@ using (var scope = app.Services.CreateScope())
             VALUES
                 ('default_min_age', '21', 'INTEGER', 'Độ tuổi tối thiểu mặc định hệ thống khi xe chưa thiết lập điều kiện riêng', NOW() AT TIME ZONE 'utc'),
                 ('default_min_driving_years', '1', 'INTEGER', 'Số năm kinh nghiệm lái xe tối thiểu mặc định hệ thống', NOW() AT TIME ZONE 'utc'),
-                ('default_required_license', 'B1', 'STRING', 'Hạng GPLX tối thiểu mặc định hệ thống (B1, B2, C)', NOW() AT TIME ZONE 'utc')
+                ('default_required_license', 'B1', 'STRING', 'Hạng GPLX tối thiểu mặc định hệ thống (B1, B2, C)', NOW() AT TIME ZONE 'utc'),
+                ('default_extra_km_rate', '5000', 'DECIMAL', 'Đơn giá phụ thu vượt hạn mức km mặc định hệ thống (VNĐ/km)', NOW() AT TIME ZONE 'utc')
             ON CONFLICT (key) DO NOTHING;
 
             -- 7. rental_contracts extra columns

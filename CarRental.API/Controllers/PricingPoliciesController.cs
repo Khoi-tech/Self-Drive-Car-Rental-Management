@@ -15,11 +15,16 @@ namespace CarRental.API.Controllers
     public class PricingPoliciesController : ControllerBase
     {
         private readonly IPricingPolicyService _pricingService;
+        private readonly ISystemSettingsService _settingsService;
         private readonly HybridCache _cache;
 
-        public PricingPoliciesController(IPricingPolicyService pricingService, HybridCache cache)
+        public PricingPoliciesController(
+            IPricingPolicyService pricingService,
+            ISystemSettingsService settingsService,
+            HybridCache cache)
         {
             _pricingService = pricingService;
+            _settingsService = settingsService;
             _cache = cache;
         }
 
@@ -94,6 +99,39 @@ namespace CarRental.API.Controllers
 
             await _cache.RemoveByTagAsync("pricing_policies");
             return NoContent();
+        }
+
+        [HttpPost("apply-standard")]
+        [Authorize(Policy = "Management")]
+        public async Task<IActionResult> ApplyStandardPackage(Guid vehicleId)
+        {
+            try
+            {
+                var policies = await _pricingService.ApplyStandardPackageAsync(vehicleId);
+                await _cache.RemoveByTagAsync("pricing_policies");
+                await _cache.RemoveByTagAsync("vehicles");
+                return Ok(policies);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Vehicle not found." });
+            }
+        }
+
+        [HttpGet("/api/pricing-defaults")]
+        [Authorize(Policy = "Management")]
+        public async Task<IActionResult> GetPricingDefaults()
+        {
+            var defaultExtraKmRate = await _settingsService.GetSettingValueAsync("default_extra_km_rate", 5000m);
+            var fuelTolerancePercent = await _settingsService.GetSettingValueAsync("fuel_tolerance_percent", 3.0m);
+            var vietQrDiscountPercent = await _settingsService.GetSettingValueAsync("vietqr_discount_percent", 5m);
+
+            return Ok(new
+            {
+                defaultExtraKmRate,
+                fuelTolerancePercent,
+                vietQrDiscountPercent
+            });
         }
 
         [HttpPost("/api/vehicles/{vehicleId:guid}/pricing-preview")]

@@ -12,10 +12,12 @@ namespace CarRental.API.Services
     public class PricingPolicyService : IPricingPolicyService
     {
         private readonly AppDbContext _context;
+        private readonly ISystemSettingsService _settingsService;
 
-        public PricingPolicyService(AppDbContext context)
+        public PricingPolicyService(AppDbContext context, ISystemSettingsService settingsService)
         {
             _context = context;
+            _settingsService = settingsService;
         }
 
         public async Task<IEnumerable<PricingPolicyDto>> GetPoliciesByVehicleIdAsync(Guid vehicleId)
@@ -104,26 +106,97 @@ namespace CarRental.API.Services
             return true;
         }
 
+        public async Task<IEnumerable<PricingPolicyDto>> ApplyStandardPackageAsync(Guid vehicleId)
+        {
+            var vehicleExists = await _context.Vehicles.AnyAsync(v => v.Id == vehicleId);
+            if (!vehicleExists) throw new KeyNotFoundException("Vehicle not found.");
+
+            var standardTiers = new (int MinDays, decimal Discount, decimal Holiday)[]
+            {
+                (3, 5m, 20m),
+                (7, 10m, 20m),
+                (30, 20m, 20m)
+            };
+
+            var existingPolicies = await _context.PricingPolicies
+                .Where(p => p.VehicleId == vehicleId)
+                .ToListAsync();
+
+            foreach (var tier in standardTiers)
+            {
+                var existing = existingPolicies.FirstOrDefault(p => p.MinDays == tier.MinDays);
+                if (existing != null)
+                {
+                    existing.DiscountPercentage = tier.Discount;
+                    existing.HolidaySurcharge = tier.Holiday;
+                }
+                else
+                {
+                    _context.PricingPolicies.Add(new PricingPolicy
+                    {
+                        VehicleId = vehicleId,
+                        MinDays = tier.MinDays,
+                        DiscountPercentage = tier.Discount,
+                        HolidaySurcharge = tier.Holiday
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return await GetPoliciesByVehicleIdAsync(vehicleId);
+        }
+
         public async Task<PricingPreviewResponseDto?> PreviewPricingAsync(Guid vehicleId, PricingPreviewRequestDto requestDto)
         {
             var vehicle = await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == vehicleId);
             if (vehicle == null) return null;
 
-            var policies = await _context.PricingPolicies
-                .Where(p => p.VehicleId == vehicleId && p.MinDays <= requestDto.RentalDays)
-                .OrderByDescending(p => p.MinDays)
+            var allPolicies = await _context.PricingPolicies
+                .Where(p => p.VehicleId == vehicleId)
+                .OrderBy(p => p.MinDays)
                 .ToListAsync();
 
-            var selectedPolicy = policies.FirstOrDefault();
+            var selectedPolicy = allPolicies
+                .Where(p => p.MinDays <= requestDto.RentalDays)
+                .OrderByDescending(p => p.MinDays)
+                .FirstOrDefault();
 
             decimal basePrice = vehicle.DailyRate;
             decimal discountPercentage = selectedPolicy?.DiscountPercentage ?? 0m;
-            decimal holidaySurcharge = selectedPolicy?.HolidaySurcharge ?? 0m;
 
-            // AdjustedDailyPrice = BasePrice * (1 - Discount + HolidaySurcharge)
-            decimal multiplier = 1m - (discountPercentage / 100m) + (holidaySurcharge / 100m);
-            decimal adjustedDailyPrice = basePrice * multiplier;
-            decimal rentalPrice = adjustedDailyPrice * requestDto.RentalDays;
+            // Phụ thu dịp Lễ/Tết: nếu bậc hiện tại có cấu hình thì dùng, ngược lại (VD thuê 1-2 ngày khi bậc thấp nhất là 3 ngày)
+            // kế thừa mức phụ thu lễ từ bậc thấp nhất có cấu hình > 0 để không bị sót phụ thu lễ.
+            decimal holidaySurcharge = 0m;
+            if (requestDto.IsHoliday)
+            {
+                if (selectedPolicy != null && selectedPolicy.HolidaySurcharge > 0m)
+                {
+                    holidaySurcharge = selectedPolicy.HolidaySurcharge;
+                }
+                else
+                {
+                    holidaySurcharge = allPolicies
+                        .FirstOrDefault(p => p.HolidaySurcharge > 0m)?.HolidaySurcharge ?? 0m;
+                }
+            }
+
+            decimal baseSubtotal = basePrice * requestDto.RentalDays;
+            decimal discountAmount = Math.Round(baseSubtotal * (discountPercentage / 100m), 0);
+            decimal holidaySurchargeAmount = Math.Round(baseSubtotal * (holidaySurcharge / 100m), 0);
+            decimal subtotalBeforeVietQr = baseSubtotal - discountAmount + holidaySurchargeAmount;
+
+            decimal vietQrDiscountPercentage = 0m;
+            decimal vietQrDiscountAmount = 0m;
+            if (requestDto.IsVietQrPrepaid)
+            {
+                vietQrDiscountPercentage = await _settingsService.GetSettingValueAsync("vietqr_discount_percent", 5m);
+                vietQrDiscountAmount = Math.Round(subtotalBeforeVietQr * (vietQrDiscountPercentage / 100m), 0);
+            }
+
+            decimal rentalPrice = subtotalBeforeVietQr - vietQrDiscountAmount;
+            decimal adjustedDailyPrice = requestDto.RentalDays > 0
+                ? Math.Round(rentalPrice / requestDto.RentalDays, 0)
+                : 0m;
 
             return new PricingPreviewResponseDto
             {
@@ -132,6 +205,11 @@ namespace CarRental.API.Services
                 SelectedMinDays = selectedPolicy?.MinDays,
                 DiscountPercentage = discountPercentage,
                 HolidaySurcharge = holidaySurcharge,
+                VietQrDiscountPercentage = vietQrDiscountPercentage,
+                BaseSubtotal = baseSubtotal,
+                DiscountAmount = discountAmount,
+                HolidaySurchargeAmount = holidaySurchargeAmount,
+                VietQrDiscountAmount = vietQrDiscountAmount,
                 AdjustedDailyPrice = adjustedDailyPrice,
                 RentalPrice = rentalPrice
             };

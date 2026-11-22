@@ -11,6 +11,7 @@ namespace CarRental.API.Services
         Task<PricingPolicyDto> CreatePolicyAsync(Guid vehicleId, CreatePricingPolicyDto createDto);
         Task<PricingPolicyDto?> UpdatePolicyAsync(Guid vehicleId, Guid policyId, UpdatePricingPolicyDto updateDto);
         Task<bool> DeletePolicyAsync(Guid vehicleId, Guid policyId);
+        Task<IEnumerable<PricingPolicyDto>> ApplyStandardPackageAsync(Guid vehicleId);
         Task<PricingPreviewResponseDto?> PreviewPricingAsync(Guid vehicleId, PricingPreviewRequestDto requestDto);
     }
 }

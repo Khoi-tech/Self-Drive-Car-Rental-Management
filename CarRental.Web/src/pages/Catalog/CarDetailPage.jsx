@@ -667,7 +667,7 @@ const CarDetailPage = () => {
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                     : 'bg-sky-50 text-sky-800 border-sky-200'
                 }`}>
-                  {condition?.isCustom ? 'Quy định riêng của xe' : 'Chuẩn mặc định VELORA'}
+                  {condition?.isCustom ? 'Yêu cầu riêng cho xe này' : 'Chuẩn mặc định VELORA'}
                 </span>
               </div>
 
@@ -688,7 +688,7 @@ const CarDetailPage = () => {
                   <div className="w-8 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-900 shrink-0 shadow-xs">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <div className="text-xs font-bold text-zinc-950 mb-0.5">Hạng GPLX & Lịch sử thuê</div>
                     <p className="text-xs text-slate-600">
                       Bằng lái tối thiểu <strong className="text-zinc-950">hạng {condition?.requiredLicenseClass || (vehicle.transmission === 'MANUAL' ? 'B2' : 'B1')}</strong>
@@ -697,6 +697,12 @@ const CarDetailPage = () => {
                       )}
                       .
                     </p>
+                    {condition?.requireVerifiedKyc && (
+                      <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                        <Lock className="w-3 h-3 text-amber-700 shrink-0" />
+                        Bắt buộc xác minh KYC trước khi đặt
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -726,8 +732,8 @@ const CarDetailPage = () => {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-zinc-950 mb-0.5">Tiền đặt cọc thế chấp</div>
-                    <p className="text-xs text-slate-600">
-                      Khoản đặt cọc <strong className="text-zinc-950 tabular-nums">{formatCurrencyVND(vehicle.depositAmount || 15000000)}</strong> thanh toán chuyển khoản qua VietQR. Được hoàn trả 100% về tài khoản của bạn ngay khi nghiệm thu xe.
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Khoản đặt cọc <strong className="text-zinc-950 tabular-nums">{formatCurrencyVND(vehicle.depositAmount || 15000000)}</strong> thanh toán qua VietQR hoặc tiền mặt khi nhận xe. Phần cọc dư được hoàn ngay sau khi quyết toán; riêng <strong className="text-zinc-950 tabular-nums">{formatCurrencyVND(vehicle.trafficFineHoldAmount || condition?.trafficFineHoldAmount || 2000000)}</strong> quỹ phạt nguội sẽ được tạm giữ đối soát và hoàn trả sau 15–30 ngày.
                     </p>
                   </div>
                 </div>

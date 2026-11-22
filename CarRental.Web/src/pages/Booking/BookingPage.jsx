@@ -18,7 +18,9 @@ import {
   Wallet,
   QrCode,
   Info,
-  Calendar
+  Calendar,
+  MapPin,
+  Truck
 } from 'lucide-react';
 import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
@@ -28,6 +30,7 @@ import { formatCurrencyVND } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import { useAuth } from '../../context/AuthContext';
 import { validateRentalDates } from '../../utils/dateTimeHelpers';
+import { HCMC_DELIVERY_ZONES, getZoneById, formatYardAddress } from '../../utils/deliveryZones';
 
 const BookingPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -119,8 +122,28 @@ const BookingPage = () => {
 
   const startTimeStr = searchParams.get('startTime') || '';
   const endTimeStr = searchParams.get('endTime') || '';
-  const pickupLocation = searchParams.get('pickupLocation') || 'VP VELORA (Trụ sở Tân Bình)';
-  const dropoffLocation = searchParams.get('dropoffLocation') || pickupLocation;
+
+  // Pickup / Delivery Selection State (synced from CarDetailPage & preserved across LoginPage returnUrl)
+  const [deliveryMethod, setDeliveryMethod] = useState(
+    searchParams.get('deliveryMethod') === 'DELIVERY' ? 'DELIVERY' : 'SELF_PICKUP'
+  );
+  const [deliveryZoneId, setDeliveryZoneId] = useState(
+    searchParams.get('deliveryZone') || 'Q1'
+  );
+  const [deliveryAddressDetail, setDeliveryAddressDetail] = useState(
+    searchParams.get('deliveryAddress') || ''
+  );
+
+  const selectedDeliveryZone = getZoneById(deliveryZoneId);
+  const yardAddress = formatYardAddress(vehicle?.pickupLocation);
+  const effectiveDeliveryDistanceKm = deliveryMethod === 'DELIVERY' ? selectedDeliveryZone.estimatedKm : 0;
+  const effectivePickupLocation = deliveryMethod === 'DELIVERY'
+    ? (deliveryAddressDetail.trim()
+        ? `${deliveryAddressDetail.trim()}, ${selectedDeliveryZone.label}`
+        : selectedDeliveryZone.label)
+    : yardAddress;
+  const pickupLocation = effectivePickupLocation;
+  const dropoffLocation = effectivePickupLocation;
 
   const dateValidation = validateRentalDates(startTimeStr, endTimeStr);
   const isInvalidBookingDates = Boolean(dateValidation.error);
@@ -353,6 +376,11 @@ const BookingPage = () => {
       }
     }
 
+    if (deliveryMethod === 'DELIVERY' && !deliveryAddressDetail.trim()) {
+      setError('Vui lòng nhập địa chỉ giao xe chi tiết (số nhà, tên đường, phường) để nhân viên VELORA giao xe tận nơi.');
+      return;
+    }
+
     if (!agreed) {
       setError('Vui lòng tích chọn đồng ý với Điều kiện thuê xe & Mẫu hợp đồng của VELORA.');
       return;
@@ -366,8 +394,10 @@ const BookingPage = () => {
         carId,
         startTime: new Date(startTimeStr).toISOString(),
         endTime: new Date(endTimeStr).toISOString(),
-        pickupLocation,
-        dropoffLocation,
+        deliveryMethod,
+        pickupLocation: effectivePickupLocation,
+        dropoffLocation: effectivePickupLocation,
+        estimatedDeliveryDistanceKm: effectiveDeliveryDistanceKm,
         customerName: formData.customerName.trim(),
         customerPhone: formData.customerPhone.trim(),
         customerEmail: formData.customerEmail.trim(),
@@ -753,6 +783,134 @@ const BookingPage = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Box 0: Hình thức nhận & giao xe */}
+              <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-blue-900" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                      Hình thức nhận & giao xe
+                    </h2>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {deliveryMethod === 'DELIVERY' ? `Giao tận nơi (~${effectiveDeliveryDistanceKm} km)` : 'Nhận tại bãi (Miễn phí)'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1: Self Pickup at Yard */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMethod('SELF_PICKUP');
+                      if (error) setError(null);
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      deliveryMethod === 'SELF_PICKUP'
+                        ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-500/20 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-extrabold text-zinc-950 flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-emerald-700" />
+                        Nhận xe tại bãi VELORA
+                      </span>
+                      <span className="text-[9px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
+                        Miễn phí
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Đến trực tiếp bãi xe kiểm tra, chụp taplo và nhận chìa khóa ngay (<strong className="text-emerald-800">0 km trung chuyển</strong>).
+                    </p>
+                  </button>
+
+                  {/* Option 2: Doorstep Delivery */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMethod('DELIVERY');
+                      if (error) setError(null);
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      deliveryMethod === 'DELIVERY'
+                        ? 'bg-blue-50/90 border-blue-900 ring-2 ring-blue-900/20 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-blue-700" />
+                        Giao xe tận nơi
+                      </span>
+                      <span className="text-[9px] bg-blue-700 text-white px-2 py-0.5 rounded-full font-black uppercase">
+                        TP.HCM & Sân bay
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Nhân viên VELORA điều xe từ bãi đến tận nhà, khách sạn hoặc Sân bay Tân Sơn Nhất (quy trình bàn giao 2 bước minh bạch ODO).
+                    </p>
+                  </button>
+                </div>
+
+                {deliveryMethod === 'SELF_PICKUP' ? (
+                  <div className="p-3.5 bg-emerald-50/60 border border-emerald-200 rounded-lg text-xs text-emerald-950 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold block">Địa điểm nhận & trả xe tại bãi:</span>
+                      <span className="text-emerald-900">{yardAddress}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-blue-50/50 border border-blue-200 rounded-lg space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Khu vực Quận / Huyện TP.HCM <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={deliveryZoneId}
+                          onChange={(e) => setDeliveryZoneId(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900"
+                        >
+                          {HCMC_DELIVERY_ZONES.map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.label} (~{z.estimatedKm} km)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">
+                          Địa chỉ chi tiết (Số nhà, tên đường, phường) <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={deliveryAddressDetail}
+                          onChange={(e) => {
+                            setDeliveryAddressDetail(e.target.value);
+                            if (error) setError(null);
+                          }}
+                          placeholder="VD: 88 Lê Lợi, Phường Bến Nghé..."
+                          required={deliveryMethod === 'DELIVERY'}
+                          className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-xs font-semibold text-zinc-950 placeholder-slate-400 focus:outline-none focus:border-blue-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-200/70 text-[11px] text-blue-900">
+                      <span>
+                        Xuất phát từ: <strong>{yardAddress}</strong>
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-white border border-blue-300 font-bold tabular-nums">
+                        Quãng đường giao ước tính: ~{effectiveDeliveryDistanceKm} km
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               {/* Box 1: Thông tin người thuê chính */}
               <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
@@ -1295,9 +1453,17 @@ const BookingPage = () => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Địa điểm:</span>
-                  <span className="font-semibold text-zinc-950 text-right truncate max-w-[180px]">
-                    {pickupLocation}
+                  <span className="text-slate-500">Hình thức nhận:</span>
+                  <span className={`font-bold text-right ${deliveryMethod === 'DELIVERY' ? 'text-blue-800' : 'text-emerald-700'}`}>
+                    {deliveryMethod === 'DELIVERY'
+                      ? `Giao tận nơi (~${effectiveDeliveryDistanceKm} km)`
+                      : 'Nhận tại bãi (Miễn phí)'}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-500 shrink-0">Địa điểm:</span>
+                  <span className="font-semibold text-zinc-950 text-right truncate max-w-[190px]" title={effectivePickupLocation}>
+                    {effectivePickupLocation}
                   </span>
                 </div>
               </div>

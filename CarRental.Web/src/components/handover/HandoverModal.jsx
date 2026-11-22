@@ -107,6 +107,21 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
     transitKm > 300
   );
 
+  // Check if Step 1 (IN_TRANSIT) has been saved to database for Doorstep delivery
+  const isStep1SavedInDb = Boolean(
+    existingProtocol?.id &&
+    (existingProtocol.status === 'IN_TRANSIT' || existingProtocol.status === 'COMPLETED')
+  );
+
+  // Customer requested delivery method from RentalRequest
+  const customerRequestedDelivery = Boolean(
+    rentalRequest?.deliveryMethod === 'DELIVERY' ||
+    (!rentalRequest?.deliveryMethod && (
+      rentalRequest?.deliveryOption === 'DELIVERY' ||
+      (Number(rentalRequest?.estimatedDeliveryDistanceKm) > 0)
+    ))
+  );
+
   // Fetch existing protocol if exists
   useEffect(() => {
     if (isOpen && rentalRequest?.id) {
@@ -116,13 +131,16 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
           setErrorMsg(null);
           setHardBlockMsg(null);
 
-          // Auto-detect delivery mode from pickup location or request
+          // Auto-select delivery mode strictly from rentalRequest.deliveryMethod (fallback for legacy records)
           const isDoorstep = Boolean(
-            rentalRequest.deliveryOption === 'DELIVERY' || 
-            (rentalRequest.pickupLocation && !rentalRequest.pickupLocation.toLowerCase().includes('bãi') && !rentalRequest.pickupLocation.toLowerCase().includes('cửa hàng')) ||
-            (rentalRequest.estimatedDeliveryDistanceKm && rentalRequest.estimatedDeliveryDistanceKm > 0)
+            rentalRequest.deliveryMethod === 'DELIVERY' ||
+            (!rentalRequest.deliveryMethod && (
+              rentalRequest.deliveryOption === 'DELIVERY' ||
+              (Number(rentalRequest.estimatedDeliveryDistanceKm) > 0)
+            ))
           );
           setDeliveryMode(isDoorstep ? 'DOORSTEP' : 'YARD');
+          setDoorstepStep(1);
 
           const res = await handoverService.getByRequestId(rentalRequest.id);
           const data = res?.data || res;
@@ -588,13 +606,25 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
               {/* 1. Chọn Luồng Giao Nhận (Không chồng chéo) */}
               <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin size={15} className="text-blue-900" />
-                    Hình Thức Bàn Giao Phương Tiện
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-zinc-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin size={15} className="text-blue-900" />
+                      Hình Thức Bàn Giao Phương Tiện
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                        customerRequestedDelivery
+                          ? 'bg-blue-50 text-blue-800 border-blue-200'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      }`}
+                    >
+                      Theo yêu cầu khách: {customerRequestedDelivery ? 'Giao tận nơi' : 'Nhận tại bãi'}
+                      {customerRequestedDelivery && estDistanceKm > 0 ? ` (~${estDistanceKm} km)` : ''}
+                    </span>
+                  </div>
                   <span className="text-[11px] text-slate-500">
-                    Địa điểm: <strong>{rentalRequest.pickupLocation || 'Tại Bãi VELORA'}</strong>
+                    Địa chỉ: <strong className="text-zinc-900">{rentalRequest.pickupLocation || 'Tại Bãi VELORA'}</strong>
                   </span>
                 </div>
 
@@ -632,13 +662,16 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                       value="DOORSTEP"
                       checked={deliveryMode === 'DOORSTEP'}
                       disabled={isSettledLocked}
-                      onChange={() => setDeliveryMode('DOORSTEP')}
+                      onChange={() => {
+                        setDeliveryMode('DOORSTEP');
+                        if (!isStep1SavedInDb) setDoorstepStep(1);
+                      }}
                       className="mt-0.5 text-blue-900 focus:ring-blue-900"
                     />
                     <div>
                       <span className="block text-xs font-bold">2. Giao xe tận nơi (Quy trình 2 bước)</span>
                       <span className="block text-[11px] font-normal text-slate-500 mt-0.5">
-                        Bước 1 Xuất bãi (IN_TRANSIT) $\rightarrow$ Bước 2 Gặp khách đối chiếu ODO và ký kép (ACTIVE).
+                        Bước 1 Xuất bãi (IN_TRANSIT) → Bước 2 Gặp khách đối chiếu ODO và ký kép (ACTIVE).
                       </span>
                     </div>
                   </label>
@@ -646,34 +679,52 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
                 {/* Sub-steps indicator for DOORSTEP */}
                 {deliveryMode === 'DOORSTEP' && (
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setDoorstepStep(1)}
-                      className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition ${
-                        doorstepStep === 1 
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-xs' 
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
-                      <span>Bước 1: Xuất bãi trung chuyển (IN_TRANSIT)</span>
-                    </button>
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDoorstepStep(1)}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                          doorstepStep === 1 
+                            ? 'bg-amber-500 text-white border-amber-500 shadow-xs' 
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">1</span>
+                        <span>Bước 1: Xuất bãi trung chuyển (IN_TRANSIT)</span>
+                      </button>
 
-                    <ArrowRight size={14} className="text-slate-400 shrink-0" />
+                      <ArrowRight size={14} className="text-slate-400 shrink-0" />
 
-                    <button
-                      type="button"
-                      onClick={() => setDoorstepStep(2)}
-                      className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition ${
-                        doorstepStep === 2 
-                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
-                      <span>Bước 2: Gặp khách bàn giao & ký kép (ACTIVE)</span>
-                    </button>
+                      <button
+                        type="button"
+                        disabled={!isStep1SavedInDb}
+                        onClick={() => {
+                          if (isStep1SavedInDb) setDoorstepStep(2);
+                        }}
+                        title={!isStep1SavedInDb ? 'Vui lòng bấm lưu Bước 1 (Xuất bãi IN_TRANSIT) vào hệ thống trước khi chuyển sang Bước 2' : 'Chuyển sang Bước 2 gặp khách bàn giao'}
+                        className={`flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                          !isStep1SavedInDb
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-70'
+                            : doorstepStep === 2 
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' 
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {!isStep1SavedInDb ? (
+                          <Lock size={13} className="shrink-0" />
+                        ) : (
+                          <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">2</span>
+                        )}
+                        <span>Bước 2: Gặp khách bàn giao & ký kép (ACTIVE)</span>
+                      </button>
+                    </div>
+                    {!isStep1SavedInDb && (
+                      <p className="text-[11px] text-amber-700 flex items-center gap-1.5 px-1">
+                        <Lock size={11} className="shrink-0" />
+                        <span>Bước 2 đang tạm khóa. Hãy hoàn tất bấm lưu <strong>Bước 1 (Xuất bãi IN_TRANSIT)</strong> trước để mở khóa Bước 2.</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -702,7 +753,7 @@ const HandoverModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-500 block uppercase font-bold">Khoảng cách tối đa:</span>
-                      <strong className="text-emerald-700 text-sm tabular-nums">~{maxAllowedTransitKm.toFixed(1)} km</strong>
+                      <strong className="text-emerald-700 text-sm tabular-nums">≤ {maxAllowedTransitKm.toFixed(1)} km</strong>
                     </div>
                   </div>
                 )}

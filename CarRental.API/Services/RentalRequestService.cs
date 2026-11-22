@@ -234,6 +234,13 @@ namespace CarRental.API.Services
 
                 var expiryHours = await _settingsService.GetSettingValueAsync("fast_hold_expiry_hours", 4);
 
+                var normalizedDeliveryMethod = string.Equals(dto.DeliveryMethod, "DELIVERY", StringComparison.OrdinalIgnoreCase)
+                    ? "DELIVERY"
+                    : "SELF_PICKUP";
+                var estimatedDeliveryKm = normalizedDeliveryMethod == "DELIVERY"
+                    ? Math.Max(0m, dto.EstimatedDeliveryDistanceKm ?? 0m)
+                    : 0m;
+
                 var rentalRequest = new RentalRequest
                 {
                     Id = Guid.NewGuid(),
@@ -241,7 +248,7 @@ namespace CarRental.API.Services
                     StartTime = startUtc,
                     EndTime = endUtc,
                     PickupLocation = dto.PickupLocation,
-                    DropoffLocation = dto.DropoffLocation,
+                    DropoffLocation = string.IsNullOrWhiteSpace(dto.DropoffLocation) ? dto.PickupLocation : dto.DropoffLocation,
                     
                     CustomerName = dto.CustomerName,
                     CustomerPhone = dto.CustomerPhone,
@@ -255,7 +262,8 @@ namespace CarRental.API.Services
                     DriverLicenseFrontUrl = licenseFront,
                     DriverLicenseBackUrl = licenseBack,
                     Notes = dto.Notes,
-                    EstimatedDeliveryDistanceKm = dto.EstimatedDeliveryDistanceKm,
+                    DeliveryMethod = normalizedDeliveryMethod,
+                    EstimatedDeliveryDistanceKm = estimatedDeliveryKm,
                     
                     TotalDays = totalDays,
                     DailyRate = preview.BasePrice,
@@ -762,6 +770,7 @@ namespace CarRental.API.Services
                 DriverLicenseFrontUrl = request.DriverLicenseFrontUrl,
                 DriverLicenseBackUrl = request.DriverLicenseBackUrl,
                 Notes = request.Notes,
+                DeliveryMethod = string.IsNullOrWhiteSpace(request.DeliveryMethod) ? "SELF_PICKUP" : request.DeliveryMethod,
                 EstimatedDeliveryDistanceKm = request.EstimatedDeliveryDistanceKm,
                 TotalDays = request.TotalDays,
                 DailyRate = request.DailyRate,

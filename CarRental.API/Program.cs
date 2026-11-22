@@ -287,6 +287,8 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS driver_license_expiry timestamp with time zone NULL;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_deposit_amount numeric(18,2) NOT NULL DEFAULT 0;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at timestamp with time zone NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS delivery_method character varying(30) NOT NULL DEFAULT 'SELF_PICKUP';
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS estimated_delivery_distance_km numeric(8,2) NULL;
 
             -- 7. rental_contracts extra columns
             ALTER TABLE rental_contracts ADD COLUMN IF NOT EXISTS cancellation_reason text NULL;

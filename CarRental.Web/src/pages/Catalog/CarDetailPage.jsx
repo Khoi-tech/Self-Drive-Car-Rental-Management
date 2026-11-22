@@ -31,6 +31,7 @@ import { formatCurrencyVND } from '../../utils/formatters';
 import { parseVehicleImages, getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import { useAuth } from '../../context/AuthContext';
 import { getNowLocalInputStr, validateRentalDates } from '../../utils/dateTimeHelpers';
+import { HCMC_DELIVERY_ZONES, getZoneById, formatYardAddress } from '../../utils/deliveryZones';
 
 // Helper to construct a curated multi-photo gallery for a vehicle
 const getVehicleGallery = (vehicle) => {
@@ -197,6 +198,17 @@ const CarDetailPage = () => {
   const [calculating, setCalculating] = useState(false);
   const [bookingError, setBookingError] = useState('');
 
+  // Pickup / Delivery selection state
+  const [deliveryMethod, setDeliveryMethod] = useState(
+    searchParams.get('deliveryMethod') === 'DELIVERY' ? 'DELIVERY' : 'SELF_PICKUP'
+  );
+  const [deliveryZoneId, setDeliveryZoneId] = useState(
+    searchParams.get('deliveryZone') || 'Q1'
+  );
+  const [deliveryAddressDetail, setDeliveryAddressDetail] = useState(
+    searchParams.get('deliveryAddress') || ''
+  );
+
   const dateValidation = validateRentalDates(startTime, endTime);
   const hasInvalidDates = Boolean(dateValidation.error);
 
@@ -284,8 +296,32 @@ const CarDetailPage = () => {
   }, [id, startTime, endTime, isDatesOrVehicleInvalid]);
 
   const handleBooking = (type = 'FAST_HOLD') => {
-    const location = searchParams.get('pickupLocation') || vehicle?.pickupLocation || 'Tại Cửa Hàng VELORA';
-    const bookingPath = `/booking/${id}?startTime=${encodeURIComponent(startTime || '')}&endTime=${encodeURIComponent(endTime || '')}&pickupLocation=${encodeURIComponent(location)}&type=${type}`;
+    const selectedZone = getZoneById(deliveryZoneId);
+    const yardAddress = formatYardAddress(vehicle?.pickupLocation);
+    const isDelivery = deliveryMethod === 'DELIVERY';
+    const trimmedDetail = deliveryAddressDetail.trim();
+
+    if (isDelivery && !trimmedDetail) {
+      setBookingError('Vui lòng nhập địa chỉ giao xe chi tiết (số nhà, tên đường) trước khi tiếp tục.');
+      return;
+    }
+
+    const location = isDelivery
+      ? `${trimmedDetail}, ${selectedZone.label}`
+      : yardAddress;
+    const estKm = isDelivery ? selectedZone.estimatedKm : 0;
+
+    const query = new URLSearchParams({
+      startTime: startTime || '',
+      endTime: endTime || '',
+      deliveryMethod: isDelivery ? 'DELIVERY' : 'SELF_PICKUP',
+      deliveryZone: isDelivery ? selectedZone.id : '',
+      deliveryAddress: isDelivery ? trimmedDetail : '',
+      pickupLocation: location,
+      estimatedDeliveryDistanceKm: String(estKm),
+      type
+    });
+    const bookingPath = `/booking/${id}?${query.toString()}`;
 
     if (!user) {
       navigate(`/login?returnUrl=${encodeURIComponent(bookingPath)}`);
@@ -799,6 +835,90 @@ const CarDetailPage = () => {
                     </button>
                   </div>
                 )}
+
+                {/* Pickup / Delivery Selector */}
+                <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                  <label className="block text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-blue-900" />
+                    Hình thức nhận xe
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliveryMethod('SELF_PICKUP');
+                        if (bookingError) setBookingError('');
+                      }}
+                      className={`p-2 rounded-md border text-left transition-all cursor-pointer ${
+                        deliveryMethod === 'SELF_PICKUP'
+                          ? 'bg-blue-50 border-blue-900 ring-1 ring-blue-900/20 text-blue-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-[11px] font-extrabold leading-tight">Nhận tại bãi</div>
+                      <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">Miễn phí • 0 km</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliveryMethod('DELIVERY');
+                        if (bookingError) setBookingError('');
+                      }}
+                      className={`p-2 rounded-md border text-left transition-all cursor-pointer ${
+                        deliveryMethod === 'DELIVERY'
+                          ? 'bg-blue-50 border-blue-900 ring-1 ring-blue-900/20 text-blue-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-[11px] font-extrabold leading-tight">Giao tận nơi</div>
+                      <div className="text-[10px] text-blue-700 font-semibold mt-0.5">TP.HCM & Sân bay</div>
+                    </button>
+                  </div>
+
+                  {deliveryMethod === 'SELF_PICKUP' ? (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] text-slate-600">
+                      <span className="font-semibold text-zinc-900 block">Địa chỉ bãi xe VELORA:</span>
+                      <span>{formatYardAddress(vehicle?.pickupLocation)}</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 p-2.5 bg-blue-50/40 border border-blue-200/80 rounded-md">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Khu vực giao xe (TP.HCM)</label>
+                        <select
+                          value={deliveryZoneId}
+                          onChange={(e) => setDeliveryZoneId(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-xs font-semibold text-zinc-950 focus:outline-none focus:border-blue-900"
+                        >
+                          {HCMC_DELIVERY_ZONES.map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.label} (~{z.estimatedKm} km)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                          Địa chỉ chi tiết <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={deliveryAddressDetail}
+                          onChange={(e) => {
+                            setDeliveryAddressDetail(e.target.value);
+                            if (bookingError) setBookingError('');
+                          }}
+                          placeholder="VD: 88 Lê Lợi, P. Bến Nghé..."
+                          className="w-full bg-white border border-slate-200 rounded-md px-2.5 py-1.5 text-xs text-zinc-950 placeholder-slate-400 focus:outline-none focus:border-blue-900"
+                        />
+                      </div>
+                      <div className="text-[10px] text-blue-800 font-semibold flex justify-between">
+                        <span>Khoảng cách ước tính từ bãi:</span>
+                        <span className="tabular-nums font-bold">~{getZoneById(deliveryZoneId).estimatedKm} km</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Automated Pricing Calculation Breakdown */}

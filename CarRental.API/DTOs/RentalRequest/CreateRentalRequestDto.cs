@@ -52,6 +52,8 @@ namespace CarRental.API.DTOs.RentalRequest
         public string? DriverLicenseBackUrl { get; set; }
 
         public string? Notes { get; set; }
+        [StringLength(30)]
+        public string? DeliveryMethod { get; set; } = "SELF_PICKUP"; // SELF_PICKUP, DELIVERY
         public decimal? EstimatedDeliveryDistanceKm { get; set; }
 
         public List<CreateAdditionalDriverDto>? AdditionalDrivers { get; set; }

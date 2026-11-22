@@ -70,11 +70,35 @@ class _HomeScreenState extends State<HomeScreen> {
   List<RentalRequestModel> get _filteredRentals {
     if (_selectedStatusFilter == 'ALL') return _myRentals;
 
-    if (_selectedStatusFilter == 'PENDING') {
-      return _myRentals.where((r) => r.status == 'PENDING' || r.status == 'SIGNED').toList();
-    }
-
-    return _myRentals.where((r) => r.status.toUpperCase() == _selectedStatusFilter).toList();
+    return _myRentals.where((r) {
+      final st = r.status.toUpperCase();
+      switch (_selectedStatusFilter) {
+        case 'PENDING_HOLD':
+          return st == 'PENDING' ||
+              st == 'HOLD_PENDING' ||
+              st == 'HOLD_CONFIRMED' ||
+              st == 'APPROVED' ||
+              st == 'SIGNED';
+        case 'CONFIRMED':
+          return st == 'CONFIRMED' || st == 'DEPOSIT_PAID';
+        case 'ACTIVE':
+          return st == 'ACTIVE' || st == 'IN_PROGRESS' || st == 'RENTED';
+        case 'SETTLEMENT':
+          return st == 'RETURNED' ||
+              st == 'HOLDING' ||
+              st == 'PARTIALLY_SETTLED' ||
+              st == 'DISPUTED' ||
+              st == 'SETTLEMENT_PENDING';
+        case 'CLOSED':
+          return st == 'COMPLETED' ||
+              st == 'SETTLED' ||
+              st == 'CLOSED' ||
+              st == 'CANCELLED' ||
+              st == 'REJECTED';
+        default:
+          return st == _selectedStatusFilter;
+      }
+    }).toList();
   }
 
   @override
@@ -473,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: const Color(0xFF2563EB),
         child: Column(
           children: [
-            // Status Filter Chips Row
+            // Status Filter Chips Row (Khớp VELORA State Machine)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -481,15 +505,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildStatusChip('Tất cả', 'ALL'),
                   const SizedBox(width: 8),
+                  _buildStatusChip('Chờ duyệt / Giữ chỗ', 'PENDING_HOLD'),
+                  const SizedBox(width: 8),
                   _buildStatusChip('Đã cọc', 'CONFIRMED'),
                   const SizedBox(width: 8),
                   _buildStatusChip('Đang thuê', 'ACTIVE'),
                   const SizedBox(width: 8),
-                  _buildStatusChip('Đối soát Escrow', 'HOLDING'),
+                  _buildStatusChip('Quyết toán & Phạt nguội', 'SETTLEMENT'),
                   const SizedBox(width: 8),
-                  _buildStatusChip('Chờ xử lý', 'PENDING'),
-                  const SizedBox(width: 8),
-                  _buildStatusChip('Hoàn tất', 'COMPLETED'),
+                  _buildStatusChip('Hoàn tất / Đã hủy', 'CLOSED'),
                 ],
               ),
             ),
@@ -602,33 +626,64 @@ class _HomeScreenState extends State<HomeScreen> {
     String badgeText;
 
     switch (item.status.toUpperCase()) {
+      case 'HOLD_PENDING':
+        badgeColor = const Color(0xFFF59E0B);
+        badgeText = 'Chờ giữ chỗ 500k';
+        break;
+      case 'HOLD_CONFIRMED':
+        badgeColor = const Color(0xFF0EA5E9);
+        badgeText = 'Đã giữ chỗ 500k';
+        break;
       case 'PENDING':
         badgeColor = const Color(0xFFF59E0B);
-        badgeText = 'Chờ ký HĐ';
+        badgeText = 'Chờ duyệt hồ sơ';
+        break;
+      case 'APPROVED':
+        badgeColor = const Color(0xFF3B82F6);
+        badgeText = 'Đã duyệt • Chờ ký';
         break;
       case 'SIGNED':
-        badgeColor = const Color(0xFF3B82F6);
-        badgeText = 'Chờ đặt cọc';
+        badgeColor = const Color(0xFF6366F1);
+        badgeText = 'Đã ký • Chờ cọc';
         break;
+      case 'DEPOSIT_PAID':
       case 'CONFIRMED':
         badgeColor = const Color(0xFF10B981);
-        badgeText = 'Đã đặt cọc';
+        badgeText = 'Đã xác nhận & cọc';
         break;
       case 'ACTIVE':
+      case 'IN_PROGRESS':
+      case 'RENTED':
         badgeColor = const Color(0xFF8B5CF6);
-        badgeText = 'Đang sử dụng';
+        badgeText = 'Đang thuê xe';
+        break;
+      case 'RETURNED':
+      case 'SETTLEMENT_PENDING':
+        badgeColor = const Color(0xFF06B6D4);
+        badgeText = 'Chờ quyết toán';
         break;
       case 'HOLDING':
+      case 'PARTIALLY_SETTLED':
         badgeColor = const Color(0xFFF97316);
-        badgeText = 'Đối soát Escrow';
-        break;
-      case 'COMPLETED':
-        badgeColor = const Color(0xFF059669);
-        badgeText = 'Hoàn tất';
+        badgeText = 'Giữ phạt nguội 2tr';
         break;
       case 'DISPUTED':
         badgeColor = const Color(0xFFEF4444);
         badgeText = 'Đang khiếu nại';
+        break;
+      case 'COMPLETED':
+      case 'SETTLED':
+      case 'CLOSED':
+        badgeColor = const Color(0xFF059669);
+        badgeText = 'Hoàn tất';
+        break;
+      case 'CANCELLED':
+        badgeColor = const Color(0xFF64748B);
+        badgeText = 'Đã hủy';
+        break;
+      case 'REJECTED':
+        badgeColor = const Color(0xFFEF4444);
+        badgeText = 'Bị từ chối';
         break;
       default:
         badgeColor = Colors.grey;

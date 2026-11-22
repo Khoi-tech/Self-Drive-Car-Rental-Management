@@ -116,8 +116,14 @@ class RentalService {
     final token = await _authService.getToken();
     final user = await _authService.getCachedUser();
 
+    if (token == null || token.isEmpty) {
+      throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    }
+
+    // Backend tự trích xuất danh tính CUSTOMER từ JWT Claim (NameIdentifier -> DB User).
+    // Chỉ truyền email query param khi là nhân sự Operations (STAFF/MANAGER/ADMIN).
     final queryParams = <String, String>{};
-    if (user != null && user.email.isNotEmpty) {
+    if (user != null && user.isStaff && user.email.isNotEmpty) {
       queryParams['email'] = user.email;
     }
 
@@ -127,21 +133,37 @@ class RentalService {
 
     final headers = <String, String>{
       'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
     };
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
+
+    final response = await http
+        .get(url, headers: headers)
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> list = decoded is List
+          ? decoded
+          : (decoded is Map<String, dynamic> && decoded['items'] is List
+              ? decoded['items'] as List<dynamic>
+              : (decoded is Map<String, dynamic> && decoded['data'] is List
+                  ? decoded['data'] as List<dynamic>
+                  : []));
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map((item) => RentalRequestModel.fromJson(item))
+          .toList();
+    } else if (response.statusCode == 401) {
+      throw Exception('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+    } else {
+      String msg = 'Không thể tải danh sách đơn thuê (${response.statusCode})';
+      try {
+        final err = jsonDecode(response.body);
+        if (err is Map && err['message'] != null) {
+          msg = err['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(msg);
     }
-
-    try {
-      final response = await http
-          .get(url, headers: headers)
-          .timeout(const Duration(seconds: 12));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> list = jsonDecode(response.body);
-        return list.map((item) => RentalRequestModel.fromJson(item)).toList();
-      }
-    } catch (_) {}
-    return [];
   }
 }

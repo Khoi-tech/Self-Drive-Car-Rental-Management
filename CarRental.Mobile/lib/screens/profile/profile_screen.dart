@@ -170,7 +170,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Divider(height: 1),
               _buildListTile(Icons.badge_outlined, 'Mã định danh (User ID)', user?.id ?? ''),
               const Divider(height: 1),
-              _buildListTile(Icons.verified_user_outlined, 'Trạng thái tài khoản', 'Đã xác thực CCCD & GPLX'),
+              ListTile(
+                leading: Icon(
+                  user?.isKycVerified == true
+                      ? Icons.verified_user_rounded
+                      : Icons.gpp_maybe_outlined,
+                  color: user?.isKycVerified == true
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                  size: 20,
+                ),
+                title: const Text('Trạng thái xác minh KYC',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                subtitle: Text(
+                  user?.kycStatusDisplayName ?? 'Chưa xác minh KYC',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: user?.isKycVerified == true
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                  ),
+                ),
+                trailing: IconButton(
+                  tooltip: 'Cập nhật trạng thái KYC',
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF60A5FA)),
+                  onPressed: () => authProvider.checkAuthStatus(),
+                ),
+              ),
+              if (user?.effectiveLicenseClass != null) ...[
+                const Divider(height: 1),
+                _buildListTile(Icons.credit_card_outlined, 'Hạng GPLX hồ sơ',
+                    'Hạng ${user!.effectiveLicenseClass}'),
+              ],
             ]),
             if (kDebugMode) ...[
               const SizedBox(height: 16),

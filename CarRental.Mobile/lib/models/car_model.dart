@@ -15,10 +15,12 @@ class CarModel {
   final int currentMileage;
   final int? mileageLimit;
   final double? extraKmRate;
+  final String fuelReturnPolicy;
   final String? pickupLocation;
   final String status;
   final String? imageUrl;
   final bool isActive;
+  final int pricingPoliciesCount;
   final bool hasRentalCondition;
   final int? rentalConditionMinAge;
   final int? rentalConditionRequireDrivingYears;
@@ -37,10 +39,12 @@ class CarModel {
     required this.currentMileage,
     this.mileageLimit,
     this.extraKmRate,
+    this.fuelReturnPolicy = 'SAME_LEVEL',
     this.pickupLocation,
     required this.status,
     this.imageUrl,
     this.isActive = true,
+    this.pricingPoliciesCount = 0,
     this.hasRentalCondition = false,
     this.rentalConditionMinAge,
     this.rentalConditionRequireDrivingYears,
@@ -49,9 +53,9 @@ class CarModel {
   factory CarModel.fromJson(Map<String, dynamic> json) {
     return CarModel(
       id: json['id']?.toString() ?? '',
-      make: json['make'] ?? '',
-      model: json['model'] ?? '',
-      licensePlate: json['licensePlate'] ?? '',
+      make: json['make']?.toString() ?? '',
+      model: json['model']?.toString() ?? '',
+      licensePlate: json['licensePlate']?.toString() ?? '',
       seats: (json['seats'] is num) ? (json['seats'] as num).toInt() : 4,
       transmission: json['transmission']?.toString() ?? 'AUTO',
       fuelType: json['fuelType']?.toString() ?? 'PETROL',
@@ -73,10 +77,14 @@ class CarModel {
       extraKmRate: (json['extraKmRate'] is num)
           ? (json['extraKmRate'] as num).toDouble()
           : null,
-      pickupLocation: json['pickupLocation'],
+      fuelReturnPolicy: json['fuelReturnPolicy']?.toString() ?? 'SAME_LEVEL',
+      pickupLocation: json['pickupLocation']?.toString(),
       status: json['status']?.toString() ?? 'READY',
-      imageUrl: json['imageUrl'],
+      imageUrl: json['imageUrl']?.toString(),
       isActive: json['isActive'] ?? true,
+      pricingPoliciesCount: (json['pricingPoliciesCount'] is num)
+          ? (json['pricingPoliciesCount'] as num).toInt()
+          : 0,
       hasRentalCondition: json['hasRentalCondition'] ?? false,
       rentalConditionMinAge: (json['rentalConditionMinAge'] is num)
           ? (json['rentalConditionMinAge'] as num).toInt()
@@ -87,6 +95,8 @@ class CarModel {
               : null,
     );
   }
+
+  bool get isElectric => fuelType.toUpperCase() == 'ELECTRIC';
 
   String get displayName => '$make $model';
 

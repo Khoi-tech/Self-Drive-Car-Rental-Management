@@ -66,4 +66,7 @@ class ApiConstants {
   static const String vehicles = '/api/Vehicles';
   static const String vehiclesSearch = '/api/Vehicles/search';
   static String vehicleDetail(String id) => '/api/Vehicles/$id';
+  static String vehicleRentalCondition(String id) => '/api/vehicles/$id/rental-condition';
+  static String vehiclePricingPolicies(String id) => '/api/vehicles/$id/pricing-policies';
+  static String vehiclePricingPreview(String id) => '/api/vehicles/$id/pricing-preview';
 }

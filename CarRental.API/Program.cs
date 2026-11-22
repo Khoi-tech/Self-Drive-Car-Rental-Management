@@ -315,6 +315,7 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_contracts ADD COLUMN IF NOT EXISTS cancelled_at timestamp with time zone NULL;
 
             -- 8. payments extra columns
+            ALTER TABLE payments ALTER COLUMN amount TYPE numeric(18,2);
             ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_purpose character varying(50) NOT NULL DEFAULT 'DEPOSIT';
             ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_metadata text NULL;
             ALTER TABLE payments ADD COLUMN IF NOT EXISTS bank_name character varying(100) NULL;

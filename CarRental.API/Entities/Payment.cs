@@ -23,7 +23,7 @@ namespace CarRental.API.Entities
         [ForeignKey("RentalRequestId")]
         public virtual RentalRequest? RentalRequest { get; set; }
 
-        [Column("amount")]
+        [Column("amount", TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
         [Column("type")]

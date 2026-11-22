@@ -580,12 +580,17 @@ namespace CarRental.API.Services
                     throw new InvalidOperationException("Khoản phụ phí bổ sung của phiếu quyết toán này đã được xác nhận thu trước đó.");
                 }
 
+                var normalizedMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? "VIETQR" : dto.PaymentMethod.Trim();
+                var normalizedTxCode = string.IsNullOrWhiteSpace(dto.TransactionCode) ? null : dto.TransactionCode.Trim();
+
                 settlement.RefundStatus = "PAID";
-                settlement.RefundMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? "VIETQR" : dto.PaymentMethod;
-                settlement.RefundTransactionCode = dto.TransactionCode;
+                settlement.RefundMethod = normalizedMethod;
+                settlement.RefundTransactionCode = normalizedTxCode;
                 settlement.RefundProofUrl = dto.ProofUrl;
                 settlement.RefundedAt = DateTime.UtcNow;
                 settlement.Status = "PARTIALLY_SETTLED";
+                // Chuẩn hóa lại quỹ phạt nguội = 0 vì tiền cọc đã bị trừ sạch âm (kể cả phiếu cũ)
+                settlement.TrafficFineHoldAmount = 0;
                 settlement.TrafficFineRefundStatus = "HOLDING";
                 if (settlement.TrafficFineRefundDate == null)
                 {
@@ -610,8 +615,8 @@ namespace CarRental.API.Services
                     Amount = settlement.AdditionalAmountDue,
                     Type = "SETTLEMENT",
                     Status = "SUCCESS",
-                    PaymentMethod = dto.PaymentMethod,
-                    TransactionCode = dto.TransactionCode,
+                    PaymentMethod = normalizedMethod,
+                    TransactionCode = normalizedTxCode,
                     PaidAt = DateTime.UtcNow,
                     Note = $"Thanh toán phụ phí quyết toán vượt cọc {settlement.SettlementNumber}",
                     CreatedAt = DateTime.UtcNow

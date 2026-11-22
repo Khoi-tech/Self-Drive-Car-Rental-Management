@@ -114,6 +114,15 @@ namespace CarRental.API.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                if (innerMsg.Contains("ix_payments_transaction_code_unique") || innerMsg.Contains("23505"))
+                {
+                    return BadRequest(new { message = "Mã giao dịch này đã tồn tại trên hệ thống. Vui lòng nhập mã giao dịch khác." });
+                }
+                return BadRequest(new { message = $"Lỗi lưu dữ liệu thanh toán: {innerMsg}" });
+            }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
@@ -132,6 +141,15 @@ namespace CarRental.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                if (innerMsg.Contains("ix_payments_transaction_code_unique") || innerMsg.Contains("23505"))
+                {
+                    return BadRequest(new { message = "Mã giao dịch này đã tồn tại trên hệ thống. Vui lòng nhập mã giao dịch khác." });
+                }
+                return BadRequest(new { message = $"Lỗi lưu dữ liệu thanh toán: {innerMsg}" });
             }
             catch (Exception ex)
             {
@@ -175,6 +193,15 @@ namespace CarRental.API.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                if (innerMsg.Contains("ix_payments_transaction_code_unique") || innerMsg.Contains("23505"))
+                {
+                    return BadRequest(new { message = "Mã giao dịch này đã tồn tại trên hệ thống. Vui lòng nhập mã giao dịch khác." });
+                }
+                return BadRequest(new { message = $"Lỗi lưu dữ liệu thanh toán: {innerMsg}" });
+            }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
@@ -212,6 +239,15 @@ namespace CarRental.API.Controllers
             {
                 return NotFound(new { message = ex.Message });
             }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                if (innerMsg.Contains("ix_payments_transaction_code_unique") || innerMsg.Contains("23505"))
+                {
+                    return BadRequest(new { message = "Mã giao dịch này đã tồn tại trên hệ thống. Vui lòng nhập mã giao dịch khác." });
+                }
+                return BadRequest(new { message = $"Lỗi lưu dữ liệu thanh toán: {innerMsg}" });
+            }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
@@ -235,6 +271,15 @@ namespace CarRental.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(new { message = ex.Message });
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+            {
+                var innerMsg = ex.InnerException?.Message ?? ex.Message;
+                if (innerMsg.Contains("ix_payments_transaction_code_unique") || innerMsg.Contains("23505"))
+                {
+                    return BadRequest(new { message = "Mã giao dịch này đã tồn tại trên hệ thống. Vui lòng nhập mã giao dịch khác." });
+                }
+                return BadRequest(new { message = $"Lỗi lưu dữ liệu thanh toán: {innerMsg}" });
             }
             catch (Exception ex)
             {

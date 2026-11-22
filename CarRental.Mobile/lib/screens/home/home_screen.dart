@@ -8,6 +8,7 @@ import '../../providers/car_provider.dart';
 import '../../services/rental_service.dart';
 import '../../widgets/car_card.dart';
 import '../../widgets/server_config_dialog.dart';
+import '../auth/login_screen.dart';
 import '../profile/profile_screen.dart';
 import '../rentals/rental_order_detail_screen.dart';
 
@@ -556,6 +557,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_rentalsError != null) {
+      final isAuthError = _rentalsError!.toLowerCase().contains('hết hạn') ||
+          _rentalsError!.toLowerCase().contains('đăng nhập');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -566,10 +569,32 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               Text(_rentalsError!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: Color(0xFFCBD5E1))),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadMyRentals,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Thử lại'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _loadMyRentals,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Thử lại'),
+                  ),
+                  if (isAuthError)
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+                      onPressed: () async {
+                        await Provider.of<AuthProvider>(context, listen: false).logout();
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.login_rounded),
+                      label: const Text('Đăng nhập lại'),
+                    ),
+                ],
               ),
             ],
           ),

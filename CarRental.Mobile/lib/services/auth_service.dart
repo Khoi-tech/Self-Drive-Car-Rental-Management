@@ -6,11 +6,17 @@ import '../models/user_model.dart';
 
 class AuthService {
   static const String tokenKey = 'jwt_auth_token';
+  static const String refreshTokenKey = 'jwt_refresh_token';
   static const String userKey = 'cached_user_info';
 
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(tokenKey);
+  }
+
+  Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(refreshTokenKey);
   }
 
   Future<UserModel?> getCachedUser() async {
@@ -45,10 +51,14 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token']?.toString() ?? '';
+        final refreshToken = data['refreshToken']?.toString() ?? '';
         final user = UserModel.fromJson(data['user'] ?? {});
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(tokenKey, token);
+        if (refreshToken.isNotEmpty) {
+          await prefs.setString(refreshTokenKey, refreshToken);
+        }
         await prefs.setString(userKey, jsonEncode(user.toJson()));
 
         return {
@@ -79,15 +89,54 @@ class AuthService {
     }
   }
 
+  Future<String?> refreshAccessToken() async {
+    final refreshToken = await getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl/api/auth/refresh');
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final newToken = data['token']?.toString() ?? '';
+        final newRefresh = data['refreshToken']?.toString() ?? '';
+        if (newToken.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(tokenKey, newToken);
+          if (newRefresh.isNotEmpty) {
+            await prefs.setString(refreshTokenKey, newRefresh);
+          }
+          if (data['user'] is Map<String, dynamic>) {
+            final user = UserModel.fromJson(data['user']);
+            await prefs.setString(userKey, jsonEncode(user.toJson()));
+          }
+          return newToken;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Returns `UserModel` on success, `null` if offline/unreachable,
+  /// and throws `Exception('SESSION_EXPIRED')` if token is 401 and refresh fails.
   Future<UserModel?> fetchCurrentUser() async {
-    final token = await getToken();
-    if (token == null) return null;
+    var token = await getToken();
+    if (token == null || token.isEmpty) return null;
 
     final baseUrl = await ApiConstants.getBaseUrl();
     final url = Uri.parse('$baseUrl${ApiConstants.authMe}');
 
     try {
-      final response = await http.get(
+      var response = await http.get(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -95,14 +144,35 @@ class AuthService {
         },
       ).timeout(const Duration(seconds: 8));
 
+      if (response.statusCode == 401) {
+        final newToken = await refreshAccessToken();
+        if (newToken != null && newToken.isNotEmpty) {
+          response = await http.get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $newToken',
+            },
+          ).timeout(const Duration(seconds: 8));
+        } else {
+          await logout();
+          throw Exception('SESSION_EXPIRED');
+        }
+      }
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final user = UserModel.fromJson(data);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(userKey, jsonEncode(user.toJson()));
         return user;
+      } else if (response.statusCode == 401) {
+        await logout();
+        throw Exception('SESSION_EXPIRED');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (e.toString().contains('SESSION_EXPIRED')) rethrow;
+    }
     return null;
   }
 
@@ -235,6 +305,7 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(tokenKey);
+    await prefs.remove(refreshTokenKey);
     await prefs.remove(userKey);
   }
 }

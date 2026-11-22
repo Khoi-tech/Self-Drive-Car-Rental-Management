@@ -23,12 +23,15 @@ class AuthProvider extends ChangeNotifier {
       if (cachedUser != null) {
         _user = cachedUser;
       }
-      // Try refresh profile from server in background
+      // Try refresh profile from server (auto-refreshes JWT if needed)
       final freshUser = await _authService.fetchCurrentUser();
       if (freshUser != null) {
         _user = freshUser;
       }
-    } catch (_) {
+    } catch (e) {
+      if (e.toString().contains('SESSION_EXPIRED')) {
+        _user = null;
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

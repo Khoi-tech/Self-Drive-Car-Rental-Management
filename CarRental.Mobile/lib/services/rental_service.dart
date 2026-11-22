@@ -160,9 +160,19 @@ class RentalService {
     final url = Uri.parse('$baseUrl/api/rental-contracts/request/$requestId');
     final headers = await _buildHeaders();
 
-    final response = await http
+    var response = await http
         .get(url, headers: headers)
         .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      final newToken = await _authService.refreshAccessToken();
+      if (newToken != null && newToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $newToken';
+        response = await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 15));
+      }
+    }
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -376,9 +386,19 @@ class RentalService {
       'Authorization': 'Bearer $token',
     };
 
-    final response = await http
+    var response = await http
         .get(url, headers: headers)
         .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 401) {
+      final newToken = await _authService.refreshAccessToken();
+      if (newToken != null && newToken.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $newToken';
+        response = await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 15));
+      }
+    }
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);

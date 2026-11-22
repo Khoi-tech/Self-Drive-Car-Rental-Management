@@ -315,7 +315,8 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
 
   // 3. Handle Confirm Additional Payment
   const handleConfirmAdditionalPayment = async () => {
-    if (!settlementResult?.id) return;
+    const targetId = activeSettlement?.id || settlementResult?.id;
+    if (!targetId) return;
     try {
       setLoading(true);
       setError(null);
@@ -327,12 +328,12 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
         staffNotes
       };
 
-      const res = await settlementService.confirmAdditionalPayment(settlementResult.id, payload);
+      const res = await settlementService.confirmAdditionalPayment(targetId, payload);
       const updated = res?.data || res;
       setExistingSettlement(updated);
       setSettlementResult(updated);
 
-      setSuccessMsg('Đã xác nhận thu phụ phí bổ sung thành công!');
+      setSuccessMsg('Đã xác nhận thu đủ phụ phí bổ sung từ khách hàng!');
       if (onSuccess) onSuccess(updated);
     } catch (err) {
       console.error(err);
@@ -507,12 +508,21 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                     -{formatCurrency(activeSettlement.totalDeduction)}
                   </span>
                 </div>
-                <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200">
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 block">Tổng tiền hoàn trả</span>
-                  <span className="text-base font-extrabold text-emerald-700 tabular-nums block mt-0.5">
-                    {formatCurrency(activeSettlement.refundAmount)}
-                  </span>
-                </div>
+                {Number(activeSettlement.additionalAmountDue || 0) > 0 || activeSettlement.settlementType === 'ADDITIONAL_PAYMENT_REQUIRED' ? (
+                  <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200">
+                    <span className="text-[10px] uppercase font-bold text-rose-800 block">Khách cần nộp bù</span>
+                    <span className="text-base font-extrabold text-rose-700 tabular-nums block mt-0.5">
+                      {formatCurrency(activeSettlement.additionalAmountDue || Math.max(0, activeSettlement.totalDeduction - activeSettlement.depositAmount))}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 block">Tổng tiền hoàn trả</span>
+                    <span className="text-base font-extrabold text-emerald-700 tabular-nums block mt-0.5">
+                      {formatCurrency(activeSettlement.refundAmount)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* DISPUTE RESOLUTION PANEL (IF DISPUTED) */}
@@ -688,52 +698,167 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                   Tiến Trình Hoàn Trả Tiền Cọc 2 Đợt
                 </h4>
 
-                {/* STAGE 1: IMMEDIATE REFUND */}
-                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2 border-b border-emerald-200">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
-                        1
-                      </span>
-                      <div>
-                        <span className="font-bold text-zinc-900 text-xs">
-                          ĐỢT 1: Hoàn cọc tức thì ngay khi bàn giao xe
-                        </span>
-                        <p className="text-[11px] text-slate-500">
-                          Thực hiện qua chuyển khoản VietQR tự động
-                        </p>
+                {/* STAGE 1: IMMEDIATE REFUND OR ADDITIONAL COLLECTION */}
+                {(() => {
+                  const addDue = Number(activeSettlement.additionalAmountDue || 0);
+                  const isAddMode = addDue > 0 || activeSettlement.settlementType === 'ADDITIONAL_PAYMENT_REQUIRED';
+                  const isAddPaid = activeSettlement.refundStatus === 'PAID';
+                  const isRefundDone = activeSettlement.refundStatus === 'REFUNDED';
+
+                  if (isAddMode) {
+                    const collectQrUrl = `https://img.vietqr.io/image/MB-21011501030206-compact2.png?amount=${Math.round(addDue)}&addInfo=${encodeURIComponent(`VELORA THU BU ${rentalRequest.id.slice(0, 8).toUpperCase()}`)}&accountName=${encodeURIComponent('VELORA CAR RENTAL CORP')}`;
+                    return (
+                      <div className={`p-4 rounded-xl border space-y-3 ${isAddPaid ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'}`}>
+                        <div className={`flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2 border-b ${isAddPaid ? 'border-emerald-200' : 'border-rose-200'}`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-xs ${isAddPaid ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                              1
+                            </span>
+                            <div>
+                              <span className="font-bold text-zinc-900 text-xs">
+                                ĐỢT 1: Thu tiền phụ phí bổ sung từ khách hàng
+                              </span>
+                              <p className="text-[11px] text-slate-500">
+                                Tổng phụ phí vượt tiền cọc ban đầu — khách hàng cần thanh toán phần thiếu
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isAddPaid ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                <CheckCircle2 size={13} className="text-emerald-700" />
+                                ĐÃ THU ĐỦ TIỀN BÙ
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+                                <AlertTriangle size={13} className="text-rose-700" />
+                                CHỜ KHÁCH NỘP BÙ
+                              </span>
+                            )}
+                            <span className={`text-sm font-extrabold tabular-nums ${isAddPaid ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {formatCurrency(addDue)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isAddPaid ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-600 bg-white/80 p-3 rounded-lg border border-emerald-100">
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Mã giao dịch thu bù:</span>
+                              <strong className="font-mono text-zinc-900">{activeSettlement.refundTransactionCode || 'N/A'}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Thời gian xác nhận:</span>
+                              <strong className="text-zinc-900">{formatDateTime(activeSettlement.refundedAt || activeSettlement.settledAt)}</strong>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white p-4 rounded-xl border border-rose-200 space-y-3">
+                            <div className="flex flex-col sm:flex-row items-center gap-4">
+                              <div className="p-2 bg-white rounded border border-slate-200 shadow-2xs shrink-0">
+                                <img src={collectQrUrl} alt="VietQR Thu Bu" className="w-36 h-36 object-contain" />
+                              </div>
+                              <div className="flex-1 space-y-1.5 text-xs">
+                                <div className="font-bold text-rose-800">Mã VietQR thu tiền phụ phí bổ sung:</div>
+                                <p className="text-[11px] text-slate-600">
+                                  Ngân hàng: <strong>MBBank</strong> • STK: <strong className="font-mono">21011501030206</strong> • Chủ TK: <strong>VELORA CAR RENTAL CORP</strong>
+                                </p>
+                                <p className="text-[11px] text-slate-600">
+                                  Nội dung CK: <strong className="font-mono text-zinc-950">VELORA THU BU {rentalRequest.id.slice(0, 8).toUpperCase()}</strong>
+                                </p>
+                                <div className="pt-2">
+                                  <label className="block text-[11px] font-bold text-zinc-900 mb-1">
+                                    Mã giao dịch ngân hàng (khi khách đã chuyển khoản / nộp tiền):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={transactionCode}
+                                    onChange={(e) => setTransactionCode(e.target.value)}
+                                    placeholder="VD: FT2611238899 hoặc TIENMAT-01"
+                                    className="w-full bg-slate-50 border border-slate-300 rounded px-2.5 py-1.5 text-xs font-mono font-bold text-zinc-950 focus:outline-none focus:border-rose-600"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {!isManagement ? (
+                              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold text-center">
+                                Quyền hạn Nhân viên (STAFF): Thao tác xác nhận thu đủ tiền bù yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleConfirmAdditionalPayment}
+                                disabled={loading}
+                                className="w-full bg-rose-700 hover:bg-rose-800 disabled:bg-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-sm transition-colors uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                {loading ? (
+                                  <>
+                                    <RefreshCw size={14} className="animate-spin" />
+                                    <span>Đang xác nhận thu tiền bù...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 size={15} />
+                                    <span>Xác nhận khách đã nộp đủ tiền bù ({formatCurrency(addDue)})</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2 border-b border-emerald-200">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                            1
+                          </span>
+                          <div>
+                            <span className="font-bold text-zinc-900 text-xs">
+                              ĐỢT 1: Hoàn cọc tức thì ngay khi bàn giao xe
+                            </span>
+                            <p className="text-[11px] text-slate-500">
+                              Thực hiện qua chuyển khoản VietQR tự động
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1 ${isRefundDone ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                            <CheckCircle2 size={13} className={isRefundDone ? 'text-emerald-700' : 'text-amber-700'} />
+                            {isRefundDone ? 'ĐÃ HOÀN TẤT QUA VIETQR' : 'CHỜ CHUYỂN HOÀN ĐỢT 1'}
+                          </span>
+                          <span className="text-sm font-extrabold text-emerald-700 tabular-nums">
+                            {formatCurrency(Math.max(0, activeSettlement.refundAmount - (activeSettlement.trafficFineHoldAmount || 0)))}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 bg-white/70 p-3 rounded-lg border border-emerald-100">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Tài khoản thụ hưởng:</span>
+                          <strong className="text-zinc-800">{activeSettlement.refundAccountNumber}</strong> ({activeSettlement.refundBankName})
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Chủ tài khoản:</span>
+                          <strong className="text-zinc-800 uppercase">{activeSettlement.refundAccountName}</strong>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Mã GD & Thời gian:</span>
+                          <span className="font-mono text-zinc-800 font-semibold">{activeSettlement.refundTransactionCode || 'N/A'}</span>
+                          <span className="text-slate-400 block text-[10px]">{formatDateTime(activeSettlement.refundedAt || activeSettlement.settledAt)}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                        <CheckCircle2 size={13} className="text-emerald-700" />
-                        ĐÃ HOÀN TẤT QUA VIETQR
-                      </span>
-                      <span className="text-sm font-extrabold text-emerald-700 tabular-nums">
-                        {formatCurrency(Math.max(0, activeSettlement.refundAmount - (activeSettlement.trafficFineHoldAmount || 0)))}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600 bg-white/70 p-3 rounded-lg border border-emerald-100">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Tài khoản thụ hưởng:</span>
-                      <strong className="text-zinc-800">{activeSettlement.refundAccountNumber}</strong> ({activeSettlement.refundBankName})
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Chủ tài khoản:</span>
-                      <strong className="text-zinc-800 uppercase">{activeSettlement.refundAccountName}</strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Mã GD & Thời gian:</span>
-                      <span className="font-mono text-zinc-800 font-semibold">{activeSettlement.refundTransactionCode || 'N/A'}</span>
-                      <span className="text-slate-400 block text-[10px]">{formatDateTime(activeSettlement.refundedAt || activeSettlement.settledAt)}</span>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* STAGE 2: TRAFFIC FINE ESCROW */}
-                {activeSettlement.trafficFineHoldAmount > 0 && (
+                {(activeSettlement.trafficFineHoldAmount > 0 || activeSettlement.settlementType === 'ADDITIONAL_PAYMENT_REQUIRED' || Number(activeSettlement.additionalAmountDue || 0) > 0) && (
                   <div className={`p-4 rounded-xl border space-y-4 ${
                     activeSettlement.trafficFineRefundStatus === 'HOLDING'
                       ? 'border-indigo-200 bg-indigo-50/40'
@@ -780,7 +905,9 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                           </span>
                         )}
                         <span className="text-sm font-extrabold text-indigo-700 tabular-nums">
-                          {formatCurrency(activeSettlement.trafficFineHoldAmount)}
+                          {Number(activeSettlement.trafficFineHoldAmount || 0) === 0
+                            ? '0 đ (Tiền cọc đã khấu trừ hết vào phụ phí)'
+                            : formatCurrency(activeSettlement.trafficFineHoldAmount)}
                         </span>
                       </div>
                     </div>
@@ -875,7 +1002,9 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                               <div>
                                 <span className="font-bold text-xs block">Xe KHÔNG có phạt nguội</span>
                                 <span className="text-[11px] text-slate-500 block mt-0.5">
-                                  Hoàn lại 100% quỹ cọc giữ (<strong className="text-emerald-700">{formatCurrency(round2HoldAmount)}</strong>)
+                                  {round2HoldAmount === 0
+                                    ? 'Không có quỹ cọc hoàn lại (0 đ — tiền cọc đã khấu trừ hết vào phụ phí)'
+                                    : <>Hoàn lại 100% quỹ cọc giữ (<strong className="text-emerald-700">{formatCurrency(round2HoldAmount)}</strong>)</>}
                                 </span>
                               </div>
                             </label>
@@ -976,8 +1105,10 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                             </div>
                           </div>
                         ) : (
-                          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs">
-                            Toàn bộ số tiền cọc phạt nguội (2.000.000đ) đã được khấu trừ để nộp phạt cho cơ quan CSGT. Khách hàng không nhận lại tiền hoàn đợt này.
+                          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs">
+                            {round2HoldAmount === 0
+                              ? 'Quỹ tạm giữ phạt nguội = 0 đ (tiền cọc đã khấu trừ hết vào phụ phí). Sau khi đối soát CSGT xong, bấm xác nhận để đóng hồ sơ.'
+                              : `Toàn bộ số tiền cọc phạt nguội (${formatCurrency(round2HoldAmount)}) đã được khấu trừ để nộp phạt cho cơ quan CSGT. Khách hàng không nhận lại tiền hoàn đợt này.`}
                           </div>
                         )}
 
@@ -1000,6 +1131,10 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold text-center">
                               Quyền hạn Nhân viên (STAFF): Thao tác hoàn quỹ phạt nguội Đợt 2 yêu cầu vai trò Quản lý (MANAGER hoặc ADMIN).
                             </div>
+                          ) : (Number(activeSettlement.additionalAmountDue || 0) > 0 && activeSettlement.refundStatus !== 'PAID') ? (
+                            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs font-semibold text-center">
+                              Chưa thể đóng hồ sơ: Khách hàng cần hoàn tất nộp tiền bù ({formatCurrency(activeSettlement.additionalAmountDue)}) ở Đợt 1 trước.
+                            </div>
                           ) : (
                             <button
                               type="button"
@@ -1015,7 +1150,11 @@ const SettlementModal = ({ isOpen, onClose, rentalRequest, onSuccess }) => {
                               ) : (
                                 <>
                                   <CheckCircle2 size={16} />
-                                  <span>Xác Nhận Đã Chuyển Hoàn Cọc Đợt 2 & Kết Thúc</span>
+                                  <span>
+                                    {round2HoldAmount === 0
+                                      ? 'Xác nhận không có phạt nguội & Đóng hồ sơ (0 đ)'
+                                      : 'Xác Nhận Đã Chuyển Hoàn Cọc Đợt 2 & Kết Thúc'}
+                                  </span>
                                 </>
                               )}
                             </button>

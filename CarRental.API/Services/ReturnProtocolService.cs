@@ -91,6 +91,13 @@ namespace CarRental.API.Services
                 throw new ArgumentException($"Chỉ số ODO lúc khách trả ({customerReturnOdo:N0} km) không thể nhỏ hơn ODO lúc bàn giao ({handoverOdo:N0} km). Vui lòng đối chiếu đồng hồ taplo.");
             }
 
+            // Sanity guard: chặn nhập nhầm ODO vượt ngưỡng vật lý (VD: nhập thừa chữ số thành hàng trăm triệu km)
+            int maxReasonableTripKm = Math.Max(5000, Math.Max(1, request.TotalDays) * 1500);
+            if (customerReturnOdo > 999999 || (customerReturnOdo - handoverOdo) > maxReasonableTripKm)
+            {
+                throw new ArgumentException($"Chỉ số ODO nhập vào ({customerReturnOdo:N0} km) bất thường so với mốc bàn giao ({handoverOdo:N0} km). Vui lòng kiểm tra lại đồng hồ taplo (không nhập thừa chữ số).");
+            }
+
             // Quãng đường thực tế khách sử dụng (loại trừ trung chuyển)
             int totalKm = customerReturnOdo - handoverOdo;
 

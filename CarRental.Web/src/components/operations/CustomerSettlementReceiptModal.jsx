@@ -138,9 +138,29 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
                     <p className="text-[11px] text-zinc-400">Hệ Thống Thuê Xe Tự Lái Sang Trọng & Tiện Lợi</p>
                   </div>
                   <div className="sm:text-right">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      {settlement.refundStatus === 'REFUNDED' ? 'ĐÃ HOÀN CỌC THÀNH CÔNG' : 'QUYẾT TOÁN HOÀN TẤT'}
-                    </span>
+                    {(() => {
+                      const isAddDue = Number(settlement.additionalAmountDue || 0) > 0 || settlement.settlementType === 'ADDITIONAL_PAYMENT_REQUIRED';
+                      const isAddPaid = settlement.refundStatus === 'PAID';
+                      if (isAddDue && !isAddPaid) {
+                        return (
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/40">
+                            CHỜ THANH TOÁN PHỤ PHÍ BÙ
+                          </span>
+                        );
+                      }
+                      if (isAddDue && isAddPaid) {
+                        return (
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            ĐÃ THANH TOÁN ĐỦ TIỀN BÙ
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                          {settlement.refundStatus === 'REFUNDED' ? 'ĐÃ HOÀN CỌC THÀNH CÔNG' : 'QUYẾT TOÁN HOÀN TẤT'}
+                        </span>
+                      );
+                    })()}
                     <p className="text-[11px] text-zinc-400 mt-1">Số: {settlement.settlementNumber || 'QT-VELORA'}</p>
                     <p className="text-[10px] text-zinc-500">{formatDateTime(settlement.settledAt || settlement.createdAt)}</p>
                   </div>
@@ -260,37 +280,80 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
                   </div>
                 </div>
 
-                {/* Final Refund Receipt Box */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/30 via-zinc-950 to-zinc-950 border border-emerald-500/40 space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div>
-                      <span className="text-zinc-400 block text-xs">
-                        {settlement.settlementType === 'REFUND_TO_CUSTOMER' 
-                          ? (settlement.trafficFineHoldAmount > 0 
-                              ? 'SỐ TIỀN HOÀN CỌC ĐỢT 1 (ĐÃ CHUYỂN VIETQR):' 
-                              : 'SỐ TIỀN CỌC THỰC TẾ HOÀN LẠI CHO BẠN:') 
-                          : 'SỐ TIỀN PHỤ PHÍ BỔ SUNG ĐÃ NỘP:'}
-                      </span>
-                      <span className="text-2xl font-bold text-emerald-400 block mt-0.5">
-                        {formatCurrency(
-                          settlement.settlementType === 'REFUND_TO_CUSTOMER'
-                            ? Math.max(0, settlement.refundAmount - (settlement.trafficFineHoldAmount || 0))
-                            : settlement.additionalAmountDue
-                        )}
-                      </span>
-                    </div>
+                {/* Final Refund / Additional Payment Box */}
+                {(() => {
+                  const addDue = Number(settlement.additionalAmountDue || 0);
+                  const isAddDue = addDue > 0 || settlement.settlementType === 'ADDITIONAL_PAYMENT_REQUIRED';
+                  const isAddPaid = settlement.refundStatus === 'PAID';
+                  const collectQrUrl = `https://img.vietqr.io/image/MB-21011501030206-compact2.png?amount=${Math.round(addDue)}&addInfo=${encodeURIComponent(`VELORA THU BU ${rentalRequest.id.slice(0, 8).toUpperCase()}`)}&accountName=${encodeURIComponent('VELORA CAR RENTAL CORP')}`;
 
-                    {settlement.refundStatus === 'REFUNDED' && (
-                      <div className="text-right text-[11px] text-zinc-400 space-y-0.5">
-                        <p className="text-emerald-400 font-semibold flex items-center gap-1 justify-end">
-                          <CheckCircle2 size={13} />
-                          Đã chuyển khoản VietQR thành công
-                        </p>
-                        <p>TK nhận: {settlement.refundAccountNumber} ({settlement.refundBankName})</p>
-                        <p>Mã GD: <span className="text-white font-mono">{settlement.refundTransactionCode || 'N/A'}</span></p>
+                  if (isAddDue && !isAddPaid) {
+                    return (
+                      <div className="p-4 rounded-xl bg-gradient-to-r from-rose-950/50 via-zinc-950 to-zinc-950 border border-rose-500/40 space-y-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div>
+                            <span className="text-rose-300 block text-xs font-semibold">
+                              SỐ TIỀN PHỤ PHÍ BỔ SUNG CẦN NỘP BÙ:
+                            </span>
+                            <span className="text-2xl font-bold text-rose-400 block mt-0.5 tabular-nums">
+                              {formatCurrency(addDue)}
+                            </span>
+                            <p className="text-[11px] text-zinc-400 mt-1">
+                              Tiền cọc ban đầu ({formatCurrency(settlement.depositAmount)}) đã khấu trừ hết vào phụ phí. Quỹ phạt nguội tạm giữ: <strong className="text-white">0 đ</strong>.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-rose-500/30 flex flex-col sm:flex-row items-center gap-4">
+                          <div className="p-2 bg-white rounded-lg shrink-0">
+                            <img src={collectQrUrl} alt="VietQR Nop Bu" className="w-36 h-36 object-contain" />
+                          </div>
+                          <div className="flex-1 space-y-1.5 text-xs">
+                            <p className="font-bold text-white">Quét mã VietQR để chuyển khoản phần tiền bù:</p>
+                            <p className="text-zinc-300">Ngân hàng: <strong className="text-white">MBBank</strong></p>
+                            <p className="text-zinc-300">Số tài khoản: <strong className="text-amber-400 font-mono">21011501030206</strong></p>
+                            <p className="text-zinc-300">Chủ tài khoản: <strong className="text-white">VELORA CAR RENTAL CORP</strong></p>
+                            <p className="text-zinc-300">Nội dung CK: <strong className="text-emerald-400 font-mono">VELORA THU BU {rentalRequest.id.slice(0, 8).toUpperCase()}</strong></p>
+                            <p className="text-[10px] text-zinc-400 pt-1">
+                              Nếu bạn phát hiện sai sót về ODO hoặc phụ phí, vui lòng bấm nút <strong className="text-orange-400">"Khiếu nại quyết toán"</strong> bên dưới trước khi chuyển khoản.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    );
+                  }
+
+                  return (
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/30 via-zinc-950 to-zinc-950 border border-emerald-500/40 space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                          <span className="text-zinc-400 block text-xs">
+                            {settlement.settlementType === 'REFUND_TO_CUSTOMER' 
+                              ? (settlement.trafficFineHoldAmount > 0 
+                                  ? 'SỐ TIỀN HOÀN CỌC ĐỢT 1 (ĐÃ CHUYỂN VIETQR):' 
+                                  : 'SỐ TIỀN CỌC THỰC TẾ HOÀN LẠI CHO BẠN:') 
+                              : 'SỐ TIỀN PHỤ PHÍ BỔ SUNG ĐÃ NỘP:'}
+                          </span>
+                          <span className="text-2xl font-bold text-emerald-400 block mt-0.5">
+                            {formatCurrency(
+                              settlement.settlementType === 'REFUND_TO_CUSTOMER'
+                                ? Math.max(0, settlement.refundAmount - (settlement.trafficFineHoldAmount || 0))
+                                : settlement.additionalAmountDue
+                            )}
+                          </span>
+                        </div>
+
+                        {(settlement.refundStatus === 'REFUNDED' || isAddPaid) && (
+                          <div className="text-right text-[11px] text-zinc-400 space-y-0.5">
+                            <p className="text-emerald-400 font-semibold flex items-center gap-1 justify-end">
+                              <CheckCircle2 size={13} />
+                              {isAddPaid ? 'Đã xác nhận nộp đủ tiền bù' : 'Đã chuyển khoản VietQR thành công'}
+                            </p>
+                            {!isAddPaid && <p>TK nhận: {settlement.refundAccountNumber} ({settlement.refundBankName})</p>}
+                            <p>Mã GD: <span className="text-white font-mono">{settlement.refundTransactionCode || 'N/A'}</span></p>
+                          </div>
+                        )}
+                      </div>
 
                   {/* Chi tiết giữ cọc phạt nguội Đợt 2 nếu có */}
                   {settlement.trafficFineHoldAmount > 0 && (
@@ -348,6 +411,8 @@ const CustomerSettlementReceiptModal = ({ isOpen, onClose, rentalRequest }) => {
                     </div>
                   )}
                 </div>
+                  );
+                })()}
 
                 {/* Sơ đồ vết xước 2D nghiệm thu đối chiếu */}
                 {returnProtocol?.damagePointsJson && (

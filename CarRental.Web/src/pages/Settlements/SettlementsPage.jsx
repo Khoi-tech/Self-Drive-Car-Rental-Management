@@ -161,16 +161,21 @@ const SettlementsPage = () => {
       };
 
       const isDisputed = s.status === 'DISPUTED' || req?.status === 'DISPUTED';
-      const isClosed = s.status === 'CLOSED' || (s.status === 'SETTLED' && s.trafficFineRefundStatus !== 'HOLDING' && s.refundStatus !== 'PENDING');
-      const isHoldingFine =
-        !isDisputed &&
-        !isClosed &&
-        (s.status === 'PARTIALLY_SETTLED' || s.trafficFineRefundStatus === 'HOLDING');
+      const isAwaitingAdditional =
+        s.refundStatus === 'AWAITING_ADDITIONAL_PAYMENT' ||
+        (Number(s.additionalAmountDue || 0) > 0 && s.refundStatus !== 'PAID' && s.status !== 'CLOSED');
+      const isClosed =
+        !isAwaitingAdditional &&
+        (s.status === 'CLOSED' || (s.status === 'SETTLED' && s.trafficFineRefundStatus !== 'HOLDING' && s.refundStatus !== 'PENDING'));
       const isPending =
         !isDisputed &&
         !isClosed &&
-        !isHoldingFine &&
-        (s.status === 'PENDING' || s.refundStatus === 'PENDING');
+        (isAwaitingAdditional || s.status === 'PENDING' || s.refundStatus === 'PENDING');
+      const isHoldingFine =
+        !isDisputed &&
+        !isClosed &&
+        !isPending &&
+        (s.status === 'PARTIALLY_SETTLED' || s.trafficFineRefundStatus === 'HOLDING');
 
       if (isDisputed) {
         disputed.push({ ...item, tab: 'DISPUTED' });

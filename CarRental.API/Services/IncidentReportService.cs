@@ -232,6 +232,19 @@ namespace CarRental.API.Services
                         bool hasTowedOdo = dto.TowedOdo.HasValue && dto.TowedOdo.Value > 0;
                         bool hasTowedFuel = dto.TowedFuelLevel.HasValue && dto.TowedFuelLevel.Value >= 0m && dto.TowedFuelLevel.Value <= 100m;
 
+                        if (hasTowedOdo)
+                        {
+                            if (dto.TowedOdo!.Value < handoverOdo)
+                            {
+                                throw new InvalidOperationException($"ODO lúc kéo xe ({dto.TowedOdo.Value:N0} km) không thể nhỏ hơn ODO lúc bàn giao ({handoverOdo:N0} km).");
+                            }
+                            int maxReasonableTripKm = Math.Max(5000, Math.Max(1, report.RentalRequest.TotalDays) * 1500);
+                            if (dto.TowedOdo.Value > 999999 || (dto.TowedOdo.Value - handoverOdo) > maxReasonableTripKm)
+                            {
+                                throw new InvalidOperationException($"ODO lúc kéo xe ({dto.TowedOdo.Value:N0} km) bất thường so với mốc bàn giao ({handoverOdo:N0} km). Vui lòng kiểm tra lại đồng hồ taplo (không nhập thừa chữ số).");
+                            }
+                        }
+
                         int finalReturnOdo = hasTowedOdo ? Math.Max(handoverOdo, dto.TowedOdo!.Value) : handoverOdo;
                         decimal finalReturnFuel = hasTowedFuel ? dto.TowedFuelLevel!.Value : handoverFuel;
 

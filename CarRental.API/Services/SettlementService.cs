@@ -171,6 +171,10 @@ namespace CarRental.API.Services
             }
 
             decimal defaultFineHold = await _settingsService.GetSettingValueAsync("traffic_fine_hold_amount", 2000000m);
+            decimal remainingAfterDeduction = Math.Max(0m, depositAmount - totalDeduction);
+            decimal effectiveFineHold = remainingAfterDeduction <= 0m
+                ? 0m
+                : Math.Min(defaultFineHold, remainingAfterDeduction);
 
             return new PreviewSettlementDto
             {
@@ -218,7 +222,7 @@ namespace CarRental.API.Services
                 OtherFee = 0,
                 TotalDeduction = totalDeduction,
                 BalanceAmount = balance,
-                TrafficFineHoldAmount = defaultFineHold,
+                TrafficFineHoldAmount = effectiveFineHold,
                 SettlementType = settlementType,
                 RefundAmount = refundAmount,
                 AdditionalAmountDue = additionalDue
@@ -256,11 +260,14 @@ namespace CarRental.API.Services
 
                 decimal totalDeduction = dto.ExtraKmFee + dto.LateReturnFee + dto.FuelFee + dto.DamageFee + dto.CleaningFee + dto.OtherFee;
                 decimal balance = dto.DepositAmount - totalDeduction;
+                decimal remainingAfterDeduction = Math.Max(0m, balance);
 
                 string settlementType;
                 decimal refundAmount = 0;
-                decimal additionalDue = 0;
-                string refundStatus = "PENDING";
+                decimal additionalDue = Math.Max(0m, totalDeduction - dto.DepositAmount);
+                string refundStatus;
+                string initialSettlementStatus;
+                DateTime? initialSettledAt = null;
 
                 if (balance > 0)
                 {
@@ -268,13 +275,14 @@ namespace CarRental.API.Services
                     refundAmount = balance;
                     additionalDue = 0;
                     refundStatus = "PENDING";
+                    initialSettlementStatus = "PENDING";
                 }
                 else if (balance < 0)
                 {
                     settlementType = "ADDITIONAL_PAYMENT_REQUIRED";
                     refundAmount = 0;
-                    additionalDue = Math.Abs(balance);
-                    refundStatus = "NOT_APPLICABLE";
+                    refundStatus = "AWAITING_ADDITIONAL_PAYMENT";
+                    initialSettlementStatus = "PENDING"; // TUYỆT ĐỐI không tự đóng Đợt 1 khi khách chưa nộp tiền bù
                 }
                 else
                 {
@@ -282,12 +290,21 @@ namespace CarRental.API.Services
                     refundAmount = 0;
                     additionalDue = 0;
                     refundStatus = "NOT_APPLICABLE";
+                    initialSettlementStatus = "PARTIALLY_SETTLED";
+                    initialSettledAt = DateTime.UtcNow;
                 }
 
                 var defaultHoldAmount = await _settingsService.GetSettingValueAsync("traffic_fine_hold_amount", 2000000m);
                 var defaultHoldDays = await _settingsService.GetSettingValueAsync("traffic_fine_hold_days", 30);
-                var fineHoldAmount = dto.TrafficFineHoldAmount > 0 ? dto.TrafficFineHoldAmount : defaultHoldAmount;
-                var fineRefundDate = dto.TrafficFineRefundDate ?? DateTime.UtcNow.AddDays(defaultHoldDays);
+                var requestedHoldAmount = dto.TrafficFineHoldAmount > 0 ? dto.TrafficFineHoldAmount : defaultHoldAmount;
+                // Nếu cọc đã bị trừ sạch âm (remainingAfterDeduction <= 0) -> TrafficFineHoldAmount = 0 (không giữ ảo 2tr)
+                // Nếu phần dư nhỏ hơn 2tr -> chỉ giữ tối đa đúng phần dư còn lại
+                var fineHoldAmount = remainingAfterDeduction <= 0m
+                    ? 0m
+                    : Math.Min(requestedHoldAmount, remainingAfterDeduction);
+                var fineRefundDate = fineHoldAmount > 0m
+                    ? (dto.TrafficFineRefundDate ?? DateTime.UtcNow.AddDays(defaultHoldDays))
+                    : (DateTime?)null;
 
                 RentalSettlement settlement;
                 if (existingSettlement != null)
@@ -309,12 +326,11 @@ namespace CarRental.API.Services
                     settlement.RefundAmount = refundAmount;
                     settlement.TrafficFineHoldAmount = fineHoldAmount;
                     settlement.TrafficFineRefundDate = fineRefundDate;
-                    if (fineHoldAmount > 0 && (settlement.TrafficFineRefundStatus == "NONE" || string.IsNullOrEmpty(settlement.TrafficFineRefundStatus)))
-                    {
-                        settlement.TrafficFineRefundStatus = "HOLDING";
-                    }
+                    settlement.TrafficFineRefundStatus = fineHoldAmount > 0m ? "HOLDING" : "NONE";
                     settlement.AdditionalAmountDue = additionalDue;
                     settlement.RefundStatus = refundStatus;
+                    settlement.Status = initialSettlementStatus;
+                    settlement.SettledAt = initialSettledAt;
                     settlement.RefundBankName = dto.RefundBankName;
                     settlement.RefundAccountNumber = dto.RefundAccountNumber;
                     settlement.RefundAccountName = dto.RefundAccountName;
@@ -347,7 +363,7 @@ namespace CarRental.API.Services
                         RefundAmount = refundAmount,
                         TrafficFineHoldAmount = fineHoldAmount,
                         TrafficFineRefundDate = fineRefundDate,
-                        TrafficFineRefundStatus = fineHoldAmount > 0 ? "HOLDING" : "NONE",
+                        TrafficFineRefundStatus = fineHoldAmount > 0m ? "HOLDING" : "NONE",
                         AdditionalAmountDue = additionalDue,
                         RefundStatus = refundStatus,
                         RefundMethod = "VIETQR",
@@ -355,8 +371,8 @@ namespace CarRental.API.Services
                         RefundAccountNumber = dto.RefundAccountNumber,
                         RefundAccountName = dto.RefundAccountName,
                         StaffNotes = dto.StaffNotes,
-                        Status = refundStatus == "NOT_APPLICABLE" ? "PARTIALLY_SETTLED" : "PENDING",
-                        SettledAt = refundStatus == "NOT_APPLICABLE" ? DateTime.UtcNow : null,
+                        Status = initialSettlementStatus,
+                        SettledAt = initialSettledAt,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
@@ -554,9 +570,37 @@ namespace CarRental.API.Services
                     throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
                 }
 
+                if (settlement.AdditionalAmountDue <= 0)
+                {
+                    throw new InvalidOperationException("Phiếu quyết toán này không có khoản phụ phí bổ sung cần thu thêm.");
+                }
+
+                if (settlement.RefundStatus == "PAID")
+                {
+                    throw new InvalidOperationException("Khoản phụ phí bổ sung của phiếu quyết toán này đã được xác nhận thu trước đó.");
+                }
+
+                settlement.RefundStatus = "PAID";
+                settlement.RefundMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? "VIETQR" : dto.PaymentMethod;
+                settlement.RefundTransactionCode = dto.TransactionCode;
+                settlement.RefundProofUrl = dto.ProofUrl;
+                settlement.RefundedAt = DateTime.UtcNow;
                 settlement.Status = "PARTIALLY_SETTLED";
+                settlement.TrafficFineRefundStatus = "HOLDING";
+                if (settlement.TrafficFineRefundDate == null)
+                {
+                    var holdDays = await _settingsService.GetSettingValueAsync("traffic_fine_hold_days", 30);
+                    settlement.TrafficFineRefundDate = DateTime.UtcNow.AddDays(holdDays);
+                }
                 settlement.SettledAt = DateTime.UtcNow;
                 settlement.UpdatedAt = DateTime.UtcNow;
+
+                if (!string.IsNullOrWhiteSpace(dto.StaffNotes))
+                {
+                    settlement.StaffNotes = string.IsNullOrWhiteSpace(settlement.StaffNotes)
+                        ? dto.StaffNotes
+                        : $"{settlement.StaffNotes}\n[THU TIỀN BÙ]: {dto.StaffNotes}";
+                }
 
                 var payment = new Payment
                 {
@@ -633,18 +677,19 @@ namespace CarRental.API.Services
                 throw new KeyNotFoundException("Không tìm thấy thông tin phiếu quyết toán.");
             }
 
+            // Chặn đóng hồ sơ nếu khách vẫn còn nợ phụ phí bổ sung chưa thanh toán
+            if (settlement.AdditionalAmountDue > 0 && settlement.RefundStatus != "PAID")
+            {
+                throw new InvalidOperationException($"Khách hàng chưa thanh toán khoản phụ phí bổ sung ({settlement.AdditionalAmountDue:N0}đ). Vui lòng xác nhận thu đủ tiền bù trước khi đối soát phạt nguội và đóng hồ sơ.");
+            }
+
             // Ràng buộc Idempotent (chỉ hoàn 1 lần duy nhất)
             if (settlement.TrafficFineRefundedAt != null || settlement.Status == "CLOSED" || settlement.TrafficFineRefundStatus == "REFUNDED")
             {
                 throw new InvalidOperationException("Quỹ phạt nguội của phiếu quyết toán này đã được đối soát và xử lý tất toán trước đó (chỉ hoàn 1 lần duy nhất).");
             }
 
-            if (settlement.TrafficFineHoldAmount <= 0)
-            {
-                throw new InvalidOperationException("Đơn này không có quỹ giữ cọc phạt nguội.");
-            }
-
-            // Ràng buộc số tiền hoàn không vượt quá số tiền tạm giữ
+            // Ràng buộc số tiền khấu trừ không vượt quá quỹ đang giữ (nếu quỹ = 0 thì chỉ cho phép ActualDeduction = 0 để đóng hồ sơ)
             if (dto.ActualDeduction > settlement.TrafficFineHoldAmount)
             {
                 throw new InvalidOperationException($"Số tiền khấu trừ vi phạm ({dto.ActualDeduction:N0}đ) không thể vượt quá số tiền quỹ phạt nguội đang tạm giữ ({settlement.TrafficFineHoldAmount:N0}đ).");

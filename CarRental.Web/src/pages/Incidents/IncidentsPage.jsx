@@ -576,6 +576,7 @@ const IncidentsPage = () => {
                       <input
                         type="number"
                         min="0"
+                        max="999999"
                         value={resolveForm.towedOdo}
                         onChange={(e) => setResolveForm({ ...resolveForm, towedOdo: e.target.value })}
                         placeholder="Bỏ trống nếu chết điện"

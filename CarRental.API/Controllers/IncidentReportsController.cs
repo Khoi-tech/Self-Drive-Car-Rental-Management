@@ -109,6 +109,7 @@ namespace CarRental.API.Controllers
         }
 
         [HttpPost("{id}/resolve")]
+        [HttpPut("{id}/resolve")]
         [Authorize(Policy = "Operations")]
         public async Task<IActionResult> Resolve(Guid id, [FromBody] ResolveIncidentDto dto)
         {

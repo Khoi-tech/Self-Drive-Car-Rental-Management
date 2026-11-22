@@ -43,6 +43,8 @@ namespace CarRental.API.DTOs.Incidents
         public string? StaffNotes { get; set; }
         public string? StaffName { get; set; }
         public string? VehicleStatusAfterIncident { get; set; } = "REPAIR"; // READY, REPAIR, MAINTENANCE
+        public int? TowedOdo { get; set; }
+        public decimal? TowedFuelLevel { get; set; }
     }
 
     public class IncidentReportDto

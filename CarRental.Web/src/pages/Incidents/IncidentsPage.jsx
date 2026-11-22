@@ -83,7 +83,9 @@ const IncidentsPage = () => {
     companyPayAmount: 0,
     staffNotes: '',
     staffName: 'Trần Văn Hưng (Kỹ thuật VELORA)',
-    vehicleStatusAfterIncident: 'REPAIR'
+    vehicleStatusAfterIncident: 'REPAIR',
+    towedOdo: '',
+    towedFuelLevel: ''
   });
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -161,7 +163,9 @@ const IncidentsPage = () => {
       companyPayAmount: incident.companyPayAmount || 0,
       staffNotes: incident.staffNotes || '',
       staffName: 'Trần Văn Hưng (Kỹ thuật VELORA)',
-      vehicleStatusAfterIncident: 'REPAIR'
+      vehicleStatusAfterIncident: 'REPAIR',
+      towedOdo: '',
+      towedFuelLevel: ''
     });
     setIsResolveModalOpen(true);
   };
@@ -171,6 +175,7 @@ const IncidentsPage = () => {
     if (!selectedIncident) return;
     try {
       setActionLoading(true);
+      const isRescueTow = resolveForm.resolutionAction === 'RESCUE_TOW';
       const payload = {
         resolutionAction: resolveForm.resolutionAction,
         replacementCarId: resolveForm.resolutionAction === 'REPLACE_CAR' && resolveForm.replacementCarId ? resolveForm.replacementCarId : null,
@@ -180,11 +185,17 @@ const IncidentsPage = () => {
         companyPayAmount: Number(resolveForm.companyPayAmount) || 0,
         staffNotes: resolveForm.staffNotes.trim(),
         staffName: resolveForm.staffName,
-        vehicleStatusAfterIncident: resolveForm.vehicleStatusAfterIncident
+        vehicleStatusAfterIncident: resolveForm.vehicleStatusAfterIncident,
+        towedOdo: isRescueTow && resolveForm.towedOdo !== '' ? Number(resolveForm.towedOdo) : null,
+        towedFuelLevel: isRescueTow && resolveForm.towedFuelLevel !== '' ? Number(resolveForm.towedFuelLevel) : null
       };
 
       await incidentService.resolve(selectedIncident.id, payload);
-      alert('Đã hoàn tất xử lý và lập biên bản giải quyết sự cố thành công!');
+      alert(
+        isRescueTow
+          ? 'Đã hoàn tất kéo xe cứu hộ, tự động lập Biên bản thu hồi và chuyển đơn sang Chờ lập quyết toán!'
+          : 'Đã hoàn tất xử lý và lập biên bản giải quyết sự cố thành công!'
+      );
       setIsResolveModalOpen(false);
       setSelectedIncident(null);
       fetchIncidents();
@@ -551,6 +562,45 @@ const IncidentsPage = () => {
                   <option value="NONE">Khách tự khắc phục / Không điều xe (NONE)</option>
                 </select>
               </div>
+
+              {/* Nếu chọn Kéo xe cứu hộ về gara -> hiển thị 2 trường tùy chọn ODO & Xăng/Pin */}
+              {resolveForm.resolutionAction === 'RESCUE_TOW' && (
+                <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-md space-y-2.5">
+                  <div className="font-bold text-amber-950 text-xs flex items-center gap-1.5">
+                    <Truck size={14} className="text-amber-700" />
+                    Thông số thu hồi tự động khi kéo xe về gara (Tùy chọn)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-amber-900 text-[11px]">ODO thực tế lúc kéo xe (km):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={resolveForm.towedOdo}
+                        onChange={(e) => setResolveForm({ ...resolveForm, towedOdo: e.target.value })}
+                        placeholder="Bỏ trống nếu chết điện"
+                        className="w-full p-2 border border-amber-300 rounded-md text-xs bg-white text-zinc-950 font-mono tabular-nums focus:outline-none focus:border-amber-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-amber-900 text-[11px]">Mức xăng / pin lúc kéo xe (%):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={resolveForm.towedFuelLevel}
+                        onChange={(e) => setResolveForm({ ...resolveForm, towedFuelLevel: e.target.value })}
+                        placeholder="0 - 100% (tùy chọn)"
+                        className="w-full p-2 border border-amber-300 rounded-md text-xs bg-white text-zinc-950 font-mono tabular-nums focus:outline-none focus:border-amber-600"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    Hệ thống sẽ tự động lập <strong>Biên bản thu hồi xe (ReturnProtocol)</strong>, chuyển xe sang <strong>REPAIR</strong> và đẩy đơn thuê sang <strong>RETURNED (Chờ lập quyết toán)</strong>. Nếu bỏ trống đồng hồ, hệ thống giữ nguyên mốc lúc bàn giao để không phạt oan khách.
+                  </p>
+                </div>
+              )}
 
               {/* Nếu chọn Đổi xe thay thế -> hiển thị chọn xe */}
               {resolveForm.resolutionAction === 'REPLACE_CAR' && (

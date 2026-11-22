@@ -114,8 +114,8 @@ Dưới đây là quy trình thuê xe khép kín giữa **Khách hàng** và **A
 
 **Trạng thái:**
 
-* `RentalRequest` và `RentalContract` giữ `ACTIVE`.
-* Nếu đổi xe thay thế: Xe gặp sự cố → `REPAIR`; xe thay thế → `RENTED`.
+* Với `REPAIR_ON_SITE` / `REPLACE_CAR` / `NONE`: `RentalRequest` và `RentalContract` giữ `ACTIVE`. Nếu đổi xe thay thế: Xe gặp sự cố → `REPAIR`; xe thay thế → `RENTED`.
+* Với **`RESCUE_TOW` (Điều cứu hộ kéo xe về gara, không đổi xe thay thế)**: Trong cùng Database Transaction, hệ thống tự động lập `ReturnProtocol` (`COMPLETED`) với `TowedOdo` / `TowedFuelLevel` (hoặc fallback về `handover_odo` / `handover_fuel_level` nếu xe chết điện không đọc được đồng hồ), chốt `ReturnDate` tại thời điểm báo sự cố nếu quá hạn để không phạt trễ giờ oan, giữ nguyên sơ đồ xước bàn giao (không tạo thêm marker `CUSTOMER_RENTAL` tránh tính trùng với `CustomerPayAmount`), đồng thời chuyển đồng bộ `Car → REPAIR` và `RentalRequest → RETURNED` (đẩy thẳng sang tab **Chờ lập quyết toán** tại `/admin/settlements`).
 
 **Ràng buộc:**
 

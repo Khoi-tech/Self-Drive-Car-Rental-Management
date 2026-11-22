@@ -122,89 +122,192 @@ namespace CarRental.API.Services
 
         public async Task<IncidentReportDto> ResolveAsync(Guid id, ResolveIncidentDto dto)
         {
-            var report = await _context.IncidentReports
-                .Include(i => i.Vehicle)
-                .Include(i => i.RentalRequest)
-                .FirstOrDefaultAsync(i => i.Id == id);
-
-            if (report == null)
-                throw new KeyNotFoundException("Không tìm thấy hồ sơ sự cố.");
-
-            report.Status = "RESOLVED";
-            report.ResolutionAction = dto.ResolutionAction.ToUpper();
-            report.ReplacementCarId = dto.ReplacementCarId;
-            report.EstimatedDamageCost = dto.EstimatedDamageCost;
-            report.InsuranceCoverageStatus = dto.InsuranceCoverageStatus;
-            report.CustomerPayAmount = dto.CustomerPayAmount;
-            report.CompanyPayAmount = dto.CompanyPayAmount;
-            report.StaffNotes = dto.StaffNotes;
-            report.HandledByStaffName = dto.StaffName ?? "Nhân viên VELORA";
-            report.ResolvedAt = DateTime.UtcNow;
-
-            // Handle replacement car if chosen
-            if (dto.ResolutionAction.ToUpper() == "REPLACE_CAR")
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                if (!dto.ReplacementCarId.HasValue)
+                var report = await _context.IncidentReports
+                    .Include(i => i.Vehicle)
+                    .Include(i => i.RentalRequest)
+                    .FirstOrDefaultAsync(i => i.Id == id);
+
+                if (report == null)
+                    throw new KeyNotFoundException("Không tìm thấy hồ sơ sự cố.");
+
+                var action = (dto.ResolutionAction ?? "NONE").ToUpper();
+
+                report.Status = "RESOLVED";
+                report.ResolutionAction = action;
+                report.ReplacementCarId = dto.ReplacementCarId;
+                report.EstimatedDamageCost = dto.EstimatedDamageCost;
+                report.InsuranceCoverageStatus = dto.InsuranceCoverageStatus;
+                report.CustomerPayAmount = dto.CustomerPayAmount;
+                report.CompanyPayAmount = dto.CompanyPayAmount;
+                report.StaffNotes = dto.StaffNotes;
+                report.HandledByStaffName = dto.StaffName ?? "Nhân viên VELORA";
+                report.ResolvedAt = DateTime.UtcNow;
+
+                // Handle replacement car if chosen
+                if (action == "REPLACE_CAR")
                 {
-                    throw new InvalidOperationException("Vui lòng chọn xe thay thế từ kho xe khi chọn phương án Đổi xe (REPLACE_CAR).");
+                    if (!dto.ReplacementCarId.HasValue)
+                    {
+                        throw new InvalidOperationException("Vui lòng chọn xe thay thế từ kho xe khi chọn phương án Đổi xe (REPLACE_CAR).");
+                    }
+
+                    var replCar = await _context.Vehicles.FindAsync(dto.ReplacementCarId.Value);
+                    if (replCar == null)
+                    {
+                        throw new KeyNotFoundException("Không tìm thấy xe thay thế đã chọn.");
+                    }
+
+                    if (replCar.Status != VehicleStatus.READY)
+                    {
+                        throw new InvalidOperationException($"Xe thay thế {replCar.Make} {replCar.Model} ({replCar.LicensePlate}) không sẵn sàng để bàn giao (Trạng thái hiện tại: {replCar.Status}). Vui lòng chọn xe đang ở trạng thái READY.");
+                    }
+
+                    replCar.Status = VehicleStatus.RENTED;
+                    replCar.UpdatedAt = DateTime.UtcNow;
+
+                    // Update RentalRequest to associate with new replacement car
+                    if (report.RentalRequest != null)
+                    {
+                        report.RentalRequest.CarId = replCar.Id;
+                        report.RentalRequest.UpdatedAt = DateTime.UtcNow;
+                    }
                 }
 
-                var replCar = await _context.Vehicles.FindAsync(dto.ReplacementCarId.Value);
-                if (replCar == null)
+                // Update original damaged car status after incident
+                if (report.Vehicle != null)
                 {
-                    throw new KeyNotFoundException("Không tìm thấy xe thay thế đã chọn.");
+                    var targetStatus = dto.VehicleStatusAfterIncident?.ToUpper();
+
+                    if (action == "REPLACE_CAR" || action == "RESCUE_TOW")
+                    {
+                        // Original car pulled back to garage or replaced: must NOT stay RENTED
+                        report.Vehicle.Status = targetStatus switch
+                        {
+                            "MAINTENANCE" => VehicleStatus.MAINTENANCE,
+                            "INSPECTION" => VehicleStatus.INSPECTION,
+                            "READY" => VehicleStatus.READY,
+                            _ => VehicleStatus.REPAIR
+                        };
+                    }
+                    else
+                    {
+                        // Repaired on-site or client resolved
+                        report.Vehicle.Status = targetStatus switch
+                        {
+                            "REPAIR" => VehicleStatus.REPAIR,
+                            "MAINTENANCE" => VehicleStatus.MAINTENANCE,
+                            "INSPECTION" => VehicleStatus.INSPECTION,
+                            "READY" => VehicleStatus.READY,
+                            _ => VehicleStatus.RENTED
+                        };
+                    }
+
+                    report.Vehicle.UpdatedAt = DateTime.UtcNow;
                 }
 
-                if (replCar.Status != VehicleStatus.READY)
+                // Auto-recovery workflow for RESCUE_TOW: auto-generate ReturnProtocol & move RentalRequest -> RETURNED
+                if (action == "RESCUE_TOW" && report.RentalRequest != null && report.RentalRequest.Status == "ACTIVE")
                 {
-                    throw new InvalidOperationException($"Xe thay thế {replCar.Make} {replCar.Model} ({replCar.LicensePlate}) không sẵn sàng để bàn giao (Trạng thái hiện tại: {replCar.Status}). Vui lòng chọn xe đang ở trạng thái READY.");
-                }
+                    var existingReturn = await _context.ReturnProtocols
+                        .FirstOrDefaultAsync(r => r.RentalRequestId == report.RentalRequestId && r.Status == "COMPLETED");
 
-                replCar.Status = VehicleStatus.RENTED;
-                replCar.UpdatedAt = DateTime.UtcNow;
+                    if (existingReturn == null)
+                    {
+                        var handover = await _context.HandoverProtocols
+                            .OrderByDescending(h => h.CreatedAt)
+                            .FirstOrDefaultAsync(h => h.RentalRequestId == report.RentalRequestId);
 
-                // Update RentalRequest to associate with new replacement car
-                if (report.RentalRequest != null)
-                {
-                    report.RentalRequest.CarId = replCar.Id;
+                        var contract = await _context.RentalContracts
+                            .FirstOrDefaultAsync(c => c.RequestId == report.RentalRequestId);
+
+                        int handoverOdo = handover != null && handover.HandoverOdo > 0
+                            ? handover.HandoverOdo
+                            : (handover?.OdoAtHandover > 0 ? handover.OdoAtHandover : (report.Vehicle?.CurrentMileage ?? 0));
+
+                        decimal handoverFuel = handover?.HandoverFuelLevel ?? 100m;
+
+                        bool hasTowedOdo = dto.TowedOdo.HasValue && dto.TowedOdo.Value > 0;
+                        bool hasTowedFuel = dto.TowedFuelLevel.HasValue && dto.TowedFuelLevel.Value >= 0m && dto.TowedFuelLevel.Value <= 100m;
+
+                        int finalReturnOdo = hasTowedOdo ? Math.Max(handoverOdo, dto.TowedOdo!.Value) : handoverOdo;
+                        decimal finalReturnFuel = hasTowedFuel ? dto.TowedFuelLevel!.Value : handoverFuel;
+
+                        if (hasTowedOdo && report.Vehicle != null)
+                        {
+                            report.Vehicle.CurrentMileage = finalReturnOdo;
+                        }
+
+                        // Chốt thời điểm trả xe: nếu chưa quá hạn thì lấy UtcNow, nếu quá hạn trong lúc chờ cứu hộ thì lấy thời điểm báo sự cố
+                        DateTime actualReturnTime = DateTime.UtcNow <= report.RentalRequest.EndTime
+                            ? DateTime.UtcNow
+                            : report.CreatedAt;
+
+                        int totalKmDriven = Math.Max(0, finalReturnOdo - handoverOdo);
+                        int? maxKmAllowed = contract?.MaxKm
+                            ?? (report.Vehicle?.MileageLimit.HasValue == true
+                                ? report.Vehicle.MileageLimit.Value * Math.Max(1, report.RentalRequest.TotalDays)
+                                : (int?)null);
+                        int excessKm = maxKmAllowed.HasValue ? Math.Max(0, totalKmDriven - maxKmAllowed.Value) : 0;
+
+                        // Giữ nguyên sơ đồ vết xước từ bàn giao (KHÔNG thêm marker CUSTOMER_RENTAL mới) để tránh tính trùng với CustomerPayAmount của IncidentReport
+                        string preservedDamageMap = !string.IsNullOrWhiteSpace(handover?.HandoverDamageMap)
+                            ? handover!.HandoverDamageMap!
+                            : (!string.IsNullOrWhiteSpace(handover?.DamagePointsJson) ? handover!.DamagePointsJson! : "[]");
+
+                        string autoNotes = (!hasTowedOdo || !hasTowedFuel)
+                            ? "Biên bản thu hồi tự động từ sự cố kéo xe cứu hộ (không đọc được đồng hồ)"
+                            : $"Biên bản thu hồi tự động từ sự cố kéo xe cứu hộ ({report.IncidentCode})";
+
+                        var autoReturnProtocol = new ReturnProtocol
+                        {
+                            ProtocolNumber = $"BBT-SC-{DateTime.UtcNow:yyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}",
+                            RentalRequestId = report.RentalRequestId,
+                            ContractId = contract?.Id,
+                            StaffName = dto.StaffName ?? "Nhân viên VELORA",
+                            CustomerName = report.CustomerName,
+                            CustomerPhone = report.CustomerPhone,
+                            ReturnDate = actualReturnTime,
+                            CustomerReturnOdo = finalReturnOdo,
+                            YardCheckinOdo = finalReturnOdo,
+                            StartOdo = handoverOdo,
+                            EndOdo = finalReturnOdo,
+                            TotalKmDriven = totalKmDriven,
+                            MaxKmAllowed = maxKmAllowed,
+                            ExcessKm = excessKm,
+                            CustomerReturnFuelLevel = finalReturnFuel,
+                            YardCheckinFuelLevel = finalReturnFuel,
+                            InitialFuelLevel = (int)Math.Round(handoverFuel),
+                            ReturnFuelLevel = (int)Math.Round(finalReturnFuel),
+                            FuelDifference = (int)Math.Round(Math.Max(0m, handoverFuel - finalReturnFuel)),
+                            ReturnDamageMap = preservedDamageMap,
+                            DamagePointsJson = preservedDamageMap,
+                            StaffNotes = autoNotes,
+                            NextVehicleStatus = "REPAIR",
+                            Status = "COMPLETED",
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        _context.ReturnProtocols.Add(autoReturnProtocol);
+                    }
+
+                    report.RentalRequest.Status = "RETURNED";
                     report.RentalRequest.UpdatedAt = DateTime.UtcNow;
                 }
-            }
 
-            // Update original damaged car status after incident
-            if (report.Vehicle != null)
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (await GetByIdAsync(report.Id))!;
+            }
+            catch
             {
-                var targetStatus = dto.VehicleStatusAfterIncident?.ToUpper();
-
-                if (dto.ResolutionAction.ToUpper() == "REPLACE_CAR")
-                {
-                    // If car was replaced, original car must NOT be RENTED anymore
-                    report.Vehicle.Status = targetStatus switch
-                    {
-                        "MAINTENANCE" => VehicleStatus.MAINTENANCE,
-                        "INSPECTION" => VehicleStatus.INSPECTION,
-                        "READY" => VehicleStatus.READY,
-                        _ => VehicleStatus.REPAIR // Default to REPAIR for damaged car
-                    };
-                }
-                else
-                {
-                    // Repaired on-site or client resolved
-                    report.Vehicle.Status = targetStatus switch
-                    {
-                        "REPAIR" => VehicleStatus.REPAIR,
-                        "MAINTENANCE" => VehicleStatus.MAINTENANCE,
-                        "INSPECTION" => VehicleStatus.INSPECTION,
-                        "READY" => VehicleStatus.READY,
-                        _ => VehicleStatus.RENTED // Continues trip with client
-                    };
-                }
-
-                report.Vehicle.UpdatedAt = DateTime.UtcNow;
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            await _context.SaveChangesAsync();
-            return (await GetByIdAsync(report.Id))!;
         }
 
         private static IncidentReportDto MapToDto(IncidentReport i)

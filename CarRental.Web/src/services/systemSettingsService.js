@@ -14,6 +14,16 @@ const systemSettingsService = {
   // Cập nhật đồng loạt danh sách cấu hình
   updateBatch: async (settingsMap) => {
     return await api.put('/system-settings/batch', { settings: settingsMap });
+  },
+
+  // Lấy cấu hình 4 hạng thành viên & ưu đãi (Public / Authenticated)
+  getMembershipTiers: async () => {
+    return await api.get('/system-settings/membership-tiers');
+  },
+
+  // Lưu cấu hình 4 hạng thành viên & ưu đãi (AdminOnly)
+  updateMembershipTiers: async (tiers) => {
+    return await api.put('/system-settings/membership-tiers', { tiers });
   }
 };
 

@@ -60,6 +60,13 @@ namespace CarRental.API.Entities
         [Column("other_fee", TypeName = "decimal(18,2)")]
         public decimal OtherFee { get; set; } = 0;
 
+        [Column("applied_membership_tier")]
+        [MaxLength(30)]
+        public string? AppliedMembershipTier { get; set; }
+
+        [Column("is_cleaning_fee_waived")]
+        public bool IsCleaningFeeWaived { get; set; } = false;
+
         [Column("other_fee_notes")]
         public string? OtherFeeNotes { get; set; }
 

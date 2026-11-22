@@ -141,19 +141,26 @@ namespace CarRental.API.Services
                     : $"{damageNotes}; Bồi thường sự cố: {incSummary}";
             }
 
-            // 5. Phí vệ sinh nếu xe cần dọn nội thất / rửa (Miễn phí vệ sinh tiêu chuẩn cho Hội viên GOLD / PLATINUM)
-            var membership = await MembershipHelper.ComputeForEmailAsync(_context, request.CustomerEmail);
+            // 5. Phí vệ sinh nếu xe cần dọn nội thất / rửa (Đọc động từ membership_tiers_config; ưu tiên snapshot hạng lúc đặt đơn nếu có)
+            var tiersConfig = await _settingsService.GetMembershipTiersAsync();
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, request.CustomerEmail, tiersConfig);
+            var effectiveTierCode = !string.IsNullOrWhiteSpace(request.AppliedMembershipTier)
+                ? request.AppliedMembershipTier.Trim().ToUpperInvariant()
+                : membership.Tier;
+            var effectiveTierCfg = tiersConfig.FirstOrDefault(t => string.Equals(t.Tier, effectiveTierCode, StringComparison.OrdinalIgnoreCase));
+            bool hasFreeWash = effectiveTierCfg?.FreeCarWash ?? membership.HasFreeStandardCleaning;
+
             decimal cleaningFee = 0;
             bool isCleaningFeeWaived = false;
             string? cleaningFeeWaiverNote = null;
 
             if (returnProtocol.NextVehicleStatus == "CLEANING" || returnProtocol.NextVehicleStatus == "MAINTENANCE")
             {
-                if (membership.HasFreeStandardCleaning)
+                if (hasFreeWash)
                 {
                     cleaningFee = 0m;
                     isCleaningFeeWaived = true;
-                    cleaningFeeWaiverNote = $"Miễn phí vệ sinh & rửa xe tiêu chuẩn 200.000đ (Quyền lợi Hội viên {membership.Tier})";
+                    cleaningFeeWaiverNote = $"Miễn phí vệ sinh & rửa xe tiêu chuẩn 200.000đ (Quyền lợi {effectiveTierCfg?.Label ?? membership.TierLabel})";
                 }
                 else
                 {
@@ -323,6 +330,17 @@ namespace CarRental.API.Services
                     ? (dto.TrafficFineRefundDate ?? DateTime.UtcNow.AddDays(defaultHoldDays))
                     : (DateTime?)null;
 
+                // Snapshot hạng thành viên & trạng thái miễn phí rửa xe tại thời điểm chốt quyết toán
+                var tiersConfigForSnap = await _settingsService.GetMembershipTiersAsync();
+                var membershipSnap = await MembershipHelper.ComputeForEmailAsync(_context, request.CustomerEmail, tiersConfigForSnap);
+                var snapTierCode = !string.IsNullOrWhiteSpace(request.AppliedMembershipTier)
+                    ? request.AppliedMembershipTier.Trim().ToUpperInvariant()
+                    : membershipSnap.Tier;
+                var snapTierCfg = tiersConfigForSnap.FirstOrDefault(t => string.Equals(t.Tier, snapTierCode, StringComparison.OrdinalIgnoreCase));
+                bool snapCleaningWaived = (snapTierCfg?.FreeCarWash ?? membershipSnap.HasFreeStandardCleaning)
+                    && dto.CleaningFee == 0m
+                    && (returnProtocol.NextVehicleStatus == "CLEANING" || returnProtocol.NextVehicleStatus == "MAINTENANCE");
+
                 RentalSettlement settlement;
                 if (existingSettlement != null)
                 {
@@ -337,6 +355,8 @@ namespace CarRental.API.Services
                     settlement.CleaningFee = dto.CleaningFee;
                     settlement.OtherFee = dto.OtherFee;
                     settlement.OtherFeeNotes = dto.OtherFeeNotes;
+                    settlement.AppliedMembershipTier = snapTierCode;
+                    settlement.IsCleaningFeeWaived = snapCleaningWaived;
                     settlement.TotalDeduction = totalDeduction;
                     settlement.BalanceAmount = balance;
                     settlement.SettlementType = settlementType;
@@ -374,6 +394,8 @@ namespace CarRental.API.Services
                         CleaningFee = dto.CleaningFee,
                         OtherFee = dto.OtherFee,
                         OtherFeeNotes = dto.OtherFeeNotes,
+                        AppliedMembershipTier = snapTierCode,
+                        IsCleaningFeeWaived = snapCleaningWaived,
                         TotalDeduction = totalDeduction,
                         BalanceAmount = balance,
                         SettlementType = settlementType,

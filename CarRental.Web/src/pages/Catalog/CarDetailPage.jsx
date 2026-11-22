@@ -27,6 +27,7 @@ import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
 import pricingService from '../../services/pricingService';
 import rentalConditionService from '../../services/rentalConditionService';
+import systemSettingsService from '../../services/systemSettingsService';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { parseVehicleImages, getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import { useAuth } from '../../context/AuthContext';
@@ -233,19 +234,26 @@ const CarDetailPage = () => {
     setBookingError('');
   };
 
+  const [membershipTiers, setMembershipTiers] = useState([]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [vehRes, polRes, condRes] = await Promise.all([
+        const [vehRes, polRes, condRes, tiersRes] = await Promise.all([
           vehicleService.getVehicleById(id),
           pricingService.getPoliciesByVehicleId(id),
-          rentalConditionService.getConditionByVehicleId(id).catch(() => null)
+          rentalConditionService.getConditionByVehicleId(id).catch(() => null),
+          systemSettingsService.getMembershipTiers().catch(() => null)
         ]);
         
         setVehicle(vehRes.data || vehRes);
         setPolicies(polRes.data || polRes || []);
         setCondition(condRes?.data || condRes);
+        const loadedTiers = tiersRes?.data?.tiers || tiersRes?.tiers || [];
+        if (Array.isArray(loadedTiers)) {
+          setMembershipTiers(loadedTiers);
+        }
       } catch (err) {
         console.error('Error fetching car details', err);
       } finally {
@@ -991,7 +999,19 @@ const CarDetailPage = () => {
                     <div className="flex justify-between items-center text-emerald-700 font-semibold">
                       <span>Chiết khấu dài ngày ({effectivePreview.discountPercentage}%)</span>
                       <span className="tabular-nums">
-                        -{formatCurrencyVND(((effectivePreview.basePrice || vehicle.dailyRate) * effectivePreview.rentalDays) - effectivePreview.rentalPrice)}
+                        -{formatCurrencyVND(effectivePreview.discountAmount ?? Math.round(((effectivePreview.basePrice || vehicle.dailyRate) * effectivePreview.rentalDays) * (effectivePreview.discountPercentage / 100)))}
+                      </span>
+                    </div>
+                  )}
+
+                  {effectivePreview.vipEarlyBookingDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-amber-800 font-bold bg-amber-50 px-2 py-1.5 rounded border border-amber-200">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        {effectivePreview.vipEarlyBookingNote || `Ưu đãi hội viên ${effectivePreview.membershipTier} (-${effectivePreview.vipEarlyBookingDiscountPercentage}%)`}
+                      </span>
+                      <span className="tabular-nums shrink-0 ml-2">
+                        -{formatCurrencyVND(effectivePreview.vipEarlyBookingDiscountAmount)}
                       </span>
                     </div>
                   )}
@@ -1020,6 +1040,35 @@ const CarDetailPage = () => {
                   </div>
                 </div>
               ) : null}
+
+              {/* Live VIP Membership Perks from Admin System Settings */}
+              {membershipTiers.length > 0 && (() => {
+                const userTierCode = (user?.membershipTier || '').toUpperCase();
+                const activeTierCfg =
+                  membershipTiers.find(t => t.tier === userTierCode) ||
+                  membershipTiers.find(t => t.tier === 'GOLD') ||
+                  membershipTiers[membershipTiers.length - 1];
+                if (!activeTierCfg) return null;
+
+                return (
+                  <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200/90 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-extrabold text-amber-900 flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        {user ? `Quyền lợi ${activeTierCfg.label}` : `Đặc quyền ${activeTierCfg.label}`}
+                      </span>
+                      {activeTierCfg.earlyBookingDiscountPercent > 0 && (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-200/80 text-amber-950 font-black text-[10px] shrink-0">
+                          -{activeTierCfg.earlyBookingDiscountPercent}% đặt trước ≥ {activeTierCfg.earlyBookingDays} ngày
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-amber-800/90 leading-relaxed">
+                      {activeTierCfg.perksText}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {bookingError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-xs flex items-center gap-2">

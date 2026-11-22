@@ -10,5 +10,7 @@ namespace CarRental.API.Services
         Task<T> GetSettingValueAsync<T>(string key, T defaultValue);
         Task<SystemSettingDto> UpdateSettingAsync(string key, string value);
         Task<List<SystemSettingDto>> UpdateBatchAsync(Dictionary<string, string> settings);
+        Task<List<MembershipTierConfigItem>> GetMembershipTiersAsync();
+        Task<List<MembershipTierConfigItem>> UpdateMembershipTiersAsync(List<MembershipTierConfigItem> tiers);
     }
 }

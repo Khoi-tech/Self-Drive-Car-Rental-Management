@@ -13,9 +13,12 @@ namespace CarRental.API.DTOs.PricingPolicy
         public decimal HolidaySurchargeAmount { get; set; }
         public decimal VietQrDiscountAmount { get; set; }
         public string MembershipTier { get; set; } = "STANDARD";
+        public int VipEarlyBookingDays { get; set; } = 7;
         public decimal VipEarlyBookingDiscountPercentage { get; set; }
         public decimal VipEarlyBookingDiscountAmount { get; set; }
         public string? VipEarlyBookingNote { get; set; }
+        public bool FreeCarWash { get; set; }
+        public int BonusKmPerDay { get; set; }
         public decimal AdjustedDailyPrice { get; set; }
         public decimal RentalPrice { get; set; }
     }

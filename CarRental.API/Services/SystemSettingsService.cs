@@ -8,6 +8,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using CarRental.API.Data;
 using CarRental.API.DTOs.Settings;
 using CarRental.API.Entities;
+using CarRental.API.Helpers;
 
 namespace CarRental.API.Services
 {
@@ -169,6 +170,69 @@ namespace CarRental.API.Services
                 Description = s.Description,
                 UpdatedAt = s.UpdatedAt
             }).ToList();
+        }
+
+        public async Task<List<MembershipTierConfigItem>> GetMembershipTiersAsync()
+        {
+            var settings = await GetAllSettingsAsync();
+            var existing = settings.FirstOrDefault(s =>
+                string.Equals(s.Key, MembershipHelper.SettingKey, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null && !string.IsNullOrWhiteSpace(existing.Value))
+            {
+                return MembershipHelper.ParseTiersJson(existing.Value);
+            }
+
+            // Tự động seed giá trị mặc định nếu chưa có trong system_settings (không xóa/ghi đè dữ liệu cũ)
+            var defaults = MembershipHelper.GetDefaultTiers();
+            var json = MembershipHelper.SerializeTiers(defaults);
+            var dbItem = await _context.SystemSettings.FirstOrDefaultAsync(s => s.Key == MembershipHelper.SettingKey);
+            if (dbItem == null)
+            {
+                _context.SystemSettings.Add(new SystemSetting
+                {
+                    Key = MembershipHelper.SettingKey,
+                    Value = json,
+                    DataType = "JSON",
+                    Description = "Cấu hình điều kiện và ưu đãi 4 hạng thành viên VELORA (STANDARD, SILVER, GOLD, PLATINUM)",
+                    UpdatedAt = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+                await _cache.RemoveByTagAsync(CacheTag);
+            }
+
+            return defaults;
+        }
+
+        public async Task<List<MembershipTierConfigItem>> UpdateMembershipTiersAsync(List<MembershipTierConfigItem> tiers)
+        {
+            var normalized = MembershipHelper.NormalizeTiers(tiers);
+            var json = MembershipHelper.SerializeTiers(normalized);
+
+            var entity = await _context.SystemSettings.FirstOrDefaultAsync(s => s.Key == MembershipHelper.SettingKey);
+            if (entity == null)
+            {
+                entity = new SystemSetting
+                {
+                    Key = MembershipHelper.SettingKey,
+                    Value = json,
+                    DataType = "JSON",
+                    Description = "Cấu hình điều kiện và ưu đãi 4 hạng thành viên VELORA (STANDARD, SILVER, GOLD, PLATINUM)",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.SystemSettings.Add(entity);
+            }
+            else
+            {
+                entity.Value = json;
+                entity.DataType = "JSON";
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            await _cache.RemoveByTagAsync(CacheTag);
+
+            return normalized;
         }
     }
 }

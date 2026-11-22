@@ -265,6 +265,7 @@ namespace CarRental.API.Controllers
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var customerList = new List<CustomerAdminSummaryDto>();
+            var membershipTiersConfig = await MembershipHelper.LoadTiersFromDbAsync(_context);
 
             foreach (var dbUser in customerUsers)
             {
@@ -346,8 +347,8 @@ namespace CarRental.API.Controllers
                     }
                 }
 
-                // Single Source of Truth: Hạng thành viên tính từ COMPLETED trips, TotalSpent, TrustScore
-                var membership = MembershipHelper.Evaluate(completedCount, totalSpent, dbUser.TrustScore);
+                // Single Source of Truth: Hạng thành viên đọc động từ system_settings (membership_tiers_config)
+                var membership = MembershipHelper.Evaluate(completedCount, totalSpent, dbUser.TrustScore, membershipTiersConfig);
                 var currentKycStatus = string.IsNullOrWhiteSpace(dbUser.KycStatus)
                     ? "NOT_SUBMITTED"
                     : dbUser.KycStatus.Trim().ToUpperInvariant();

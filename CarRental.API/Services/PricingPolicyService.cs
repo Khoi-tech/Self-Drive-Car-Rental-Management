@@ -186,8 +186,9 @@ namespace CarRental.API.Services
             decimal holidaySurchargeAmount = Math.Round(baseSubtotal * (holidaySurcharge / 100m), 0);
             decimal subtotalAfterTierPolicy = baseSubtotal - discountAmount + holidaySurchargeAmount;
 
-            // Quyền lợi Hội viên GOLD / PLATINUM: Giảm 10% khi đặt trước >= 7 ngày
-            var membership = await MembershipHelper.ComputeForEmailAsync(_context, requestDto.CustomerEmail);
+            // Quyền lợi Hội viên đọc động từ system_settings (membership_tiers_config)
+            var tiersConfig = await _settingsService.GetMembershipTiersAsync();
+            var membership = await MembershipHelper.ComputeForEmailAsync(_context, requestDto.CustomerEmail, tiersConfig);
             decimal vipEarlyDiscountPercent = 0m;
             decimal vipEarlyDiscountAmount = 0m;
             string? vipEarlyNote = null;
@@ -195,11 +196,11 @@ namespace CarRental.API.Services
             if (membership.HasEarlyBookingDiscount && requestDto.StartTime.HasValue)
             {
                 var leadDays = (requestDto.StartTime.Value.ToUniversalTime() - DateTime.UtcNow).TotalDays;
-                if (leadDays >= 7.0)
+                if (leadDays >= membership.EarlyBookingDays)
                 {
                     vipEarlyDiscountPercent = membership.EarlyBookingDiscountPercent;
                     vipEarlyDiscountAmount = Math.Round(subtotalAfterTierPolicy * (vipEarlyDiscountPercent / 100m), 0);
-                    vipEarlyNote = $"Ưu đãi Hội viên {membership.Tier} đặt trước ≥ 7 ngày (-{vipEarlyDiscountPercent:0}%)";
+                    vipEarlyNote = $"Ưu đãi {membership.TierLabel} đặt trước ≥ {membership.EarlyBookingDays} ngày (-{vipEarlyDiscountPercent:0.##}%)";
                 }
             }
 
@@ -231,9 +232,12 @@ namespace CarRental.API.Services
                 HolidaySurchargeAmount = holidaySurchargeAmount,
                 VietQrDiscountAmount = vietQrDiscountAmount,
                 MembershipTier = membership.Tier,
+                VipEarlyBookingDays = membership.EarlyBookingDays,
                 VipEarlyBookingDiscountPercentage = vipEarlyDiscountPercent,
                 VipEarlyBookingDiscountAmount = vipEarlyDiscountAmount,
                 VipEarlyBookingNote = vipEarlyNote,
+                FreeCarWash = membership.FreeCarWash,
+                BonusKmPerDay = membership.BonusKmPerDay,
                 AdjustedDailyPrice = adjustedDailyPrice,
                 RentalPrice = rentalPrice
             };

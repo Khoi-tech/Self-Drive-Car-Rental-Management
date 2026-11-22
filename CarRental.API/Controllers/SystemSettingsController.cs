@@ -52,6 +52,37 @@ namespace CarRental.API.Controllers
             return Ok(updatedList);
         }
 
+        [HttpGet("membership-tiers")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetMembershipTiers()
+        {
+            var tiers = await _settingsService.GetMembershipTiersAsync();
+            return Ok(new { tiers });
+        }
+
+        [HttpPut("membership-tiers")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> UpdateMembershipTiers([FromBody] UpdateMembershipTiersRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (dto?.Tiers == null || dto.Tiers.Count == 0)
+            {
+                return BadRequest(new { Message = "Danh sách cấu hình hạng thành viên không hợp lệ." });
+            }
+
+            var updated = await _settingsService.UpdateMembershipTiersAsync(dto.Tiers);
+            return Ok(new
+            {
+                success = true,
+                message = "Đã lưu cấu hình Hạng thành viên & Ưu đãi thành công.",
+                tiers = updated
+            });
+        }
+
         [HttpPost("cleanup-e2e")]
         public async Task<IActionResult> CleanupE2ETestData([FromServices] CarRental.API.Data.AppDbContext context)
         {

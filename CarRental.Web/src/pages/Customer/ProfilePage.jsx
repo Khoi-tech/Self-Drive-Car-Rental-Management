@@ -99,7 +99,7 @@ const NAV_GROUPS = [
 ];
 
 const ProfilePage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -221,6 +221,9 @@ const ProfilePage = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    if (typeof refreshUser === 'function') {
+      refreshUser();
+    }
     fetchMyRequests(true);
   };
 

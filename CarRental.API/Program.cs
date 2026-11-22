@@ -292,6 +292,10 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_dob date NULL;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_license_class character varying(20) NULL;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_license_issue_date date NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS applied_membership_tier character varying(30) NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS applied_vip_discount_percent numeric(5,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS applied_vip_discount_amount numeric(18,2) NOT NULL DEFAULT 0;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS applied_bonus_km_per_day integer NOT NULL DEFAULT 0;
 
             -- 6b. rental_conditions & app_users extended eligibility columns
             ALTER TABLE rental_conditions ADD COLUMN IF NOT EXISTS required_license_class character varying(20) NOT NULL DEFAULT 'B1';
@@ -330,6 +334,8 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_settled_at timestamp with time zone NULL;
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_refund_payment_id uuid NULL;
             ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS traffic_fine_notes text NULL;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS applied_membership_tier character varying(30) NULL;
+            ALTER TABLE rental_settlements ADD COLUMN IF NOT EXISTS is_cleaning_fee_waived boolean NOT NULL DEFAULT FALSE;
 
             -- 10. Mark migration as applied in history if not present
             CREATE TABLE IF NOT EXISTS ""__EFMigrationsHistory"" (

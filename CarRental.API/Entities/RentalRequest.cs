@@ -85,6 +85,19 @@ namespace CarRental.API.Entities
         [Column("discount_percent", TypeName = "decimal(5,2)")]
         public decimal DiscountPercent { get; set; }
 
+        [Column("applied_membership_tier")]
+        [MaxLength(30)]
+        public string? AppliedMembershipTier { get; set; }
+
+        [Column("applied_vip_discount_percent", TypeName = "decimal(5,2)")]
+        public decimal AppliedVipDiscountPercent { get; set; } = 0;
+
+        [Column("applied_vip_discount_amount", TypeName = "decimal(18,2)")]
+        public decimal AppliedVipDiscountAmount { get; set; } = 0;
+
+        [Column("applied_bonus_km_per_day")]
+        public int AppliedBonusKmPerDay { get; set; } = 0;
+
         [Column("holiday_surcharge_percent", TypeName = "decimal(5,2)")]
         public decimal HolidaySurchargePercent { get; set; }
 

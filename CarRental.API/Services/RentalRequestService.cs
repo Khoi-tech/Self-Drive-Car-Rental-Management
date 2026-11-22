@@ -20,19 +20,45 @@ namespace CarRental.API.Services
         private readonly IStorageService _storageService;
         private readonly ISystemSettingsService _settingsService;
         private readonly INotificationService _notificationService;
+        private readonly IRentalConditionService _rentalConditionService;
 
         public RentalRequestService(
             AppDbContext context, 
             IPricingPolicyService pricingService, 
             IStorageService storageService,
             ISystemSettingsService settingsService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IRentalConditionService rentalConditionService)
         {
             _context = context;
             _pricingService = pricingService;
             _storageService = storageService;
             _settingsService = settingsService;
             _notificationService = notificationService;
+            _rentalConditionService = rentalConditionService;
+        }
+
+        private static int CalculateCompletedYears(DateTime fromDate, DateTime referenceDate)
+        {
+            int years = referenceDate.Year - fromDate.Year;
+            if (fromDate.Date > referenceDate.Date.AddYears(-years)) years--;
+            return years;
+        }
+
+        private static int GetLicenseRank(string? licenseClass)
+        {
+            if (string.IsNullOrWhiteSpace(licenseClass)) return 0;
+            return licenseClass.Trim().ToUpperInvariant() switch
+            {
+                "B1_AUTO" => 1,
+                "B1" => 2,
+                "B2" => 3,
+                "C" => 4,
+                "D" => 5,
+                "E" => 6,
+                "FC" => 7,
+                _ => 1
+            };
         }
 
         public async Task<RentalRequestResponseDto> CreateRequestAsync(CreateRentalRequestDto dto)
@@ -140,31 +166,138 @@ namespace CarRental.API.Services
                     throw new InvalidOperationException("Xe có lịch bảo dưỡng trùng với thời gian thuê bạn chọn.");
                 }
 
-                // PHASE 2: Advanced Rental Eligibility & Driver's License Validation
+                // PHASE 2 & 6: 2-Layer Effective Rental Conditions Validation
+                bool isFastHold = string.Equals(dto.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase);
+                var effectiveCond = await _rentalConditionService.GetEffectiveConditionAsync(dto.CarId);
+
+                User? customerUser = null;
+                if (!string.IsNullOrWhiteSpace(dto.CustomerEmail))
+                {
+                    var normEmail = dto.CustomerEmail.Trim().ToLowerInvariant();
+                    customerUser = await _context.Users.AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Email.ToLower() == normEmail);
+                }
+
+                bool isUserKycVerified = string.Equals(customerUser?.KycStatus, "VERIFIED", StringComparison.OrdinalIgnoreCase);
+
+                // 1. Check RequireVerifiedKyc
+                if (effectiveCond != null && effectiveCond.RequireVerifiedKyc && !isUserKycVerified)
+                {
+                    throw new InvalidOperationException(
+                        $"Xe {car.Make} {car.Model} yêu cầu tài khoản đã hoàn tất xác minh danh tính (KYC) trước khi đặt. Vui lòng cập nhật CCCD & GPLX trong Hồ sơ cá nhân để được duyệt KYC.");
+                }
+
+                // 2. Check MinCompletedTrips
+                if (effectiveCond != null && effectiveCond.MinCompletedTrips > 0)
+                {
+                    var normEmail = dto.CustomerEmail?.Trim().ToLowerInvariant() ?? "";
+                    var completedTrips = await _context.RentalRequests.CountAsync(r =>
+                        (r.CustomerEmail.ToLower() == normEmail ||
+                         (!string.IsNullOrWhiteSpace(dto.CustomerIdCard) && dto.CustomerIdCard != "CHƯA_CẬP_NHẬT" && r.CustomerIdCard == dto.CustomerIdCard))
+                        && r.Status == "COMPLETED");
+
+                    if (completedTrips < effectiveCond.MinCompletedTrips)
+                    {
+                        throw new InvalidOperationException(
+                            $"Xe {car.Make} {car.Model} yêu cầu tối thiểu {effectiveCond.MinCompletedTrips} chuyến thuê đã hoàn tất tốt trên hệ thống VELORA (bạn hiện có {completedTrips} chuyến).");
+                    }
+                }
+
+                // 3. Resolve effective DOB, License Class, License Issue Date (Verified Profile vs Declared Self-Report)
+                DateTime? effectiveDob = isUserKycVerified && customerUser?.DateOfBirth.HasValue == true
+                    ? customerUser.DateOfBirth
+                    : dto.DeclaredDob;
+
+                string? effectiveLicenseClass = isUserKycVerified && !string.IsNullOrWhiteSpace(customerUser?.LicenseClass ?? customerUser?.DriverLicenseClass)
+                    ? (customerUser!.LicenseClass ?? customerUser.DriverLicenseClass)
+                    : (!string.IsNullOrWhiteSpace(dto.DeclaredLicenseClass) ? dto.DeclaredLicenseClass : dto.DriverLicenseClass);
+
+                DateTime? effectiveLicenseIssueDate = isUserKycVerified && customerUser?.LicenseIssueDate.HasValue == true
+                    ? customerUser.LicenseIssueDate
+                    : dto.DeclaredLicenseIssueDate;
+
+                // 4. Validate License Class against effective condition & car transmission
+                if (!string.IsNullOrWhiteSpace(effectiveLicenseClass))
+                {
+                    if (effectiveLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) && car.Transmission == TransmissionType.MANUAL)
+                    {
+                        throw new InvalidOperationException($"GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn ({car.Make} {car.Model}). Vui lòng chọn dòng xe số tự động hoặc cập nhật hạng bằng lái.");
+                    }
+
+                    if (effectiveCond != null && !string.IsNullOrWhiteSpace(effectiveCond.RequiredLicenseClass))
+                    {
+                        int userRank = GetLicenseRank(effectiveLicenseClass);
+                        int reqRank = GetLicenseRank(effectiveCond.RequiredLicenseClass);
+                        if (car.Transmission == TransmissionType.MANUAL && reqRank < GetLicenseRank("B2"))
+                        {
+                            reqRank = GetLicenseRank("B2");
+                        }
+
+                        if (userRank > 0 && userRank < reqRank)
+                        {
+                            throw new InvalidOperationException(
+                                $"Xe {car.Make} {car.Model} yêu cầu GPLX tối thiểu hạng {effectiveCond.RequiredLicenseClass} (hạng GPLX của bạn là {effectiveLicenseClass}).");
+                        }
+                    }
+
+                    if ((effectiveLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) || 
+                         effectiveLicenseClass.Equals("B1", StringComparison.OrdinalIgnoreCase) || 
+                         effectiveLicenseClass.Equals("B2", StringComparison.OrdinalIgnoreCase)) && car.Seats > 9)
+                    {
+                        throw new InvalidOperationException($"GPLX hạng {effectiveLicenseClass} chỉ cho phép điều khiển phương tiện tối đa 9 chỗ ngồi ({car.Make} {car.Model} có {car.Seats} chỗ).");
+                    }
+                }
+
+                // 5. Validate MinAge & RequireDrivingYears
+                if (effectiveCond != null)
+                {
+                    int reqMinAge = effectiveCond.MinAge ?? 0;
+                    int reqDrivingYears = effectiveCond.RequireDrivingYears ?? 0;
+                    var todayUtc = DateTime.UtcNow.Date;
+
+                    if (reqMinAge > 0)
+                    {
+                        if (effectiveDob.HasValue)
+                        {
+                            int userAge = CalculateCompletedYears(effectiveDob.Value, todayUtc);
+                            if (userAge < reqMinAge)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Xe {car.Make} {car.Model} yêu cầu người thuê từ đủ {reqMinAge} tuổi trở lên (theo ngày sinh đã khai, bạn hiện {userAge} tuổi).");
+                            }
+                        }
+                        else if (!isFastHold && !isUserKycVerified)
+                        {
+                            throw new InvalidOperationException(
+                                $"Vui lòng khai báo Ngày sinh để hệ thống kiểm tra điều kiện độ tuổi tối thiểu ({reqMinAge} tuổi).");
+                        }
+                    }
+
+                    if (reqDrivingYears > 0)
+                    {
+                        if (effectiveLicenseIssueDate.HasValue)
+                        {
+                            int expYears = CalculateCompletedYears(effectiveLicenseIssueDate.Value, todayUtc);
+                            if (expYears < reqDrivingYears)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Xe {car.Make} {car.Model} yêu cầu tối thiểu {reqDrivingYears} năm kinh nghiệm lái xe tính từ ngày cấp GPLX (hiện tại bạn có {Math.Max(0, expYears)} năm).");
+                            }
+                        }
+                        else if (!isFastHold && !isUserKycVerified)
+                        {
+                            throw new InvalidOperationException(
+                                $"Vui lòng khai báo Ngày cấp GPLX để hệ thống kiểm tra điều kiện kinh nghiệm lái xe tối thiểu ({reqDrivingYears} năm).");
+                        }
+                    }
+                }
+
                 if (dto.DriverLicenseExpiry.HasValue && dto.DriverLicenseExpiry.Value.Date < dto.EndTime.Date)
                 {
                     throw new InvalidOperationException($"Giấy phép lái xe hết hạn vào ngày {dto.DriverLicenseExpiry.Value:dd/MM/yyyy}, trước ngày dự kiến trả xe ({dto.EndTime:dd/MM/yyyy}). Vui lòng cập nhật GPLX còn hạn.");
                 }
 
-                if (!string.IsNullOrWhiteSpace(dto.DriverLicenseClass))
-                {
-                    if (dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) && car.Transmission == TransmissionType.MANUAL)
-                    {
-                        throw new InvalidOperationException($"GPLX hạng B1 số tự động không được phép điều khiển dòng xe số sàn ({car.Make} {car.Model}). Vui lòng chọn dòng xe số tự động hoặc cập nhật hạng bằng lái.");
-                    }
-
-                    if ((dto.DriverLicenseClass.Equals("B1_AUTO", StringComparison.OrdinalIgnoreCase) || 
-                         dto.DriverLicenseClass.Equals("B1", StringComparison.OrdinalIgnoreCase) || 
-                         dto.DriverLicenseClass.Equals("B2", StringComparison.OrdinalIgnoreCase)) && car.Seats > 9)
-                    {
-                        throw new InvalidOperationException($"GPLX hạng {dto.DriverLicenseClass} chỉ cho phép điều khiển phương tiện tối đa 9 chỗ ngồi ({car.Make} {car.Model} có {car.Seats} chỗ).");
-                    }
-                }
-
-                // Luxury Car Rental History Requirement (DailyRate >= 1,500,000 VND)
-                // FAST_HOLD bypasses this check because Fast Hold is a reservation holding deposit!
-                bool isFastHold = string.Equals(dto.BookingType, "FAST_HOLD", StringComparison.OrdinalIgnoreCase);
-
+                // Luxury Car Dispute Check
                 if (!isFastHold && car.DailyRate >= 1500000m)
                 {
                     var hasDispute = await _context.RentalRequests.AnyAsync(r => 
@@ -173,14 +306,6 @@ namespace CarRental.API.Services
                     if (hasDispute)
                     {
                         throw new InvalidOperationException("Khách hàng đang có hồ sơ khiếu nại tranh chấp chưa hoàn tất, tạm thời không thể đặt xe thuộc phân khúc cao cấp.");
-                    }
-
-                    var hasCompletedRental = await _context.RentalRequests.AnyAsync(r => 
-                        (r.CustomerEmail == dto.CustomerEmail || r.CustomerIdCard == dto.CustomerIdCard) 
-                        && r.Status == "COMPLETED");
-                    if (!hasCompletedRental)
-                    {
-                        throw new InvalidOperationException($"Dòng xe cao cấp ({car.Make} {car.Model}) yêu cầu khách hàng phải có tối thiểu 1 chuyến đi hoàn tất tốt trên hệ thống VELORA để xác minh độ tín nhiệm. Bạn có thể sử dụng tính năng 'Cọc giữ xe siêu tốc 500k' để giữ chỗ xe trước!");
                     }
                 }
 
@@ -252,11 +377,14 @@ namespace CarRental.API.Services
                     
                     CustomerName = dto.CustomerName,
                     CustomerPhone = dto.CustomerPhone,
-                    CustomerEmail = dto.CustomerEmail,
+                    CustomerEmail = dto.CustomerEmail ?? string.Empty,
                     CustomerIdCard = !string.IsNullOrWhiteSpace(dto.CustomerIdCard) ? dto.CustomerIdCard : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
                     DriverLicenseNumber = !string.IsNullOrWhiteSpace(dto.DriverLicenseNumber) ? dto.DriverLicenseNumber : (isFastHold ? "CHƯA_CẬP_NHẬT" : ""),
-                    DriverLicenseClass = dto.DriverLicenseClass,
+                    DriverLicenseClass = !string.IsNullOrWhiteSpace(effectiveLicenseClass) ? effectiveLicenseClass : dto.DriverLicenseClass,
                     DriverLicenseExpiry = dto.DriverLicenseExpiry.ToUtc(),
+                    DeclaredDob = effectiveDob.HasValue ? DateTime.SpecifyKind(effectiveDob.Value.Date, DateTimeKind.Utc) : null,
+                    DeclaredLicenseClass = !string.IsNullOrWhiteSpace(effectiveLicenseClass) ? effectiveLicenseClass.Trim().ToUpperInvariant() : null,
+                    DeclaredLicenseIssueDate = effectiveLicenseIssueDate.HasValue ? DateTime.SpecifyKind(effectiveLicenseIssueDate.Value.Date, DateTimeKind.Utc) : null,
                     IdCardFrontUrl = idCardFront,
                     IdCardBackUrl = idCardBack,
                     DriverLicenseFrontUrl = licenseFront,
@@ -765,6 +893,9 @@ namespace CarRental.API.Services
                 DriverLicenseNumber = request.DriverLicenseNumber,
                 DriverLicenseClass = request.DriverLicenseClass,
                 DriverLicenseExpiry = request.DriverLicenseExpiry,
+                DeclaredDob = request.DeclaredDob,
+                DeclaredLicenseClass = request.DeclaredLicenseClass,
+                DeclaredLicenseIssueDate = request.DeclaredLicenseIssueDate,
                 IdCardFrontUrl = request.IdCardFrontUrl,
                 IdCardBackUrl = request.IdCardBackUrl,
                 DriverLicenseFrontUrl = request.DriverLicenseFrontUrl,

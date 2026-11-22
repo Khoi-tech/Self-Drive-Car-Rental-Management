@@ -287,6 +287,11 @@ namespace CarRental.API.Services
                 Role = user.Role,
                 IsActive = user.IsActive,
                 LockReason = user.LockReason,
+                KycStatus = user.KycStatus ?? "PENDING",
+                DateOfBirth = user.DateOfBirth,
+                DriverLicenseClass = user.DriverLicenseClass,
+                LicenseClass = user.LicenseClass ?? user.DriverLicenseClass,
+                LicenseIssueDate = user.LicenseIssueDate,
                 CreatedAt = user.CreatedAt
             };
         }

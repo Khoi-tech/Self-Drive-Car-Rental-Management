@@ -289,6 +289,25 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS hold_expires_at timestamp with time zone NULL;
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS delivery_method character varying(30) NOT NULL DEFAULT 'SELF_PICKUP';
             ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS estimated_delivery_distance_km numeric(8,2) NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_dob date NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_license_class character varying(20) NULL;
+            ALTER TABLE rental_requests ADD COLUMN IF NOT EXISTS declared_license_issue_date date NULL;
+
+            -- 6b. rental_conditions & app_users extended eligibility columns
+            ALTER TABLE rental_conditions ADD COLUMN IF NOT EXISTS required_license_class character varying(20) NOT NULL DEFAULT 'B1';
+            ALTER TABLE rental_conditions ADD COLUMN IF NOT EXISTS min_completed_trips integer NOT NULL DEFAULT 0;
+            ALTER TABLE rental_conditions ADD COLUMN IF NOT EXISTS require_verified_kyc boolean NOT NULL DEFAULT FALSE;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS date_of_birth date NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS license_class character varying(20) NULL;
+            ALTER TABLE app_users ADD COLUMN IF NOT EXISTS license_issue_date date NULL;
+
+            -- 6c. Default system_settings for rental conditions fallback
+            INSERT INTO system_settings (key, value, data_type, description, updated_at)
+            VALUES
+                ('default_min_age', '21', 'INTEGER', 'Độ tuổi tối thiểu mặc định hệ thống khi xe chưa thiết lập điều kiện riêng', NOW() AT TIME ZONE 'utc'),
+                ('default_min_driving_years', '1', 'INTEGER', 'Số năm kinh nghiệm lái xe tối thiểu mặc định hệ thống', NOW() AT TIME ZONE 'utc'),
+                ('default_required_license', 'B1', 'STRING', 'Hạng GPLX tối thiểu mặc định hệ thống (B1, B2, C)', NOW() AT TIME ZONE 'utc')
+            ON CONFLICT (key) DO NOTHING;
 
             -- 7. rental_contracts extra columns
             ALTER TABLE rental_contracts ADD COLUMN IF NOT EXISTS cancellation_reason text NULL;

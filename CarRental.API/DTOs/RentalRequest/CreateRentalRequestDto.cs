@@ -42,6 +42,12 @@ namespace CarRental.API.DTOs.RentalRequest
 
         public DateTime? DriverLicenseExpiry { get; set; }
 
+        // Tự khai thông tin điều kiện thuê khi chưa duyệt KYC
+        public DateTime? DeclaredDob { get; set; }
+        [StringLength(20)]
+        public string? DeclaredLicenseClass { get; set; }
+        public DateTime? DeclaredLicenseIssueDate { get; set; }
+
         public string? BookingType { get; set; } = "STANDARD"; // FAST_HOLD, STANDARD
         public string? DepositMethod { get; set; } = "VIETQR"; // VIETQR, CASH
         public decimal? HoldDepositAmount { get; set; } = 0;

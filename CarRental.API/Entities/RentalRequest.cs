@@ -53,6 +53,17 @@ namespace CarRental.API.Entities
         [Column("driver_license_expiry")]
         public DateTime? DriverLicenseExpiry { get; set; }
 
+        // Thông tin khách hàng tự khai khi chưa duyệt KYC (phục vụ đối chiếu 2 lớp)
+        [Column("declared_dob", TypeName = "date")]
+        public DateTime? DeclaredDob { get; set; }
+
+        [Column("declared_license_class")]
+        [MaxLength(20)]
+        public string? DeclaredLicenseClass { get; set; }
+
+        [Column("declared_license_issue_date", TypeName = "date")]
+        public DateTime? DeclaredLicenseIssueDate { get; set; }
+
         [Column("start_time")]
         public DateTime StartTime { get; set; }
 

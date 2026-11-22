@@ -20,6 +20,16 @@ namespace CarRental.API.Entities
         [Column("require_driving_years")]
         public int? RequireDrivingYears { get; set; }
 
+        [Column("required_license_class")]
+        [MaxLength(20)]
+        public string RequiredLicenseClass { get; set; } = "B1"; // B1, B2, C
+
+        [Column("min_completed_trips")]
+        public int MinCompletedTrips { get; set; } = 0;
+
+        [Column("require_verified_kyc")]
+        public bool RequireVerifiedKyc { get; set; } = false;
+
         [Column("other_conditions")]
         public string? OtherConditions { get; set; }
 

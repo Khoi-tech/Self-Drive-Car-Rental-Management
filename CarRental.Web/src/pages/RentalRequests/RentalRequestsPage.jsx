@@ -30,8 +30,10 @@ import {
   Receipt
 } from 'lucide-react';
 import rentalRequestService from '../../services/rentalRequestService';
+import rentalConditionService from '../../services/rentalConditionService';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
+import { evaluateEligibility } from '../../utils/eligibilityHelper';
 import HandoverModal from '../../components/handover/HandoverModal';
 import ReturnProtocolModal from '../../components/operations/ReturnProtocolModal';
 
@@ -81,6 +83,26 @@ const RentalRequestsPage = () => {
   // Selected for Details / Inspection Modal
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedCarCondition, setSelectedCarCondition] = useState(null);
+
+  useEffect(() => {
+    if (!isDetailModalOpen || !selectedRequest?.carId) {
+      setSelectedCarCondition(null);
+      return;
+    }
+    let ignore = false;
+    rentalConditionService
+      .getConditionByVehicleId(selectedRequest.carId)
+      .then((res) => {
+        if (!ignore) setSelectedCarCondition(res?.data || res || null);
+      })
+      .catch(() => {
+        if (!ignore) setSelectedCarCondition(null);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [isDetailModalOpen, selectedRequest?.carId]);
 
   // Handover Modal State
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
@@ -1092,8 +1114,105 @@ const RentalRequestsPage = () => {
                       </div>
                     </div>
 
-                {/* Right Column: 4-Photo Inspection Grid */}
+                {/* Right Column: Eligibility Comparison + 4-Photo Inspection Grid */}
                 <div className="lg:col-span-7 space-y-4">
+                  {/* Khung Đối chiếu điều kiện thuê xe (2-layer check) */}
+                  {(() => {
+                    const reqDob = selectedRequest.declaredDob;
+                    const reqLicClass = selectedRequest.declaredLicenseClass || selectedRequest.driverLicenseClass;
+                    const reqIssueDate = selectedRequest.declaredLicenseIssueDate;
+                    const evalResult = evaluateEligibility({
+                      condition: selectedCarCondition,
+                      vehicle: null,
+                      dob: reqDob,
+                      licenseClass: reqLicClass,
+                      licenseIssueDate: reqIssueDate
+                    });
+
+                    const renderStatusBadge = (okFlag, missingLabel = 'Chưa khai') => {
+                      if (okFlag === true) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] whitespace-nowrap">
+                            <CheckCircle2 size={11} className="text-emerald-600" /> Đạt
+                          </span>
+                        );
+                      }
+                      if (okFlag === false) {
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] whitespace-nowrap">
+                            <AlertTriangle size={11} className="text-rose-600" /> Cảnh báo
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold text-[10px] whitespace-nowrap">
+                          <Clock size={11} className="text-amber-600" /> {missingLabel}
+                        </span>
+                      );
+                    };
+
+                    return (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-950 flex items-center gap-1.5">
+                            <ShieldCheck size={15} className="text-blue-900" />
+                            Đối chiếu điều kiện thuê xe
+                          </h3>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            selectedCarCondition?.isCustom
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-sky-50 text-sky-800 border-sky-200'
+                          }`}>
+                            {selectedCarCondition?.isCustom ? 'Điều kiện riêng' : 'Mặc định hệ thống'}
+                          </span>
+                        </div>
+
+                        <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
+                          <table className="w-full text-[11px]">
+                            <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px]">
+                              <tr>
+                                <th className="px-2.5 py-1.5 text-left">Tiêu chí</th>
+                                <th className="px-2.5 py-1.5 text-left">Yêu cầu của xe</th>
+                                <th className="px-2.5 py-1.5 text-left">Khách khai / KYC</th>
+                                <th className="px-2.5 py-1.5 text-right">Kết quả</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              <tr>
+                                <td className="px-2.5 py-1.5 font-semibold text-zinc-900">Độ tuổi</td>
+                                <td className="px-2.5 py-1.5 text-slate-700 font-mono">≥ {evalResult.minAge} tuổi</td>
+                                <td className="px-2.5 py-1.5 text-zinc-950 font-medium">
+                                  {reqDob
+                                    ? `${new Date(reqDob).toLocaleDateString('vi-VN')} (${evalResult.age} tuổi)`
+                                    : <span className="text-slate-400 italic">Đối chiếu trên ảnh CCCD</span>}
+                                </td>
+                                <td className="px-2.5 py-1.5 text-right">{renderStatusBadge(evalResult.ageOk, 'Xem ảnh')}</td>
+                              </tr>
+                              <tr>
+                                <td className="px-2.5 py-1.5 font-semibold text-zinc-900">Kinh nghiệm lái</td>
+                                <td className="px-2.5 py-1.5 text-slate-700 font-mono">≥ {evalResult.minDrivingYears} năm</td>
+                                <td className="px-2.5 py-1.5 text-zinc-950 font-medium">
+                                  {reqIssueDate
+                                    ? `Cấp ${new Date(reqIssueDate).toLocaleDateString('vi-VN')} (${Math.max(0, evalResult.expYears)} năm)`
+                                    : <span className="text-slate-400 italic">Đối chiếu ngày cấp GPLX</span>}
+                                </td>
+                                <td className="px-2.5 py-1.5 text-right">{renderStatusBadge(evalResult.expOk, 'Xem ảnh')}</td>
+                              </tr>
+                              <tr>
+                                <td className="px-2.5 py-1.5 font-semibold text-zinc-900">Hạng GPLX</td>
+                                <td className="px-2.5 py-1.5 text-slate-700 font-mono">Hạng {evalResult.requiredLicense}+</td>
+                                <td className="px-2.5 py-1.5 text-zinc-950 font-bold">
+                                  {reqLicClass ? `Hạng ${reqLicClass}` : <span className="text-slate-400 italic">Chưa khai</span>}
+                                </td>
+                                <td className="px-2.5 py-1.5 text-right">{renderStatusBadge(evalResult.licenseOk)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
                       <ShieldCheck size={18} className="text-amber-500" />

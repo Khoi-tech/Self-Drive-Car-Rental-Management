@@ -12,10 +12,20 @@ namespace CarRental.API.Services
     public class VehicleService : IVehicleService
     {
         private readonly AppDbContext _context;
+        private readonly ISystemSettingsService _settingsService;
 
-        public VehicleService(AppDbContext context)
+        public VehicleService(AppDbContext context, ISystemSettingsService settingsService)
         {
             _context = context;
+            _settingsService = settingsService;
+        }
+
+        private async Task<(int defaultMinAge, int defaultDrivingYears, string defaultLicense)> GetDefaultConditionSettingsAsync()
+        {
+            var defaultMinAge = await _settingsService.GetSettingValueAsync("default_min_age", 21);
+            var defaultDrivingYears = await _settingsService.GetSettingValueAsync("default_min_driving_years", 1);
+            var defaultLicense = await _settingsService.GetSettingValueAsync("default_required_license", "B1");
+            return (defaultMinAge, defaultDrivingYears, string.IsNullOrWhiteSpace(defaultLicense) ? "B1" : defaultLicense.Trim().ToUpperInvariant());
         }
 
         public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(string? search, VehicleStatus? status)
@@ -36,8 +46,9 @@ namespace CarRental.API.Services
             }
 
             var vehicles = await query.ToListAsync();
+            var defaults = await GetDefaultConditionSettingsAsync();
 
-            return vehicles.Select(MapToResponseDto);
+            return vehicles.Select(v => MapToResponseDto(v, defaults.defaultMinAge, defaults.defaultDrivingYears, defaults.defaultLicense));
         }
 
         public async Task<VehicleResponseDto?> GetByIdAsync(Guid id)
@@ -45,7 +56,8 @@ namespace CarRental.API.Services
             var vehicle = await _context.Vehicles.Include(v => v.PricingPolicies).Include(v => v.RentalCondition).FirstOrDefaultAsync(v => v.Id == id && v.IsActive);
             if (vehicle == null) return null;
 
-            return MapToResponseDto(vehicle);
+            var defaults = await GetDefaultConditionSettingsAsync();
+            return MapToResponseDto(vehicle, defaults.defaultMinAge, defaults.defaultDrivingYears, defaults.defaultLicense);
         }
 
         public async Task<VehicleResponseDto> CreateAsync(CreateVehicleDto createDto)
@@ -397,8 +409,20 @@ namespace CarRental.API.Services
             return results;
         }
 
-        private static VehicleResponseDto MapToResponseDto(Vehicle vehicle)
+        private static VehicleResponseDto MapToResponseDto(
+            Vehicle vehicle,
+            int defaultMinAge = 21,
+            int defaultDrivingYears = 1,
+            string defaultLicense = "B1")
         {
+            bool isCustom = vehicle.RentalCondition != null;
+            string rawLicense = isCustom
+                ? (vehicle.RentalCondition!.RequiredLicenseClass ?? "B1")
+                : defaultLicense;
+            string effectiveLicense = (vehicle.Transmission == TransmissionType.MANUAL && (rawLicense == "B1" || rawLicense == "B1_AUTO"))
+                ? "B2"
+                : rawLicense;
+
             return new VehicleResponseDto
             {
                 Id = vehicle.Id,
@@ -424,9 +448,14 @@ namespace CarRental.API.Services
                 ExtraKmRate = vehicle.ExtraKmRate,
                 FuelReturnPolicy = vehicle.FuelReturnPolicy,
                 PricingPoliciesCount = vehicle.PricingPolicies?.Count ?? 0,
-                HasRentalCondition = vehicle.RentalCondition != null,
-                RentalConditionMinAge = vehicle.RentalCondition?.MinAge,
-                RentalConditionRequireDrivingYears = vehicle.RentalCondition?.RequireDrivingYears
+                HasRentalCondition = isCustom,
+                RentalConditionIsCustom = isCustom,
+                RentalConditionMinAge = isCustom ? (vehicle.RentalCondition!.MinAge ?? defaultMinAge) : defaultMinAge,
+                RentalConditionRequireDrivingYears = isCustom ? (vehicle.RentalCondition!.RequireDrivingYears ?? defaultDrivingYears) : defaultDrivingYears,
+                RentalConditionRequiredLicenseClass = effectiveLicense,
+                RentalConditionMinCompletedTrips = isCustom ? vehicle.RentalCondition!.MinCompletedTrips : 0,
+                RentalConditionRequireVerifiedKyc = isCustom && vehicle.RentalCondition!.RequireVerifiedKyc,
+                RentalConditionOtherConditions = isCustom ? vehicle.RentalCondition!.OtherConditions : null
             };
         }
     }

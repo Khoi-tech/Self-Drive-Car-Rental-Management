@@ -69,6 +69,16 @@ namespace CarRental.API.Entities
         [Column("driver_license_expiry")]
         public DateTime? DriverLicenseExpiry { get; set; }
 
+        [Column("date_of_birth", TypeName = "date")]
+        public DateTime? DateOfBirth { get; set; }
+
+        [Column("license_class")]
+        [MaxLength(20)]
+        public string? LicenseClass { get; set; }
+
+        [Column("license_issue_date", TypeName = "date")]
+        public DateTime? LicenseIssueDate { get; set; }
+
         [Column("id_card_front_url")]
         public string? IdCardFrontUrl { get; set; }
 

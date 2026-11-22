@@ -30,7 +30,12 @@ namespace CarRental.API.DTOs.Vehicle
         public string FuelReturnPolicy { get; set; } = null!;
         public int PricingPoliciesCount { get; set; }
         public bool HasRentalCondition { get; set; }
+        public bool RentalConditionIsCustom { get; set; }
         public int? RentalConditionMinAge { get; set; }
         public int? RentalConditionRequireDrivingYears { get; set; }
+        public string RentalConditionRequiredLicenseClass { get; set; } = "B1";
+        public int RentalConditionMinCompletedTrips { get; set; }
+        public bool RentalConditionRequireVerifiedKyc { get; set; }
+        public string? RentalConditionOtherConditions { get; set; }
     }
 }

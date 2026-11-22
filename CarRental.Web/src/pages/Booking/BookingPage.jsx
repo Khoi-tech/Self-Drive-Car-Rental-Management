@@ -26,11 +26,13 @@ import Navbar from '../../components/layout/Navbar';
 import vehicleService from '../../services/vehicleService';
 import pricingService from '../../services/pricingService';
 import rentalRequestService from '../../services/rentalRequestService';
+import rentalConditionService from '../../services/rentalConditionService';
 import { formatCurrencyVND } from '../../utils/formatters';
 import { getPrimaryImageUrl, handleImageError } from '../../utils/imageGalleryHelper';
 import { useAuth } from '../../context/AuthContext';
 import { validateRentalDates } from '../../utils/dateTimeHelpers';
 import { HCMC_DELIVERY_ZONES, getZoneById, formatYardAddress } from '../../utils/deliveryZones';
+import { evaluateEligibility } from '../../utils/eligibilityHelper';
 
 const BookingPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -48,11 +50,20 @@ const BookingPage = () => {
   }, [user, authLoading, navigate]);
 
   const [vehicle, setVehicle] = useState(null);
+  const [rentalCondition, setRentalCondition] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [successResponse, setSuccessResponse] = useState(null);
+
+  // 2-Layer KYC Self-Declaration State (for users not yet KYC verified)
+  const [declaredDob, setDeclaredDob] = useState('');
+  const [declaredLicenseClass, setDeclaredLicenseClass] = useState('B2');
+  const [declaredLicenseIssueDate, setDeclaredLicenseIssueDate] = useState('');
+
+  const isUserKycVerified = String(user?.kycStatus || '').toUpperCase() === 'VERIFIED';
+  const isKycHardBlocked = Boolean(rentalCondition?.requireVerifiedKyc && !isUserKycVerified);
 
   // Booking Type: 'FAST_HOLD' (Default / Recommended) vs 'STANDARD'
   const [bookingType, setBookingType] = useState(
@@ -157,8 +168,16 @@ const BookingPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const vehRes = await vehicleService.getVehicleById(carId);
-        setVehicle(vehRes.data || vehRes);
+        const [vehRes, condRes] = await Promise.allSettled([
+          vehicleService.getVehicleById(carId),
+          rentalConditionService.getConditionByVehicleId(carId)
+        ]);
+        if (vehRes.status === 'fulfilled') {
+          setVehicle(vehRes.value?.data || vehRes.value);
+        }
+        if (condRes.status === 'fulfilled') {
+          setRentalCondition(condRes.value?.data || condRes.value || null);
+        }
 
         if (validateRentalDates(startTimeStr, endTimeStr).valid) {
           const start = new Date(startTimeStr);
@@ -180,6 +199,20 @@ const BookingPage = () => {
     };
     fetchData();
   }, [carId, startTimeStr, endTimeStr, navigate]);
+
+  const effectiveDobForCheck = isUserKycVerified && user?.dateOfBirth ? user.dateOfBirth : declaredDob;
+  const effectiveLicenseClassForCheck = isUserKycVerified && (user?.licenseClass || user?.driverLicenseClass)
+    ? (user.licenseClass || user.driverLicenseClass)
+    : (declaredLicenseClass || formData.driverLicenseClass);
+  const effectiveIssueDateForCheck = isUserKycVerified && user?.licenseIssueDate ? user.licenseIssueDate : declaredLicenseIssueDate;
+
+  const eligibilityCheck = evaluateEligibility({
+    condition: rentalCondition,
+    vehicle,
+    dob: effectiveDobForCheck,
+    licenseClass: effectiveLicenseClassForCheck,
+    licenseIssueDate: effectiveIssueDateForCheck
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -376,6 +409,27 @@ const BookingPage = () => {
       }
     }
 
+    if (isKycHardBlocked) {
+      setError('Xe này yêu cầu tài khoản đã duyệt KYC trước khi đặt. Vui lòng hoàn tất xác minh CCCD & GPLX trong Hồ sơ cá nhân.');
+      return;
+    }
+
+    if (!isUserKycVerified) {
+      if (!declaredDob) {
+        setError('Vui lòng khai báo Ngày sinh để kiểm tra điều kiện độ tuổi thuê xe.');
+        return;
+      }
+      if (!declaredLicenseIssueDate) {
+        setError('Vui lòng khai báo Ngày cấp GPLX để kiểm tra điều kiện số năm kinh nghiệm lái xe.');
+        return;
+      }
+    }
+
+    if (!eligibilityCheck.isAllValid) {
+      setError(eligibilityCheck.errors[0]);
+      return;
+    }
+
     if (deliveryMethod === 'DELIVERY' && !deliveryAddressDetail.trim()) {
       setError('Vui lòng nhập địa chỉ giao xe chi tiết (số nhà, tên đường, phường) để nhân viên VELORA giao xe tận nơi.');
       return;
@@ -398,6 +452,9 @@ const BookingPage = () => {
         pickupLocation: effectivePickupLocation,
         dropoffLocation: effectivePickupLocation,
         estimatedDeliveryDistanceKm: effectiveDeliveryDistanceKm,
+        declaredDob: effectiveDobForCheck ? new Date(effectiveDobForCheck).toISOString() : null,
+        declaredLicenseClass: effectiveLicenseClassForCheck || formData.driverLicenseClass || 'B2',
+        declaredLicenseIssueDate: effectiveIssueDateForCheck ? new Date(effectiveIssueDateForCheck).toISOString() : null,
         customerName: formData.customerName.trim(),
         customerPhone: formData.customerPhone.trim(),
         customerEmail: formData.customerEmail.trim(),
@@ -783,6 +840,181 @@ const BookingPage = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
+
+              {/* Box Điều kiện bắt buộc & Khai báo 2 lớp */}
+              {rentalCondition && (
+                <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-900" />
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950">
+                        Điều kiện bắt buộc để thuê xe này
+                      </h2>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                      rentalCondition.isCustom
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-sky-50 text-sky-800 border-sky-200'
+                    }`}>
+                      {rentalCondition.isCustom ? 'Quy định riêng của xe' : 'Mặc định hệ thống'}
+                    </span>
+                  </div>
+
+                  {/* Criteria Summary Chips */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Độ tuổi</span>
+                      <strong className="text-zinc-950">≥ {eligibilityCheck.minAge} tuổi</strong>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Kinh nghiệm lái</span>
+                      <strong className="text-zinc-950">≥ {eligibilityCheck.minDrivingYears} năm</strong>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Hạng GPLX</span>
+                      <strong className="text-zinc-950">Hạng {eligibilityCheck.requiredLicense}+</strong>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Yêu cầu thêm</span>
+                      <strong className={rentalCondition.requireVerifiedKyc ? 'text-amber-800' : 'text-emerald-700'}>
+                        {rentalCondition.requireVerifiedKyc
+                          ? 'Bắt buộc KYC'
+                          : (rentalCondition.minCompletedTrips > 0 ? `≥ ${rentalCondition.minCompletedTrips} chuyến` : 'Tiêu chuẩn')}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Hard Block Banner if requireVerifiedKyc && user not VERIFIED */}
+                  {isKycHardBlocked ? (
+                    <div className="p-4 rounded-lg bg-rose-50 border border-rose-300 text-rose-900 space-y-2.5">
+                      <div className="flex items-start gap-2.5">
+                        <Lock className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div className="text-xs leading-relaxed">
+                          <strong className="block text-rose-950">
+                            Xe này yêu cầu tài khoản đã duyệt xác minh danh tính (KYC) trước khi đặt!
+                          </strong>
+                          <p className="text-rose-800 mt-0.5">
+                            Tài khoản hiện tại của bạn đang ở trạng thái <strong>{user?.kycStatus || 'CHƯA XÁC MINH'}</strong>. Vui lòng cập nhật CCCD & GPLX trong Hồ sơ cá nhân để quản lý duyệt KYC, sau đó quay lại đặt xe.
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to="/profile"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition shadow-xs"
+                      >
+                        <span>Đi tới Hồ sơ xác minh KYC</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  ) : !isUserKycVerified ? (
+                    /* Self-declaration 3 fields for unverified user */
+                    <div className="p-4 rounded-lg bg-amber-50/60 border border-amber-200 space-y-3">
+                      <div className="flex items-start gap-2 text-xs text-amber-950">
+                        <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                        <div>
+                          <strong>Khai báo nhanh thông tin đủ điều kiện lái xe:</strong>
+                          <span className="block text-[11px] text-amber-800 mt-0.5">
+                            Nhân viên VELORA sẽ đối chiếu thông tin bạn tự khai dưới đây với ảnh gốc CCCD/GPLX khi duyệt đơn.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-900 mb-1">
+                            Ngày sinh <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="date"
+                            value={declaredDob}
+                            onChange={(e) => {
+                              setDeclaredDob(e.target.value);
+                              if (error) setError(null);
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            required
+                            className={`w-full bg-white border rounded-md px-2.5 py-2 text-xs font-semibold text-zinc-950 focus:outline-none ${
+                              eligibilityCheck.ageOk === false ? 'border-rose-500 bg-rose-50/40' : 'border-slate-300 focus:border-blue-900'
+                            }`}
+                          />
+                          {eligibilityCheck.age !== null && (
+                            <span className={`text-[10px] font-semibold mt-0.5 block ${eligibilityCheck.ageOk ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {eligibilityCheck.ageOk ? `✓ Đủ tuổi (${eligibilityCheck.age} tuổi)` : `✗ Chưa đủ ${eligibilityCheck.minAge} tuổi (${eligibilityCheck.age} tuổi)`}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-900 mb-1">
+                            Hạng GPLX <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={declaredLicenseClass}
+                            onChange={(e) => {
+                              setDeclaredLicenseClass(e.target.value);
+                              setFormData(prev => ({ ...prev, driverLicenseClass: e.target.value }));
+                              if (error) setError(null);
+                            }}
+                            className={`w-full bg-white border rounded-md px-2.5 py-2 text-xs font-semibold text-zinc-950 focus:outline-none ${
+                              eligibilityCheck.licenseOk === false ? 'border-rose-500 bg-rose-50/40' : 'border-slate-300 focus:border-blue-900'
+                            }`}
+                          >
+                            <option value="B1">Hạng B1 (Số tự động)</option>
+                            <option value="B2">Hạng B2 (Số sàn & tự động)</option>
+                            <option value="C">Hạng C trở lên</option>
+                            <option value="D">Hạng D / E</option>
+                          </select>
+                          {eligibilityCheck.licenseOk !== null && (
+                            <span className={`text-[10px] font-semibold mt-0.5 block ${eligibilityCheck.licenseOk ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {eligibilityCheck.licenseOk ? `✓ Đạt chuẩn (${eligibilityCheck.requiredLicense}+)` : `✗ Cần tối thiểu hạng ${eligibilityCheck.requiredLicense}`}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-zinc-900 mb-1">
+                            Ngày cấp GPLX <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="date"
+                            value={declaredLicenseIssueDate}
+                            onChange={(e) => {
+                              setDeclaredLicenseIssueDate(e.target.value);
+                              if (error) setError(null);
+                            }}
+                            max={new Date().toISOString().split('T')[0]}
+                            required
+                            className={`w-full bg-white border rounded-md px-2.5 py-2 text-xs font-semibold text-zinc-950 focus:outline-none ${
+                              eligibilityCheck.expOk === false ? 'border-rose-500 bg-rose-50/40' : 'border-slate-300 focus:border-blue-900'
+                            }`}
+                          />
+                          {eligibilityCheck.expYears !== null && (
+                            <span className={`text-[10px] font-semibold mt-0.5 block ${eligibilityCheck.expOk ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {eligibilityCheck.expOk ? `✓ Đủ kinh nghiệm (${eligibilityCheck.expYears} năm)` : `✗ Cần ≥ ${eligibilityCheck.minDrivingYears} năm (${Math.max(0, eligibilityCheck.expYears)} năm)`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {!eligibilityCheck.isAllValid && (
+                        <div className="p-2.5 rounded bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-semibold space-y-1">
+                          {eligibilityCheck.errors.map((errItem, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{errItem}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-semibold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Tài khoản của bạn đã xác minh KYC thành công — hệ thống tự động đối chiếu hồ sơ định danh đã duyệt.</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Box 0: Hình thức nhận & giao xe */}
               <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs space-y-4">
@@ -1547,9 +1779,9 @@ const BookingPage = () => {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting || isAccountSuspended || isInvalidBookingDates}
+                    disabled={submitting || isAccountSuspended || isInvalidBookingDates || isKycHardBlocked || !eligibilityCheck.isAllValid}
                     className={`w-full font-extrabold text-xs py-3.5 px-4 rounded-md shadow-sm transition-all flex items-center justify-center gap-2 uppercase tracking-wider ${
-                      isAccountSuspended || isInvalidBookingDates
+                      isAccountSuspended || isInvalidBookingDates || isKycHardBlocked || !eligibilityCheck.isAllValid
                         ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
                         : 'bg-amber-500 hover:bg-amber-600 disabled:bg-slate-400 text-white cursor-pointer hover:shadow-md'
                     }`}
@@ -1558,6 +1790,16 @@ const BookingPage = () => {
                       <>
                         <Lock className="w-4 h-4" />
                         <span>Đã khóa chức năng đặt xe mới</span>
+                      </>
+                    ) : isKycHardBlocked ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Cần duyệt KYC trước khi đặt</span>
+                      </>
+                    ) : !eligibilityCheck.isAllValid ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Chưa đáp ứng điều kiện thuê xe</span>
                       </>
                     ) : isInvalidBookingDates ? (
                       <>
@@ -1616,9 +1858,9 @@ const BookingPage = () => {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={submitting || isAccountSuspended || isInvalidBookingDates}
+                    disabled={submitting || isAccountSuspended || isInvalidBookingDates || isKycHardBlocked || !eligibilityCheck.isAllValid}
                     className={`w-full font-bold text-xs py-3.5 px-4 rounded-md shadow-xs transition-colors flex items-center justify-center gap-2 uppercase tracking-wider ${
-                      isAccountSuspended || isInvalidBookingDates
+                      isAccountSuspended || isInvalidBookingDates || isKycHardBlocked || !eligibilityCheck.isAllValid
                         ? 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed'
                         : depositMethod === 'CASH'
                         ? 'bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white cursor-pointer hover:shadow-md'
@@ -1629,6 +1871,16 @@ const BookingPage = () => {
                       <>
                         <Lock className="w-4 h-4" />
                         <span>Đã khóa chức năng đặt xe mới</span>
+                      </>
+                    ) : isKycHardBlocked ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Cần duyệt KYC trước khi đặt</span>
+                      </>
+                    ) : !eligibilityCheck.isAllValid ? (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Chưa đáp ứng điều kiện thuê xe</span>
                       </>
                     ) : isInvalidBookingDates ? (
                       <>

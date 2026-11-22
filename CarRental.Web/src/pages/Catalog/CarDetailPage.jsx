@@ -655,25 +655,71 @@ const CarDetailPage = () => {
               </div>
             </section>
 
-            {/* Bảng Điều kiện thuê xe (Rental Conditions) */}
+            {/* Bảng Điều kiện bắt buộc để thuê xe này (Effective Rental Conditions) */}
             <section className="bg-white rounded-lg border border-slate-200 p-6 shadow-xs">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950 mb-4">
-                Điều kiện thuê xe & Hồ sơ thẩm định
-              </h2>
-              <div className="space-y-4">
-                
-                <div className="flex items-start gap-3.5 p-3.5 bg-slate-50 border border-slate-200/80 rounded-md">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-950 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-900" />
+                  Điều kiện bắt buộc để thuê xe này
+                </h2>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                  condition?.isCustom
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-sky-50 text-sky-800 border-sky-200'
+                }`}>
+                  {condition?.isCustom ? 'Quy định riêng của xe' : 'Chuẩn mặc định VELORA'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-md">
                   <div className="w-8 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-900 shrink-0 shadow-xs">
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-zinc-950 mb-0.5">Độ tuổi & Giấy phép lái xe</div>
+                    <div className="text-xs font-bold text-zinc-950 mb-0.5">Độ tuổi & Kinh nghiệm lái</div>
                     <p className="text-xs text-slate-600">
-                      Người lái từ <strong className="text-zinc-950">{condition?.minAge || 21} tuổi</strong> trở lên, sở hữu bằng lái xe ô tô hạng B1/B2 còn hạn tối thiểu <strong className="text-zinc-950">{condition?.requireDrivingYears || 1} năm</strong>.
+                      Từ <strong className="text-zinc-950">{condition?.minAge ?? 21} tuổi</strong> trở lên • Tối thiểu <strong className="text-zinc-950">{condition?.requireDrivingYears ?? 1} năm</strong> kinh nghiệm tính từ ngày cấp GPLX.
                     </p>
                   </div>
                 </div>
 
+                <div className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-md">
+                  <div className="w-8 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-900 shrink-0 shadow-xs">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-zinc-950 mb-0.5">Hạng GPLX & Lịch sử thuê</div>
+                    <p className="text-xs text-slate-600">
+                      Bằng lái tối thiểu <strong className="text-zinc-950">hạng {condition?.requiredLicenseClass || (vehicle.transmission === 'MANUAL' ? 'B2' : 'B1')}</strong>
+                      {(condition?.minCompletedTrips || 0) > 0 && (
+                        <> • Tối thiểu <strong className="text-indigo-800">{condition.minCompletedTrips} chuyến hoàn tất</strong></>
+                      )}
+                      .
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {condition?.requireVerifiedKyc && (
+                <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2.5 text-xs text-amber-950">
+                  <Lock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block">Bắt buộc xác minh danh tính (KYC) trước khi đặt xe:</strong>
+                    <span className="text-[11px] text-amber-800">
+                      Tài khoản cần được VELORA duyệt CCCD & GPLX thành công trong mục Hồ sơ cá nhân trước khi tạo đơn thuê xe này.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {condition?.otherConditions && (
+                <div className="mb-4 p-3 bg-blue-50/50 border border-blue-100 rounded-md text-xs text-slate-700">
+                  <strong className="text-blue-950">Lưu ý bổ sung:</strong> {condition.otherConditions}
+                </div>
+              )}
+
+              <div className="space-y-4">
                 <div className="flex items-start gap-3.5 p-3.5 bg-slate-50 border border-slate-200/80 rounded-md">
                   <div className="w-8 h-8 rounded-md bg-white border border-slate-200 flex items-center justify-center text-blue-900 shrink-0 shadow-xs">
                     <CreditCard className="w-4 h-4" />

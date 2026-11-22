@@ -11,6 +11,11 @@ namespace CarRental.API.DTOs.Auth
         public string Role { get; set; } = null!;
         public bool IsActive { get; set; } = true;
         public string? LockReason { get; set; }
+        public string KycStatus { get; set; } = "PENDING";
+        public DateTime? DateOfBirth { get; set; }
+        public string? DriverLicenseClass { get; set; }
+        public string? LicenseClass { get; set; }
+        public DateTime? LicenseIssueDate { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

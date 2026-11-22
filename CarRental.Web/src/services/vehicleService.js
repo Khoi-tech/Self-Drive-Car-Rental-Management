@@ -14,7 +14,7 @@ const vehicleService = {
       if (status && status !== 'all') params.status = status;
       
       const response = await api.get('/vehicles', { params });
-      return response; // Assuming backend returns array or { data: [...] }
+      return Array.isArray(response) ? response : (response?.items ?? response?.data ?? []);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
       throw error;

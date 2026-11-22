@@ -17,7 +17,7 @@ const PricingPage = () => {
       setLoading(true);
       setError(null);
       const data = await vehicleService.getAllVehicles(searchTerm);
-      setVehicles(Array.isArray(data) ? data : data.data || []);
+      setVehicles(Array.isArray(data) ? data : (data?.items ?? data?.data ?? []));
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Lỗi khi tải danh sách xe.');
     } finally {

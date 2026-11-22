@@ -102,9 +102,14 @@ class _ContractSignScreenState extends State<ContractSignScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 28),
+            Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 26),
             SizedBox(width: 8),
-            Text('Ký Hợp Đồng Thành Công!'),
+            Expanded(
+              child: Text(
+                'Ký Hợp Đồng Thành Công!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -384,7 +389,8 @@ class _ContractSignScreenState extends State<ContractSignScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Chữ ký số: ${contract.customerSignature ?? contract.customerName}',
+            'Chữ ký số: ${(contract.customerSignature != null && !contract.customerSignature!.startsWith('/api/') && !contract.customerSignature!.startsWith('http')) ? contract.customerSignature : (contract.customerName ?? 'Đã xác thực chữ ký điện tử')}',
+            textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
           if (contract.isCashDeposit) ...[

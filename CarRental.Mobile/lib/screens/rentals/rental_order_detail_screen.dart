@@ -436,13 +436,14 @@ class _RentalOrderDetailScreenState extends State<RentalOrderDetailScreen> {
               children: [
                 DropdownButtonFormField<String>(
                   initialValue: incidentType,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Loại sự cố'),
                   items: const [
-                    DropdownMenuItem(value: 'COLLISION', child: Text('Va chạm / Tai nạn')),
-                    DropdownMenuItem(value: 'BREAKDOWN', child: Text('Hỏng máy / Chết máy')),
-                    DropdownMenuItem(value: 'FLAT_TIRE', child: Text('Nổ lốp / Xì lốp')),
-                    DropdownMenuItem(value: 'FLOOD', child: Text('Ngập nước')),
-                    DropdownMenuItem(value: 'OTHER', child: Text('Sự cố khác')),
+                    DropdownMenuItem(value: 'COLLISION', child: Text('Va chạm / Tai nạn', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'BREAKDOWN', child: Text('Hỏng máy / Chết máy', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'FLAT_TIRE', child: Text('Nổ lốp / Xì lốp', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'FLOOD', child: Text('Ngập nước', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'OTHER', child: Text('Sự cố khác', overflow: TextOverflow.ellipsis)),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => incidentType = v);
@@ -451,11 +452,12 @@ class _RentalOrderDetailScreenState extends State<RentalOrderDetailScreen> {
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: severity,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Mức độ nghiêm trọng'),
                   items: const [
-                    DropdownMenuItem(value: 'LOW', child: Text('Nhẹ (Vẫn di chuyển được)')),
-                    DropdownMenuItem(value: 'MEDIUM', child: Text('Trung bình (Cần hỗ trợ kỹ thuật)')),
-                    DropdownMenuItem(value: 'HIGH', child: Text('Khẩn cấp (Cần xe cứu hộ ngay)')),
+                    DropdownMenuItem(value: 'LOW', child: Text('Nhẹ (Vẫn di chuyển được)', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'MEDIUM', child: Text('Trung bình (Cần hỗ trợ kỹ thuật)', overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(value: 'HIGH', child: Text('Khẩn cấp (Cần xe cứu hộ ngay)', overflow: TextOverflow.ellipsis)),
                   ],
                   onChanged: (v) {
                     if (v != null) setDialogState(() => severity = v);

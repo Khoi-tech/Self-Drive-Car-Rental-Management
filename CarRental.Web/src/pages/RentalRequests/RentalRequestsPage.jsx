@@ -448,25 +448,24 @@ const RentalRequestsPage = () => {
           </div>
         </div>
 
-        {/* Requests Table - Compact layout for 1366px-1440px */}
+        {/* Requests Table - Fits 1280px-1440px without horizontal overflow */}
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-3 py-3 whitespace-nowrap">Mã đơn / Cọc</th>
-                <th className="px-3 py-3 whitespace-nowrap">Khách hàng</th>
-                <th className="px-3 py-3 whitespace-nowrap">Xe thuê</th>
-                <th className="px-3 py-3 whitespace-nowrap">Lịch thuê</th>
-                <th className="px-3 py-3 text-right whitespace-nowrap">Tổng tiền / Cọc</th>
-                <th className="px-3 py-3 text-center whitespace-nowrap">Hồ sơ</th>
-                <th className="px-3 py-3 text-center whitespace-nowrap">Trạng thái</th>
-                <th className="px-3 py-3 text-right whitespace-nowrap">Thao tác</th>
+                <th className="px-2.5 py-3 whitespace-nowrap">Mã đơn / Cọc</th>
+                <th className="px-2.5 py-3 whitespace-nowrap">Khách hàng & KYC</th>
+                <th className="px-2.5 py-3 whitespace-nowrap">Xe thuê</th>
+                <th className="px-2.5 py-3 whitespace-nowrap">Lịch thuê</th>
+                <th className="px-2.5 py-3 text-right whitespace-nowrap">Tổng tiền / Cọc</th>
+                <th className="px-2.5 py-3 text-center whitespace-nowrap">Trạng thái</th>
+                <th className="px-2.5 py-3 text-right whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
                     <div className="inline-flex items-center gap-2">
                       <RefreshCw size={18} className="animate-spin text-[#0F172A]" />
                       <span>Đang tải danh sách đơn thuê...</span>
@@ -475,7 +474,7 @@ const RentalRequestsPage = () => {
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
                     <FileText size={32} className="mx-auto mb-2 text-slate-300" />
                     <p className="font-medium text-slate-600">Không tìm thấy đơn thuê nào</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Thử thay đổi bộ lọc trạng thái hoặc từ khóa tìm kiếm</p>
@@ -499,70 +498,83 @@ const RentalRequestsPage = () => {
                   return (
                     <tr key={req.id} className="hover:bg-slate-50/80 transition group">
                       {/* Code & Deposit Mode Badge */}
-                      <td className="px-3 py-3 font-mono text-xs whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-nowrap">
-                          <span className="font-semibold text-zinc-950 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <td className="px-2.5 py-2.5 font-mono text-xs whitespace-nowrap">
+                        <div className="flex items-center gap-1 flex-nowrap">
+                          <span className="font-semibold text-zinc-950 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">
                             {req.id.substring(0, 8).toUpperCase()}
                           </span>
                           {isFastHold ? (
                             <span
-                              className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
                               title="Đơn giữ chỗ nhanh Fast Hold 500k"
                             >
-                              <Zap size={10} className="fill-white shrink-0" />
+                              <Zap size={9} className="fill-white shrink-0" />
                               <span>Fast Hold</span>
                             </span>
                           ) : req.depositMethod === 'CASH' ? (
                             <span
-                              className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
                               title="Cọc tiền mặt khi nhận xe"
                             >
-                              <Wallet size={10} className="shrink-0" />
-                              <span>Cọc tiền mặt</span>
+                              <Wallet size={9} className="shrink-0" />
+                              <span>Tiền mặt</span>
                             </span>
                           ) : (
                             <span
-                              className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[10px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0 shadow-2xs"
+                              className="px-1.5 py-0.5 rounded bg-blue-600 text-white text-[9px] font-bold inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
                               title="Cọc chuyển khoản VietQR"
                             >
-                              <QrCode size={10} className="shrink-0" />
+                              <QrCode size={9} className="shrink-0" />
                               <span>VietQR</span>
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-1 tabular-nums">
+                        <div className="text-[10px] text-slate-400 mt-0.5 tabular-nums">
                           {formatDateTime(req.createdAt)}
                         </div>
                       </td>
 
-                      {/* Customer */}
-                      <td className="px-3 py-3 max-w-[150px]">
+                      {/* Customer + KYC badge */}
+                      <td className="px-2.5 py-2.5 max-w-[155px]">
                         <div className="font-semibold text-zinc-950 truncate" title={req.customerName}>
                           {req.customerName}
                         </div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 tabular-nums whitespace-nowrap">
-                          <Phone size={10} className="text-slate-400 shrink-0" />
-                          <span>{req.customerPhone}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-nowrap">
+                          <span className="text-[10px] text-slate-500 tabular-nums whitespace-nowrap">
+                            {req.customerPhone}
+                          </span>
+                          {hasPhotos && req.customerIdCard !== 'CHƯA_CẬP_NHẬT' ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 text-[9px] font-semibold border border-emerald-200 whitespace-nowrap shrink-0" title="Đã đủ ảnh CCCD/GPLX">
+                              <ShieldCheck size={9} className="shrink-0" />
+                              <span>KYC</span>
+                            </span>
+                          ) : isFastHold ? (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 text-[9px] font-semibold border border-amber-200 whitespace-nowrap shrink-0" title="Chờ khách nộp giấy tờ">
+                              <span>Chờ KYC</span>
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-400 italic whitespace-nowrap shrink-0">Thiếu ảnh</span>
+                          )}
                         </div>
                       </td>
 
                       {/* Vehicle */}
-                      <td className="px-3 py-3">
+                      <td className="px-2.5 py-2.5">
                         <div className="flex items-center gap-2">
                           {req.carImageUrl ? (
                             <img 
                               src={getPrimaryImageUrl(req.carImageUrl)} 
                               alt={req.carModel} 
                               onError={handleImageError}
-                              className="w-10 h-7 object-cover rounded border border-slate-200 shrink-0"
+                              className="w-9 h-7 object-cover rounded border border-slate-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-7 bg-slate-100 rounded flex items-center justify-center text-slate-400 shrink-0">
-                              <Car size={14} />
+                            <div className="w-9 h-7 bg-slate-100 rounded flex items-center justify-center text-slate-400 shrink-0">
+                              <Car size={13} />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <div className="font-semibold text-zinc-950 truncate max-w-[130px]" title={`${req.carMake} ${req.carModel}`}>
+                            <div className="font-semibold text-zinc-950 truncate max-w-[115px]" title={`${req.carMake} ${req.carModel}`}>
                               {req.carMake} {req.carModel}
                             </div>
                             <span className="license-plate text-[10px] px-1.5 py-0.2 inline-block mt-0.5">
@@ -573,21 +585,21 @@ const RentalRequestsPage = () => {
                       </td>
 
                       {/* Schedule */}
-                      <td className="px-3 py-3 text-xs whitespace-nowrap">
+                      <td className="px-2.5 py-2.5 text-xs whitespace-nowrap">
                         <div className="text-zinc-950 font-semibold tabular-nums">
                           {req.totalDays} ngày
                         </div>
-                        <div className="text-slate-500 mt-0.5 text-[11px] tabular-nums">
-                          {new Date(req.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} – {new Date(req.endTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        <div className="text-slate-500 mt-0.5 text-[10px] tabular-nums">
+                          {new Date(req.startTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}–{new Date(req.endTime).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </div>
                       </td>
 
                       {/* Compact Price & Deposit */}
-                      <td className="px-3 py-3 text-right whitespace-nowrap">
-                        <div className="font-bold text-zinc-950 tabular-nums">
+                      <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
+                        <div className="font-bold text-zinc-950 tabular-nums text-[12px]">
                           {formatCurrency(req.estimatedTotalFee)}
                         </div>
-                        <div className="text-[11px] mt-0.5 tabular-nums">
+                        <div className="text-[10px] mt-0.5 tabular-nums">
                           {isFastHold ? (
                             req.isSecurityDepositPaid ? (
                               <span className="text-emerald-700 font-semibold" title="Đã thu 500k giữ chỗ + cọc thế chân">
@@ -606,39 +618,22 @@ const RentalRequestsPage = () => {
                         </div>
                       </td>
 
-                      {/* Photos Preview */}
-                      <td className="px-3 py-3 text-center whitespace-nowrap">
-                        {hasPhotos && req.customerIdCard !== 'CHƯA_CẬP_NHẬT' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-medium border border-emerald-200 whitespace-nowrap">
-                            <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
-                            <span>Đủ giấy tờ</span>
-                          </span>
-                        ) : isFastHold ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 text-[11px] font-semibold border border-amber-200 whitespace-nowrap">
-                            <Clock size={11} className="text-amber-600 shrink-0" />
-                            <span>Chờ KYC</span>
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 italic">Thiếu ảnh</span>
-                        )}
-                      </td>
-
                       {/* Status */}
-                      <td className="px-3 py-3 text-center whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
-                          <StatusIcon size={11} className="shrink-0" />
+                      <td className="px-2.5 py-2.5 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${statusInfo.bg} ${statusInfo.text} ${statusInfo.border}`}>
+                          <StatusIcon size={10} className="shrink-0" />
                           {statusInfo.label}
                         </span>
 
                         {req.status === 'REJECTED' && req.rejectReason && (
-                          <p className="text-[10px] text-rose-600 mt-1 max-w-[120px] truncate mx-auto" title={req.rejectReason}>
+                          <p className="text-[10px] text-rose-600 mt-1 max-w-[110px] truncate mx-auto" title={req.rejectReason}>
                             {req.rejectReason}
                           </p>
                         )}
                       </td>
 
                       {/* Action - Always visible on right */}
-                      <td className="px-3 py-3 text-right whitespace-nowrap">
+                      <td className="px-2.5 py-2.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1 flex-nowrap">
                           {/* Detail & Inspection */}
                           <button

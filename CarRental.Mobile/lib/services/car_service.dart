@@ -143,6 +143,8 @@ class CarService {
     int rentalDays, {
     bool isHoliday = false,
     bool isVietQrPrepaid = false,
+    DateTime? startTime,
+    String? customerEmail,
   }) async {
     final baseUrl = await ApiConstants.getBaseUrl();
     final url =
@@ -150,15 +152,23 @@ class CarService {
     final headers = await _buildHeaders();
 
     try {
+      final bodyMap = <String, dynamic>{
+        'rentalDays': rentalDays,
+        'isHoliday': isHoliday,
+        'isVietQrPrepaid': isVietQrPrepaid,
+      };
+      if (startTime != null) {
+        bodyMap['startTime'] = startTime.toUtc().toIso8601String();
+      }
+      if (customerEmail != null && customerEmail.trim().isNotEmpty) {
+        bodyMap['customerEmail'] = customerEmail.trim();
+      }
+
       final response = await http
           .post(
             url,
             headers: headers,
-            body: jsonEncode({
-              'rentalDays': rentalDays,
-              'isHoliday': isHoliday,
-              'isVietQrPrepaid': isVietQrPrepaid,
-            }),
+            body: jsonEncode(bodyMap),
           )
           .timeout(const Duration(seconds: 10));
 
@@ -175,5 +185,26 @@ class CarService {
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getMembershipTiers() async {
+    final baseUrl = await ApiConstants.getBaseUrl();
+    final url = Uri.parse('$baseUrl${ApiConstants.membershipTiers}');
+    final headers = await _buildHeaders();
+
+    try {
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final list = decoded is Map<String, dynamic> && decoded['tiers'] is List
+            ? decoded['tiers'] as List<dynamic>
+            : (decoded is List ? decoded : <dynamic>[]);
+        return list.whereType<Map<String, dynamic>>().toList();
+      }
+    } catch (_) {}
+    return [];
   }
 }

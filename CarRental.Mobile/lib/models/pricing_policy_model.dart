@@ -44,6 +44,13 @@ class PricingPreviewModel {
   final double discountAmount;
   final double holidaySurchargeAmount;
   final double vietQrDiscountAmount;
+  final String membershipTier;
+  final int vipEarlyBookingDays;
+  final double vipEarlyBookingDiscountPercentage;
+  final double vipEarlyBookingDiscountAmount;
+  final String? vipEarlyBookingNote;
+  final bool freeCarWash;
+  final int bonusKmPerDay;
   final double adjustedDailyPrice;
   final double rentalPrice;
 
@@ -58,6 +65,13 @@ class PricingPreviewModel {
     required this.discountAmount,
     required this.holidaySurchargeAmount,
     this.vietQrDiscountAmount = 0.0,
+    this.membershipTier = 'STANDARD',
+    this.vipEarlyBookingDays = 7,
+    this.vipEarlyBookingDiscountPercentage = 0.0,
+    this.vipEarlyBookingDiscountAmount = 0.0,
+    this.vipEarlyBookingNote,
+    this.freeCarWash = false,
+    this.bonusKmPerDay = 0,
     required this.adjustedDailyPrice,
     required this.rentalPrice,
   });
@@ -100,6 +114,23 @@ class PricingPreviewModel {
       vietQrDiscountAmount: (json['vietQrDiscountAmount'] is num)
           ? (json['vietQrDiscountAmount'] as num).toDouble()
           : 0.0,
+      membershipTier: json['membershipTier']?.toString() ?? 'STANDARD',
+      vipEarlyBookingDays: (json['vipEarlyBookingDays'] is num)
+          ? (json['vipEarlyBookingDays'] as num).toInt()
+          : 7,
+      vipEarlyBookingDiscountPercentage:
+          (json['vipEarlyBookingDiscountPercentage'] is num)
+              ? (json['vipEarlyBookingDiscountPercentage'] as num).toDouble()
+              : 0.0,
+      vipEarlyBookingDiscountAmount:
+          (json['vipEarlyBookingDiscountAmount'] is num)
+              ? (json['vipEarlyBookingDiscountAmount'] as num).toDouble()
+              : 0.0,
+      vipEarlyBookingNote: json['vipEarlyBookingNote']?.toString(),
+      freeCarWash: json['freeCarWash'] == true,
+      bonusKmPerDay: (json['bonusKmPerDay'] is num)
+          ? (json['bonusKmPerDay'] as num).toInt()
+          : 0,
       adjustedDailyPrice: (json['adjustedDailyPrice'] is num)
           ? (json['adjustedDailyPrice'] as num).toDouble()
           : basePrice,

@@ -113,6 +113,8 @@ class _BookingScreenState extends State<BookingScreen> {
       _rentalDays,
       isHoliday: false,
       isVietQrPrepaid: _paymentMode == 'VIETQR',
+      startTime: _startDate,
+      customerEmail: _emailController.text.trim(),
     );
     if (mounted) {
       setState(() {
@@ -776,6 +778,15 @@ class _BookingScreenState extends State<BookingScreen> {
                       _buildCostRow(
                         'Chiết khấu thuê dài ngày (-${longTermDiscountPct.toStringAsFixed(0)}%)',
                         '-${currencyFormatter.format(longTermDiscountAmt)}',
+                        isHighlight: true,
+                      ),
+                    ],
+                    if ((_pricingPreview?.vipEarlyBookingDiscountAmount ?? 0) > 0) ...[
+                      const SizedBox(height: 8),
+                      _buildCostRow(
+                        _pricingPreview!.vipEarlyBookingNote ??
+                            'Ưu đãi Hội viên ${_pricingPreview!.membershipTier} (-${_pricingPreview!.vipEarlyBookingDiscountPercentage.toStringAsFixed(0)}%)',
+                        '-${currencyFormatter.format(_pricingPreview!.vipEarlyBookingDiscountAmount)}',
                         isHighlight: true,
                       ),
                     ],
